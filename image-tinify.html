@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
     <meta name="app-name" content="图片压缩">
-    <meta name="app-version" content="2.2.0">
+    <meta name="app-version" content="2.3.0">
     <meta name="app-author" content="Hrimyx">
     <title></title>
     <script>
@@ -487,6 +487,27 @@
         };
 
         const PROXY_URL = 'https://tinify-proxy.hrimyx.workers.dev';
+        // 请求超时配置：上传/下载类请求与普通接口请求分别设置，避免长时间无响应挂起
+        const UPLOAD_TIMEOUT = 30000;
+        const FETCH_TIMEOUT = 20000;
+
+        // 全局异常兜底：捕获未处理的运行时错误与 Promise 拒绝，避免异常信息裸露给用户，
+        // 同时做节流处理，防止短时间内异常刷屏导致提示轰炸
+        let lastGlobalErrorAt = 0;
+        function reportGlobalError(err) {
+            console.error('全局异常捕获:', err);
+            const now = Date.now();
+            if (now - lastGlobalErrorAt < 3000) return;
+            lastGlobalErrorAt = now;
+            if (typeof UI !== 'undefined' && UI.toast) UI.toast('程序出现异常，请刷新页面后重试');
+        }
+        window.onerror = (message, source, lineno, colno, error) => {
+            reportGlobalError(error || message);
+            return true; // 阻止默认的控制台报错弹出，交由内部统一处理
+        };
+        window.addEventListener('unhandledrejection', (event) => {
+            reportGlobalError(event.reason);
+        });
 
         // 数据存储层 (Store)
         const Store = {
@@ -554,13 +575,39 @@
         };
 
         const Utils = {
+            // 统一登记所有通过 URL.createObjectURL 生成的地址，便于清空列表时集中释放，
+            // 防止图片缩略图与压缩结果长期占用内存
+            _trackedBlobUrls: new Set(),
             formatBytes(bytes) {
                 if (bytes <= 0) return '0 B';
                 const sizes = ['B', 'KB', 'MB', 'GB'];
                 const i = Math.floor(Math.log(bytes) / Math.log(1024));
                 return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
             },
-            id() { return 'file_' + Math.random().toString(36).substr(2, 9); }
+            id() { return 'file_' + Math.random().toString(36).substr(2, 9); },
+            trackBlobUrl(url) {
+                this._trackedBlobUrls.add(url);
+                return url;
+            },
+            revokeAllBlobUrls() {
+                this._trackedBlobUrls.forEach(url => {
+                    try { URL.revokeObjectURL(url); } catch (e) { /* 忽略已失效的地址 */ }
+                });
+                this._trackedBlobUrls.clear();
+            },
+            // 带超时控制的 fetch 封装，超时后自动中止请求并抛出友好错误
+            async fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeout);
+                try {
+                    return await fetch(url, { ...options, signal: controller.signal });
+                } catch (e) {
+                    if (e.name === 'AbortError') throw new Error('请求超时，请检查网络后重试');
+                    throw e;
+                } finally {
+                    clearTimeout(timer);
+                }
+            }
         };
 
         const UI = {
@@ -590,7 +637,7 @@
             },
             createFileItem(file, id) {
                 this.checkEmptyState();
-                const url = URL.createObjectURL(file);
+                const url = Utils.trackBlobUrl(URL.createObjectURL(file));
                 const html = `
                     <div class="file-item" id="${id}">
                         <div class="file-content">
@@ -752,6 +799,8 @@
                     const xhr = new XMLHttpRequest();
                     xhr.open('POST', `${PROXY_URL}/shrink`);
                     xhr.setRequestHeader('Authorization', auth);
+                    xhr.timeout = UPLOAD_TIMEOUT;
+                    xhr.ontimeout = () => reject(new Error("上传超时，请检查网络后重试"));
                     
                     xhr.upload.onprogress = (e) => {
                         if (e.lengthComputable) {
@@ -815,7 +864,7 @@
                         if (settings.resize.width) resizeBody.width = Number(settings.resize.width);
                         if (settings.resize.height) resizeBody.height = Number(settings.resize.height);
 
-                        const postRes = await fetch(PROXY_URL, {
+                        const postRes = await Utils.fetchWithTimeout(PROXY_URL, {
                             method: 'POST',
                             headers: { 'Authorization': auth, 'Content-Type': 'application/json', 'X-Target-Url': resultUrl },
                             body: JSON.stringify({ resize: resizeBody })
@@ -832,7 +881,7 @@
                         blob = await postRes.blob();
                     } else {
                         UI.updateProgress(id, 'compress', 100, '生成文件...');
-                        const imgRes = await fetch(PROXY_URL, { headers: { 'Authorization': auth, 'X-Target-Url': resultUrl } });
+                        const imgRes = await Utils.fetchWithTimeout(PROXY_URL, { headers: { 'Authorization': auth, 'X-Target-Url': resultUrl } });
                         throwIfAuthError(imgRes.status);
                         if (!imgRes.ok) throw new Error("获取压缩后图片失败");
                         syncCompressionCount(imgRes);
@@ -840,7 +889,7 @@
                         blob = await imgRes.blob();
                     }
 
-                    return { size: blob.size, blobUrl: URL.createObjectURL(blob) };
+                    return { size: blob.size, blobUrl: Utils.trackBlobUrl(URL.createObjectURL(blob)) };
 
                 } catch (e) {
                     if (e && e.type === 'auth') {
@@ -883,11 +932,28 @@
                 document.getElementById('btn-settings').onclick = () => {
                     this.fillSettingsForm();
                     modalSettings.classList.add('active');
+                    setTimeout(() => document.getElementById('input-keys').focus(), 50);
                 };
                 document.getElementById('btn-close-settings').onclick = () => modalSettings.classList.remove('active');
                 document.getElementById('btn-cancel-settings').onclick = () => modalSettings.classList.remove('active');
+                modalSettings.addEventListener('mousedown', (e) => {
+                    if (e.target === modalSettings) modalSettings.classList.remove('active');
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Escape') return;
+                    if (modalSettings.classList.contains('active')) modalSettings.classList.remove('active');
+                    else {
+                        const confirmCancel = document.getElementById('btn-confirm-cancel');
+                        if (document.getElementById('modal-confirm').classList.contains('active')) confirmCancel.click();
+                    }
+                });
                 
                 document.getElementById('btn-save-settings').onclick = () => {
+                    const btnSave = document.getElementById('btn-save-settings');
+                    if (btnSave.disabled) return; // 防止重复提交
+                    btnSave.disabled = true;
+                    setTimeout(() => { btnSave.disabled = false; }, 400);
+
                     const rawKeys = document.getElementById('input-keys').value;
                     const keys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
                     
@@ -931,6 +997,7 @@
                     const ok = await UI.confirm("此操作将清空当前所有处理记录，未下载的文件将无法恢复。确定继续吗？");
                     if (ok) {
                         document.getElementById('file-list').innerHTML = '';
+                        Utils.revokeAllBlobUrls();
                         Store.clearStats();
                         UI.checkEmptyState();
                         UI.updateActionButtons();
@@ -939,10 +1006,13 @@
                 };
 
                 document.getElementById('btn-download-all').onclick = async () => {
+                    const btnDownloadAll = document.getElementById('btn-download-all');
+                    if (btnDownloadAll.dataset.busy === '1') return; // 防止重复点击导致重复打包
                     const btns = document.querySelectorAll('.btn-dl');
                     if (btns.length === 0) return;
                     if (btns.length === 1) return btns[0].click();
 
+                    btnDownloadAll.dataset.busy = '1';
                     try {
                         UI.toast(`正在打包 ${btns.length} 张图片，请耐心等待...`);
                         const zip = new JSZip();
@@ -970,6 +1040,8 @@
                     } catch (e) {
                         console.error(e);
                         UI.toast("打包失败，请尝试逐个点击下载");
+                    } finally {
+                        btnDownloadAll.dataset.busy = '';
                     }
                 };
             },

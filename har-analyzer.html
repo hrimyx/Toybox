@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
     <meta name="app-name" content="HAR本地分析器">
-    <meta name="app-version" content="1.3.7">
+    <meta name="app-version" content="1.4.0">
     <meta name="app-author" content="Hrimyx">
     <title></title>
     <script>
@@ -83,6 +83,9 @@
         
         #drop-zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--border-divider); margin: 15px; border-radius: var(--radius-lg); background: var(--surface-card); cursor: pointer; text-align: center; padding: 20px; transition: var(--transition); }
         #drop-zone:hover, #drop-zone.dragover { border-color: var(--brand-primary); background: var(--surface-bg); }
+        #drop-zone.loading { pointer-events: none; opacity: 0.6; cursor: wait; border-color: var(--brand-primary); }
+        #drop-zone:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+        .btn:focus-visible, .tab:focus-visible, input:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
         
         #workspace { display: none; flex-direction: column; height: 100vh; position: relative; }
         #top-panel { background: var(--surface-card); padding: 10px 15px; border-bottom: 1px solid var(--border-divider); display: flex; align-items: center; gap: 8px; z-index: 10; flex-wrap: wrap; }
@@ -106,9 +109,12 @@
         .search-field-group input { padding: 8px 10px; border: 1px solid var(--border-divider); border-radius: 4px; font-size: 13px; outline: none; background: var(--surface-card); color: var(--text-primary); transition: var(--transition); }
         .search-field-group input:focus { border-color: var(--brand-primary); }
 
-        #toast { position: fixed; top: -50px; left: 50%; transform: translateX(-50%); background: var(--text-primary); color: var(--surface-bg); padding: 10px 20px; border-radius: var(--radius-md); font-size: 13px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transition: var(--transition); pointer-events: none; text-align: center; }
-        #toast.show { top: 20px; opacity: 1; }
+        #toast { position: fixed; top: -50px; left: 50%; transform: translateX(-50%); background: var(--text-primary); color: var(--surface-bg); padding: 10px 20px; border-radius: var(--radius-md); font-size: 13px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transition: var(--transition); pointer-events: none; text-align: center; display: flex; align-items: center; gap: 12px; }
+        #toast.show { top: 20px; opacity: 1; pointer-events: auto; }
         #toast.err { background: var(--semantic-danger); color: white; }
+        #toast.warn { background: var(--semantic-warning); color: white; }
+        .toast-action { flex-shrink: 0; background: transparent; border: 1px solid currentColor; color: inherit; padding: 3px 10px; border-radius: var(--radius-md); font-size: 12px; cursor: pointer; font-weight: 600; }
+        .toast-action:hover { background: rgba(255,255,255,0.15); }
         
         #left { width: 40%; border-right: 1px solid var(--border-divider); background: var(--surface-card); display: flex; flex-direction: column; }
         #list-header { padding: 8px 12px; background: var(--surface-bg); border-bottom: 1px solid var(--border-divider); display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-secondary); height: 35px; }
@@ -204,7 +210,7 @@
     <div id="toast"></div>
     <div id="filter-overlay"></div>
 
-    <div id="drop-zone">
+    <div id="drop-zone" tabindex="0" role="button" aria-label="点击或拖拽文件以打开 HAR 文件">
         <h1 class="brand-title-large">
             <span id="brand-name-large"></span>
             <span class="version-tag-large" id="brand-version-large"></span>
@@ -314,20 +320,51 @@
             selectedFilters: { methods: new Set(), statuses: new Set(), mimeTypes: new Set() },
             tmpSelectedFilters: { methods: new Set(), statuses: new Set(), mimeTypes: new Set() },
             searchArgs: { url: '', qhead: '', qbody: '', shead: '', sbody: '' },
-            currentRaw: { url: "", qbody: "", sbody: "", panel: "p-url" }
+            currentRaw: { url: "", qbody: "", sbody: "", panel: "p-url" },
+            isLoadingFile: false,
+            lastDeleted: null
         };
 
         const $ = id => document.getElementById(id);
         const esc = s => !s ? '' : String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
 
+        // 简单防抖，用于高频事件（如窗口尺寸变化）避免重复计算
+        function debounce(fn, wait = 150) {
+            let timer = null;
+            return function (...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), wait);
+            };
+        }
+
         let toastTimer = null;
-        function showToast(msg, type = 'info') {
+        function showToast(msg, type = 'info', actionText = '', onAction = null) {
             const t = $('toast');
-            t.innerText = msg;
+            t.innerHTML = '';
+            const textSpan = document.createElement('span');
+            textSpan.textContent = msg;
+            t.appendChild(textSpan);
+            if (actionText && typeof onAction === 'function') {
+                const actionBtn = document.createElement('button');
+                actionBtn.textContent = actionText;
+                actionBtn.className = 'toast-action';
+                actionBtn.addEventListener('click', () => { onAction(); t.classList.remove('show', 'err', 'warn'); clearTimeout(toastTimer); });
+                t.appendChild(actionBtn);
+            }
             t.className = type === 'err' ? 'show err' : (type === 'warn' ? 'show warn' : 'show');
             clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => t.classList.remove('show', 'err', 'warn'), 3000);
+            toastTimer = setTimeout(() => t.classList.remove('show', 'err', 'warn'), actionText ? 5000 : 3000);
         }
+
+        // 全局兜底错误捕获：不向用户暴露内部错误细节，仅在控制台记录以便排查
+        window.addEventListener('error', event => {
+            console.error('[全局异常]', event.error || event.message);
+            showToast('程序出现异常，请重试或刷新页面', 'err');
+        });
+        window.addEventListener('unhandledrejection', event => {
+            console.error('[未处理的Promise异常]', event.reason);
+            showToast('操作未能完成，请重试', 'err');
+        });
 
         const Formatter = {
             time(timeStr) {
@@ -397,46 +434,65 @@
         };
 
         $('drop-zone').addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') $('file').click(); });
+        $('drop-zone').addEventListener('keydown', e => {
+            if ((e.key === 'Enter' || e.key === ' ') && !state.isLoadingFile) { e.preventDefault(); $('file').click(); }
+        });
         $('drop-zone').addEventListener('dragover', e => { e.preventDefault(); $('drop-zone').classList.add('dragover'); });
         $('drop-zone').addEventListener('dragleave', () => $('drop-zone').classList.remove('dragover'));
         $('drop-zone').addEventListener('drop', e => { e.preventDefault(); if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
         $('file').addEventListener('change', e => { if(e.target.files.length) handleFile(e.target.files[0]); });
 
         function handleFile(file) {
-            if (!file) return; 
-            if (!file.name.toLowerCase().match(/\.(har|json)$/)) { 
-                showToast('格式不正确，仅支持 .har 或 .json', 'err'); 
-                $('file').value = ''; return; 
+            if (!file) return;
+            if (state.isLoadingFile) return; // 防止重复提交：上一次解析尚未完成
+            if (!file.name.toLowerCase().match(/\.(har|json)$/)) {
+                showToast('格式不正确，仅支持 .har 或 .json', 'err');
+                $('file').value = ''; return;
             }
+            state.isLoadingFile = true;
+            $('drop-zone').classList.add('loading');
+            showToast('正在解析文件，请稍候…');
+
             const r = new FileReader();
+            const finishLoading = () => {
+                state.isLoadingFile = false;
+                $('drop-zone').classList.remove('loading');
+                $('file').value = '';
+            };
             r.onload = e => {
                 try {
                     const json = JSON.parse(e.target.result);
                     if (!json?.log?.entries?.length) throw new Error("缺少网络请求数据");
-                    
+
                     state.harLogBase = { ...json.log };
                     state.allItems = json.log.entries.map((item, i) => {
                         const specificMime = Formatter.mimeType(item);
-                        return { 
-                            ...item, _id: `r_${Date.now()}_${i}`, _idx: i + 1, 
+                        return {
+                            ...item, _id: `r_${Date.now()}_${i}`, _idx: i + 1,
                             _mime: specificMime,
-                            _category: Formatter.mimeCategory(specificMime), 
-                            _rawMime: item.response.content?.mimeType || 'unknown' 
+                            _category: Formatter.mimeCategory(specificMime),
+                            _rawMime: item.response.content?.mimeType || 'unknown'
                         };
                     });
                     resetWorkspace();
                     showToast(`加载成功，共 ${state.allItems.length} 条记录`);
                 } catch (err) {
-                    showToast('文件解析异常: ' + err.message, 'err');
+                    console.error('[文件解析异常]', err);
+                    showToast('文件解析失败，请确认文件为有效的 HAR/JSON 格式', 'err');
                 } finally {
-                    $('file').value = ''; 
+                    finishLoading();
                 }
-            }; 
+            };
+            r.onerror = () => {
+                console.error('[文件读取异常]', r.error);
+                showToast('文件读取失败，请重试', 'err');
+                finishLoading();
+            };
             r.readAsText(file);
         }
 
         function resetWorkspace() {
-            state.selectedIds.clear(); state.activeId = null;
+            state.selectedIds.clear(); state.activeId = null; state.lastDeleted = null;
             ['methods', 'statuses', 'mimeTypes'].forEach(k => { state.filters[k].clear(); state.selectedFilters[k].clear(); });
             state.allItems.forEach(item => {
                 const m = item.request.method || 'UNKNOWN', s = Formatter.statusRange(item.response.status || '0'), c = item._category; // 使用大类存入过滤器
@@ -477,6 +533,7 @@
         }
 
         function renderList() {
+          try {
             $('list').innerHTML = state.visibleItems.map(item => `
                 <div class="item ${item._id === state.activeId ? 'active' : ''}" data-id="${item._id}">
                     <input type="checkbox" class="row-chk" ${state.selectedIds.has(item._id) ? 'checked' : ''} style="margin-top:10px;">
@@ -496,6 +553,12 @@
                     </div>
                 </div>
             `).join('');
+          } catch (e) {
+            console.error('[列表渲染异常]', e);
+            $('list').innerHTML = '';
+            showToast('列表渲染出现异常', 'err');
+            return;
+          }
 
             const listEl = $('list');
             listEl.onclick = e => {
@@ -538,6 +601,15 @@
             $('filter-overlay').style.display = 'none';
         }
         $('filter-overlay').addEventListener('click', closePopovers);
+
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if ($('filter-popover').style.display === 'flex' || $('search-popover').style.display === 'flex') {
+                closePopovers();
+            } else if (document.body.classList.contains('mobile-view-detail')) {
+                document.body.classList.remove('mobile-view-detail');
+            }
+        });
 
         $('btn-toggle-filter').addEventListener('click', () => {
             closePopovers();
@@ -606,22 +678,27 @@
             toggleDetailView(true);
             switchTab('p-url');
 
-            const renderKV = arr => (!arr || !arr.length) ? '<div style="color:var(--text-secondary);">无数据</div>' : arr.map(h => `<div class="kv"><span class="kv-k">${esc(h.name)}:</span><span class="kv-v">${esc(h.value)}</span></div>`).join('');
+            try {
+                const renderKV = arr => (!arr || !arr.length) ? '<div style="color:var(--text-secondary);">无数据</div>' : arr.map(h => `<div class="kv"><span class="kv-k">${esc(h.name)}:</span><span class="kv-v">${esc(h.value)}</span></div>`).join('');
 
-            state.currentRaw.url = item.request.url || ""; 
-            state.currentRaw.qbody = item.request.postData?.text || ""; 
-            state.currentRaw.sbody = item.response.content?.text || "";
+                state.currentRaw.url = item.request.url || "";
+                state.currentRaw.qbody = item.request.postData?.text || "";
+                state.currentRaw.sbody = item.response.content?.text || "";
 
-            $('p-url').innerHTML = [{name: "完整URL", value: state.currentRaw.url}, {name: "方法", value: item.request.method}, {name: "状态", value: `${item.response.status} ${item.response.statusText}`}, {name: "时间", value: Formatter.time(item.startedDateTime)}]
-                .map(h => `<div class="kv"><span class="kv-k">${esc(h.name)}:</span><span class="kv-v">${esc(h.value)}</span></div>`).join('');
-            
-            $('p-qhead').innerHTML = renderKV(item.request.headers);
-            $('p-shead').innerHTML = renderKV(item.response.headers);
-            
-            $('p-qbody').innerHTML = formatBody(state.currentRaw.qbody, item.request.postData?.mimeType, "qbody");
-            $('p-sbody').innerHTML = formatBody(state.currentRaw.sbody, item.response.content?.mimeType, "sbody", item.response.content?.encoding);
-            
-            syncCopyBtn();
+                $('p-url').innerHTML = [{name: "完整URL", value: state.currentRaw.url}, {name: "方法", value: item.request.method}, {name: "状态", value: `${item.response.status} ${item.response.statusText}`}, {name: "时间", value: Formatter.time(item.startedDateTime)}]
+                    .map(h => `<div class="kv"><span class="kv-k">${esc(h.name)}:</span><span class="kv-v">${esc(h.value)}</span></div>`).join('');
+
+                $('p-qhead').innerHTML = renderKV(item.request.headers);
+                $('p-shead').innerHTML = renderKV(item.response.headers);
+
+                $('p-qbody').innerHTML = formatBody(state.currentRaw.qbody, item.request.postData?.mimeType, "qbody");
+                $('p-sbody').innerHTML = formatBody(state.currentRaw.sbody, item.response.content?.mimeType, "sbody", item.response.content?.encoding);
+
+                syncCopyBtn();
+            } catch (e) {
+                console.error('[详情渲染异常]', e);
+                showToast('详情渲染出现异常', 'err');
+            }
         }
 
         function formatBody(text, mime, type, encoding) {
@@ -677,23 +754,42 @@
                 document.body.appendChild(ta); ta.select(); 
                 document.execCommand("copy"); document.body.removeChild(ta);
                 showToast("📋 已复制到剪贴板");
-            } catch(e) { showToast("复制失败", "err"); }
+            } catch(e) { console.error('[复制异常]', e); showToast("复制失败", "err"); }
         });
 
         $('btn-del').addEventListener('click', () => {
+            if (!state.selectedIds.size) return;
             if (!confirm(`重要确认：\n您确定要删除选中的 ${state.selectedIds.size} 条记录吗？`)) return;
             try {
                 const count = state.selectedIds.size;
-                state.allItems = state.allItems.filter(i => !state.selectedIds.has(i._id));
+                const removedIds = new Set(state.selectedIds);
+                state.lastDeleted = state.allItems.filter(i => removedIds.has(i._id));
+                state.allItems = state.allItems.filter(i => !removedIds.has(i._id));
                 state.selectedIds.clear();
                 processPipeline();
-                showToast(`已成功移除 ${count} 项记录`);
-            } catch(e) { showToast("删除执行异常", "err"); }
+                showToast(`已成功移除 ${count} 项记录`, 'info', '撤销', undoDelete);
+            } catch(e) { console.error('[删除异常]', e); showToast("删除执行异常", "err"); }
         });
+
+        // 撤销上一次删除操作（数据管理规范：支持撤销/恢复）
+        function undoDelete() {
+            if (!state.lastDeleted || !state.lastDeleted.length) return;
+            try {
+                const restored = state.lastDeleted;
+                state.lastDeleted = null;
+                state.allItems = state.allItems.concat(restored).sort((a, b) => a._idx - b._idx);
+                processPipeline();
+                showToast(`已恢复 ${restored.length} 项记录`);
+            } catch (e) {
+                console.error('[撤销异常]', e);
+                showToast('撤销失败，请重试', 'err');
+            }
+        }
 
         $('btn-clr').addEventListener('click', () => {
             if (!confirm("确定要清空所有数据并返回首页吗？")) return;
-            state.allItems = []; 
+            state.allItems = [];
+            state.lastDeleted = null;
             resetWorkspace();
             $('workspace').style.display = 'none'; $('drop-zone').style.display = 'flex';
             showToast('数据已完全清空');
@@ -715,7 +811,8 @@
                 setTimeout(() => URL.revokeObjectURL(url), 2000);
                 showToast('🎉 导出成功！');
             } catch (err) {
-                showToast('导出序列化失败: ' + err.message, 'err');
+                console.error('[导出异常]', err);
+                showToast('导出失败，请重试', 'err');
             }
         });
     </script>
