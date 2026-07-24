@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
     <meta name="app-name" content="图片压缩">
-    <meta name="app-version" content="2.3.0">
+    <meta name="app-version" content="2.4.0">
     <meta name="app-author" content="Hrimyx">
     <title></title>
     <script>
@@ -487,12 +487,9 @@
         };
 
         const PROXY_URL = 'https://tinify-proxy.hrimyx.workers.dev';
-        // 请求超时配置：上传/下载类请求与普通接口请求分别设置，避免长时间无响应挂起
         const UPLOAD_TIMEOUT = 30000;
         const FETCH_TIMEOUT = 20000;
 
-        // 全局异常兜底：捕获未处理的运行时错误与 Promise 拒绝，避免异常信息裸露给用户，
-        // 同时做节流处理，防止短时间内异常刷屏导致提示轰炸
         let lastGlobalErrorAt = 0;
         function reportGlobalError(err) {
             console.error('全局异常捕获:', err);
@@ -503,7 +500,7 @@
         }
         window.onerror = (message, source, lineno, colno, error) => {
             reportGlobalError(error || message);
-            return true; // 阻止默认的控制台报错弹出，交由内部统一处理
+            return true;
         };
         window.addEventListener('unhandledrejection', (event) => {
             reportGlobalError(event.reason);
@@ -575,8 +572,6 @@
         };
 
         const Utils = {
-            // 统一登记所有通过 URL.createObjectURL 生成的地址，便于清空列表时集中释放，
-            // 防止图片缩略图与压缩结果长期占用内存
             _trackedBlobUrls: new Set(),
             formatBytes(bytes) {
                 if (bytes <= 0) return '0 B';
@@ -591,22 +586,9 @@
             },
             revokeAllBlobUrls() {
                 this._trackedBlobUrls.forEach(url => {
-                    try { URL.revokeObjectURL(url); } catch (e) { /* 忽略已失效的地址 */ }
+                    try { URL.revokeObjectURL(url); } catch (e) { }
                 });
                 this._trackedBlobUrls.clear();
-            },
-            // 带超时控制的 fetch 封装，超时后自动中止请求并抛出友好错误
-            async fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), timeout);
-                try {
-                    return await fetch(url, { ...options, signal: controller.signal });
-                } catch (e) {
-                    if (e.name === 'AbortError') throw new Error('请求超时，请检查网络后重试');
-                    throw e;
-                } finally {
-                    clearTimeout(timer);
-                }
             }
         };
 
@@ -629,10 +611,10 @@
                     if (!empty) {
                         list.innerHTML = `<div class="empty-state" id="empty-state">尚未添加图片，赶紧上传体验吧！</div>`;
                     }
-                    floating.style.display = 'none'; // 没有任务时彻底隐藏底栏
+                    floating.style.display = 'none';
                 } else {
                     if (empty) empty.remove();
-                    floating.style.display = 'flex'; // 有文件时显示
+                    floating.style.display = 'flex'; 
                 }
             },
             createFileItem(file, id) {
@@ -749,7 +731,6 @@
                 const btnClear = document.getElementById('btn-clear-all');
                 const btnDownload = document.getElementById('btn-download-all');
                 
-                // 完全统一的限制逻辑：若处于处理状态中，或者当前列表没有任何内容可被下载，则双双禁用。
                 const disableState = isProcessing || dlCount === 0;
                 
                 btnClear.disabled = disableState;
@@ -790,22 +771,37 @@
         };
 
         const TinifyService = {
-            async process(file, id) {
+            async executeUpload(file, id) {
                 const key = Store.getCurrentKey();
                 if (!key) throw new Error("缺少有效密钥");
                 const auth = 'Basic ' + btoa('api:' + key);
                 
-                const uploadPromise = new Promise((resolve, reject) => {
+                const { settings } = Store.state;
+                
+                return new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
                     xhr.open('POST', `${PROXY_URL}/shrink`);
                     xhr.setRequestHeader('Authorization', auth);
+                    
+                    // 将缩放参数通过自定义 Header 传给 Worker
+                    if (settings.resize && settings.resize.method) {
+                        xhr.setRequestHeader('X-Resize-Method', settings.resize.method);
+                        if (settings.resize.width) xhr.setRequestHeader('X-Resize-Width', settings.resize.width);
+                        if (settings.resize.height) xhr.setRequestHeader('X-Resize-Height', settings.resize.height);
+                    }
+
                     xhr.timeout = UPLOAD_TIMEOUT;
-                    xhr.ontimeout = () => reject(new Error("上传超时，请检查网络后重试"));
+                    xhr.responseType = 'blob'; // 直接接收 Worker 返回的二进制流
+                    xhr.ontimeout = () => reject(new Error("请求超时，请检查网络后重试"));
                     
                     xhr.upload.onprogress = (e) => {
                         if (e.lengthComputable) {
                             const percent = Math.floor((e.loaded / e.total) * 100);
                             UI.updateProgress(id, 'upload', percent, '');
+                            // 当图片上传到 CF 节点后，前端进入等待状态
+                            if (percent === 100) {
+                                UI.updateProgress(id, 'compress', 100, '云端处理中...');
+                            }
                         }
                     };
                     
@@ -813,91 +809,48 @@
                         if (xhr.status === 429 || xhr.status === 401) {
                             reject({ type: 'auth', status: xhr.status });
                         } else if (xhr.status >= 200 && xhr.status < 300) {
-                            try {
-                                const response = JSON.parse(xhr.responseText);
-                                resolve({ data: response, count: xhr.getResponseHeader('compression-count') });
-                            } catch (err) {
-                                reject(new Error("解析响应失败"));
+                            const count = xhr.getResponseHeader('compression-count');
+                            if (count) { 
+                                Store.saveApiCount(count); 
+                                UI.setApiCountText(count); 
                             }
+                            
+                            // 直接获取 Blob 生成本地 URL
+                            const blob = xhr.response;
+                            resolve({ 
+                                size: blob.size, 
+                                blobUrl: Utils.trackBlobUrl(URL.createObjectURL(blob)) 
+                            });
                         } else {
-                            reject(new Error("服务器接口异常"));
+                            // 错误情况（如 500），尝试读取 blob 中的错误文本
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                let errMsg = "服务器处理异常";
+                                try {
+                                    const errObj = JSON.parse(reader.result);
+                                    if (errObj.message) errMsg = errObj.message;
+                                    else if (errObj.error) errMsg = errObj.error;
+                                } catch (e) {}
+                                reject(new Error(errMsg));
+                            };
+                            reader.readAsText(xhr.response);
                         }
                     };
                     
                     xhr.onerror = () => reject(new Error("网络请求失败"));
                     xhr.send(file);
                 });
-                
+            },
+            async process(file, id) {
                 try {
-                    const { data, count } = await uploadPromise;
-                    UI.updateProgress(id, 'upload', 100, '');
-
-                    if (count) { 
-                        Store.saveApiCount(count); 
-                        UI.setApiCountText(count); 
-                    }
-
-                    const resultUrl = data.output.url;
-                    const { settings } = Store.state;
-                    let blob;
-
-                    // 统一的鉴权错误判定：401/429 触发上层的自动切换密钥重试逻辑
-                    const throwIfAuthError = (status) => {
-                        if (status === 429 || status === 401) {
-                            const err = new Error('auth key error');
-                            err.type = 'auth';
-                            err.status = status;
-                            throw err;
-                        }
-                    };
-                    // 从响应头同步最新的额度计数（缩放/下载都可能使额度增加）
-                    const syncCompressionCount = (res) => {
-                        const rc = res.headers.get('compression-count');
-                        if (rc) { Store.saveApiCount(rc); UI.setApiCountText(rc); }
-                    };
-
-                    if (settings.resize && settings.resize.method) {
-                        UI.updateProgress(id, 'compress', 100, '正在缩放处理...');
-
-                        // 仅传入用户实际填写的宽/高，避免向 API 发送空字符串导致 400 错误
-                        const resizeBody = { method: settings.resize.method };
-                        if (settings.resize.width) resizeBody.width = Number(settings.resize.width);
-                        if (settings.resize.height) resizeBody.height = Number(settings.resize.height);
-
-                        const postRes = await Utils.fetchWithTimeout(PROXY_URL, {
-                            method: 'POST',
-                            headers: { 'Authorization': auth, 'Content-Type': 'application/json', 'X-Target-Url': resultUrl },
-                            body: JSON.stringify({ resize: resizeBody })
-                        });
-                        throwIfAuthError(postRes.status);
-                        if (!postRes.ok) throw new Error("图片缩放处理失败");
-                        syncCompressionCount(postRes);
-
-                        // 关键修复：根据 Tinify API 文档，携带 resize 参数的 POST /output/{id} 请求
-                        // 会直接返回缩放后的图片二进制数据（Content-Type: image/*），而不是像
-                        // 初次 /shrink 那样返回包含 url 字段的 JSON。因此这里直接读取二进制内容，
-                        // 无需（也不能）再对其调用 .json() 或发起额外的下载请求。
-                        UI.updateProgress(id, 'compress', 100, '生成文件...');
-                        blob = await postRes.blob();
-                    } else {
-                        UI.updateProgress(id, 'compress', 100, '生成文件...');
-                        const imgRes = await Utils.fetchWithTimeout(PROXY_URL, { headers: { 'Authorization': auth, 'X-Target-Url': resultUrl } });
-                        throwIfAuthError(imgRes.status);
-                        if (!imgRes.ok) throw new Error("获取压缩后图片失败");
-                        syncCompressionCount(imgRes);
-
-                        blob = await imgRes.blob();
-                    }
-
-                    return { size: blob.size, blobUrl: Utils.trackBlobUrl(URL.createObjectURL(blob)) };
-
+                    return await this.executeUpload(file, id);
                 } catch (e) {
                     if (e && e.type === 'auth') {
                         if (Store.switchNextKey()) { 
                             UI.toast("当前密钥额度耗尽或异常，已自动切换备用密钥"); 
                             return await this.process(file, id); 
                         }
-                        throw new Error(e.status === 429 ? "所有配置的密钥额度均已耗尽" : "API 密钥无效");
+                        throw new Error(e.status === 429 ? "所有配置的密钥均已耗尽" : "API 密钥无效");
                     }
                     throw e;
                 }
@@ -950,7 +903,7 @@
                 
                 document.getElementById('btn-save-settings').onclick = () => {
                     const btnSave = document.getElementById('btn-save-settings');
-                    if (btnSave.disabled) return; // 防止重复提交
+                    if (btnSave.disabled) return; 
                     btnSave.disabled = true;
                     setTimeout(() => { btnSave.disabled = false; }, 400);
 
@@ -968,7 +921,6 @@
                             if (!wStr && !hStr) return UI.toast("scale 模式需要填写宽度或高度其中一项");
                             if (wStr && hStr) return UI.toast("scale 模式只能填写宽度或高度其中一项，不能同时填写");
                         } else {
-                            // fit / cover / thumb 三种模式根据 API 文档要求必须同时提供宽度和高度
                             if (!wStr || !hStr) return UI.toast(`${method} 模式需要同时填写宽度和高度`);
                         }
                         if (wStr && (isNaN(w) || w <= 0)) return UI.toast("宽度必须为正整数");
@@ -1007,7 +959,7 @@
 
                 document.getElementById('btn-download-all').onclick = async () => {
                     const btnDownloadAll = document.getElementById('btn-download-all');
-                    if (btnDownloadAll.dataset.busy === '1') return; // 防止重复点击导致重复打包
+                    if (btnDownloadAll.dataset.busy === '1') return; 
                     const btns = document.querySelectorAll('.btn-dl');
                     if (btns.length === 0) return;
                     if (btns.length === 1) return btns[0].click();
@@ -1045,6 +997,8 @@
                     }
                 };
             },
+            
+            // 核心改造：引入并发控制队列机制
             handleFiles(files) {
                 if (!Store.state.keys.length) {
                     UI.toast("请先点击右上角【配置】输入 API 密钥");
@@ -1070,13 +1024,24 @@
                     return UI.toast(`抱歉，列表最多可容纳 50 张图片，当前已选 ${currentItemsCount} 张。请先清空后再试。`);
                 }
 
-                // 添加处理任务并更新 UI 按键状态为禁止操作
                 Store.state.activeTasks += validFiles.length;
                 UI.updateActionButtons();
 
-                validFiles.forEach(async file => {
+                // 1. 创建 UI 占位
+                const tasks = validFiles.map(file => {
                     const id = Utils.id();
                     UI.createFileItem(file, id);
+                    return { file, id };
+                });
+
+                // 2. 限制最大并发数为 5
+                const CONCURRENCY_LIMIT = 5;
+                let currentIndex = 0;
+
+                const processNext = async () => {
+                    if (currentIndex >= tasks.length) return; 
+                    
+                    const { file, id } = tasks[currentIndex++];
                     
                     try {
                         const res = await TinifyService.process(file, id);
@@ -1087,8 +1052,15 @@
                     } finally {
                         Store.state.activeTasks--;
                         UI.updateActionButtons();
+                        // 任务完成后递归取下一个
+                        processNext();
                     }
-                });
+                };
+
+                // 3. 初始同时派发最多 5 个任务
+                for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, tasks.length); i++) {
+                    processNext();
+                }
             }
         };
 
