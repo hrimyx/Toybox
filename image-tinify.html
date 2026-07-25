@@ -8,7 +8,7 @@
     />
     <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
     <meta name="app-name" content="图片压缩" />
-    <meta name="app-version" content="2.5.1" />
+    <meta name="app-version" content="2.5.2" />
     <meta name="app-author" content="Hrimyx" />
     <title></title>
     <script>
@@ -903,6 +903,7 @@
                 id="input-resize-w"
                 placeholder="宽度 (px)"
                 min="1"
+                max="2560"
               />
               <input
                 type="number"
@@ -910,6 +911,7 @@
                 id="input-resize-h"
                 placeholder="高度 (px)"
                 min="1"
+                max="2560"
               />
             </div>
           </div>
@@ -1590,6 +1592,16 @@
               .map((k) => k.trim())
               .filter(Boolean);
 
+            // 1. 校验 API 密钥格式：必须是 32 位大小写字母或数字
+            const keyRegex = /^[A-Za-z0-9]{32}$/;
+            for (let i = 0; i < keys.length; i++) {
+              if (!keyRegex.test(keys[i])) {
+                return UI.toast(
+                  `第 ${i + 1} 个 API 密钥格式错误，应为 32 位字母数字`,
+                );
+              }
+            }
+
             const method = document.getElementById("input-resize-method").value;
             const wStr = document.getElementById("input-resize-w").value;
             const hStr = document.getElementById("input-resize-h").value;
@@ -1608,13 +1620,17 @@
                 if (!wStr || !hStr)
                   return UI.toast(`${method} 模式需要同时填写宽度和高度`);
               }
+
               if (wStr && (isNaN(w) || w <= 0))
                 return UI.toast("宽度必须为正整数");
               if (hStr && (isNaN(h) || h <= 0))
                 return UI.toast("高度必须为正整数");
+
+              // 2. 校验宽高校验限制：不能大于 2560
+              if (wStr && w > 2560) return UI.toast("缩放宽度不能大于 2560px");
+              if (hStr && h > 2560) return UI.toast("缩放高度不能大于 2560px");
             }
 
-            // 抓取并保存新添加的配置状态
             const convert = Array.from(
               document.querySelectorAll('input[name="convertType"]:checked'),
             ).map((cb) => cb.value);
@@ -1622,6 +1638,7 @@
               document.querySelectorAll('input[name="preserveMeta"]:checked'),
             ).map((cb) => cb.value);
 
+            // 如果密钥被全部清空，重置额度显示
             if (!keys.length) Store.saveApiCount(null);
 
             try {
@@ -1630,7 +1647,9 @@
                 convert,
                 preserve,
               });
-              modalSettings.classList.remove("active");
+              document
+                .getElementById("modal-settings")
+                .classList.remove("active");
               UI.toast("配置已成功保存");
               UI.setApiCountText(Store.state.apiCount);
             } catch (e) {
