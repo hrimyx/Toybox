@@ -1,676 +1,770 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="author" content="Hrimyx">
-    <meta name="version" content="1.0.0">
-    <meta name="description" content="奇奇怪怪工具箱">
-    <title>Toybox 导航</title>
-    <style>
-        /* ==========================================================================
-           1. 核心色彩体系 Token (冷蓝设计规范)
-           ========================================================================== */
-        :root {
-            /* 基础中性色 (日间) */
-            --surface-bg: #F7F9FC;
-            --surface-card: #FFFFFF;
-            --surface-overlay: #EBEEF5;
-            --border-divider: #D0D7E5;
-            --text-primary: #1A202C;
-            --text-secondary: #4A5568;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toybox</title>
+<meta name="description" content="Toybox —— 奇奇怪怪小工具导航中心">
+<!-- 应用元信息，全局唯一数据源 -->
+<meta name="app-name" content="Toybox">
+<meta name="app-version" content="2.0.0">
+<meta name="app-author" content="Hrimyx">
+<style>
+  /* =====================================================
+     Design Tokens —— 冷蓝色彩体系
+     绝对禁止硬编码，强制通过变量引用
+     ===================================================== */
+  :root {
+    /* 核心品牌色（静态） */
+    --brand-primary: #1A6AFF;
+    --on-brand-primary: #FFFFFF;
+    --brand-light: #6B9CFF;
+    --on-brand-light: #0A0F1A;
+    --brand-dark: #0D3B8C;
+    --on-brand-dark: #FFFFFF;
 
-            /* 静态品牌色 */
-            --brand-primary: #1A6AFF; 
-            --on-brand-primary: #FFFFFF;
-            --brand-light: #6B9CFF;
-            --on-brand-light: #0A0F1A;
-            --brand-dark: #0D3B8C;
-            --on-brand-dark: #FFFFFF;
+    /* 辅助与点缀色（静态） */
+    --accent-cyan: #00C4EB;
+    --on-accent-cyan: #0A0F1A;
+    --accent-coral: #E64A2E;
+    --on-accent-coral: #FFFFFF;
 
-            /* 辅助与点缀色 */
-            --accent-cyan: #00C4EB;
-            --on-accent-cyan: #0A0F1A;
-            --accent-coral: #E64A2E;
-            --on-accent-coral: #FFFFFF;
+    /* 语义反馈色 */
+    --semantic-success: #059669;
+    --semantic-success-bg: #E6FAF3;
+    --semantic-danger: #D92644;
+    --semantic-danger-bg: #FFEBEE;
+    --semantic-warning: #D97706;
+    --semantic-warning-bg: #FFF8E1;
+    --on-semantic-warning: #FFFFFF;
 
-            /* 语义反馈色 (日间) */
-            --semantic-success: #059669;
-            --semantic-success-bg: #E6FAF3;
-            --semantic-danger: #D92644;
-            --semantic-danger-bg: #FFEBEE;
-            --semantic-warning: #D97706;
-            --semantic-warning-bg: #FFF8E1;
+    /* 结构与中性色（日间） */
+    --surface-bg: #F7F9FC;
+    --surface-card: #FFFFFF;
+    --surface-overlay: #EBEEF5;
+    --border-divider: #D0D7E5;
+    --text-primary: #1A202C;
+    --text-secondary: #4A5568;
 
-            /* 其他设计变量 */
-            --radius-md: 12px;
-            --radius-sm: 8px;
-            --shadow-card: 0 4px 16px rgba(10, 15, 26, 0.04);
-            --shadow-hover: 0 8px 24px rgba(26, 106, 255, 0.12);
-            --transition-speed: 0.25s;
-        }
+    /* 布局与动效基础值 */
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --shadow-card: 0 1px 2px color-mix(in srgb, var(--brand-dark) 6%, transparent), 
+                   0 8px 24px color-mix(in srgb, var(--brand-dark) 8%, transparent);
+    --transition-fast: 150ms ease;
+    --transition-base: 220ms cubic-bezier(0.2, 0.6, 0.2, 1);
+    
+    /* 字体规范 */
+    --font-display: 'Space Grotesk', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'SFMono-Regular', Consolas, 'Courier New', monospace;
+  }
 
-        /* 暗黑模式自适应映射 */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --surface-bg: #0A0F1A;
-                --surface-card: #141C2B;
-                --surface-overlay: #1F2A3F;
-                --border-divider: #2C3A54;
-                --text-primary: #E2E8F0;
-                --text-secondary: #A0B0C8;
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* 结构与中性色（夜间映射） */
+      --surface-bg: #0A0F1A;
+      --surface-card: #141C2B;
+      --surface-overlay: #1F2A3F;
+      --border-divider: #2C3A54;
+      --text-primary: #E2E8F0;
+      --text-secondary: #A0B0C8;
+      
+      /* 语义色夜间背景 */
+      --semantic-success-bg: #0B2F26;
+      --semantic-danger-bg: #3D0F1A;
+      --semantic-warning-bg: #3D2E00;
+      
+      /* 暗黑模式文本可读性补偿：品牌主色作为文本/链接时映射为高亮版本 */
+      --brand-primary-text: var(--brand-light);
+    }
+  }
+  
+  /* 日间模式明文补偿回退 */
+  :root { --brand-primary-text: var(--brand-primary); }
 
-                /* 语义反馈色 (夜间) */
-                --semantic-success-bg: #0B2F26;
-                --semantic-danger-bg: #3D0F1A;
-                --semantic-warning-bg: #3D2E00;
-            }
-        }
+  /* =====================================================
+     全局重置与排版
+     ===================================================== */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--surface-bg);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 
-        /* ==========================================================================
-           2. 基础重置与排版
-           ========================================================================== */
-        *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+  /* =====================================================
+     Header (包含动态背景光晕)
+     ===================================================== */
+  .site-header {
+    padding: 28px 24px 18px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .site-header::before {
+    content: "";
+    position: absolute;
+    top: -140px; left: 50%;
+    width: 960px; height: 240px;
+    transform: translateX(-50%);
+    /* 彻底重构硬编码：使用 color-mix 生成带透明度的发光效果 */
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--brand-primary) 14%, transparent), transparent 70%);
+    pointer-events: none;
+  }
+  .brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-icon {
+    width: 32px; height: 32px;
+    flex: none;
+    color: var(--brand-primary-text);
+  }
+  .app-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(32px, 6vw, 48px);
+    letter-spacing: -0.03em;
+    margin: 0;
+    background: linear-gradient(135deg, var(--brand-primary), var(--accent-cyan));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .identity-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .identity-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--surface-overlay);
+    border: 1px solid var(--border-divider);
+    padding: 4px 10px 4px 8px;
+    border-radius: 999px;
+  }
+  .identity-icon {
+    width: 12px; height: 12px;
+    color: var(--brand-primary-text);
+  }
+  .identity-divider {
+    width: 1px; height: 14px;
+    background: var(--border-divider);
+  }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--surface-bg);
-            color: var(--text-primary);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: background-color var(--transition-speed), color var(--transition-speed);
-        }
+  /* =====================================================
+     搜索与操作控制区
+     ===================================================== */
+  .layout-container {
+    max-width: 1220px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  .control-bar {
+    padding: 12px 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .input-container {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    width: 18px; height: 18px;
+    color: var(--text-secondary);
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    padding: 13px 16px 13px 44px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-divider);
+    background: var(--surface-card);
+    color: var(--text-primary);
+    font-size: 15px;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    min-height: 44px;
+  }
+  .search-input:focus {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  }
+  .search-input::placeholder { color: var(--text-secondary); }
 
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
+  .fav-toggle-btn {
+    flex: none;
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border-divider);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .fav-toggle-btn svg {
+    width: 20px; height: 20px;
+    fill: none; stroke: currentColor;
+  }
+  .fav-toggle-btn:hover {
+    border-color: var(--brand-light);
+    color: var(--brand-primary-text);
+  }
+  .fav-toggle-btn:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+  }
+  .fav-toggle-btn.active {
+    background: var(--semantic-warning);
+    border-color: var(--semantic-warning);
+    color: var(--on-semantic-warning);
+  }
+  .fav-toggle-btn.active svg { fill: currentColor; }
 
-        ul {
-            list-style: none;
-        }
+  /* =====================================================
+     核心主视图：网格与卡片
+     ===================================================== */
+  main {
+    flex: 1;
+    padding-bottom: 56px;
+  }
+  .result-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 12px 0 14px;
+    min-height: 18px;
+  }
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 1120px) { .tool-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 860px)  { .tool-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px)  { .tool-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
 
-        /* ==========================================================================
-           3. 布局与组件样式
-           ========================================================================== */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            width: 100%;
-        }
+  .tool-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--surface-card);
+    border: 1px solid var(--border-divider);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    box-shadow: var(--shadow-card);
+    transition: transform var(--transition-base), border-color var(--transition-fast);
+  }
+  .tool-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--brand-light);
+  }
+  .tool-card-link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    text-decoration: none;
+    outline: none;
+  }
+  .tool-card-link:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+  }
 
-        /* 头部信息区 */
-        .app-header {
-            padding: 60px 0 40px;
-            text-align: center;
-        }
-        .app-title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
-        }
-        .app-meta {
-            color: var(--text-secondary);
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-        .app-meta .badge {
-            background-color: var(--surface-overlay);
-            color: var(--text-primary);
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
+  .tool-fav-btn {
+    position: absolute;
+    top: 8px; right: 8px;
+    z-index: 2;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border-divider);
+    border-radius: 50%;
+    background: var(--surface-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .tool-fav-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; }
+  .tool-fav-btn:hover {
+    border-color: var(--semantic-warning);
+    color: var(--semantic-warning);
+  }
+  .tool-fav-btn:focus-visible {
+    outline: 2px solid var(--brand-primary); outline-offset: 2px;
+  }
+  .tool-fav-btn:active { transform: scale(0.9); }
+  .tool-fav-btn.is-active {
+    color: var(--semantic-warning);
+    border-color: var(--semantic-warning);
+    background: var(--semantic-warning-bg);
+  }
+  .tool-fav-btn.is-active svg { fill: currentColor; }
 
-        /* 搜索交互区 */
-        .search-section {
-            margin-bottom: 40px;
-            display: flex;
-            justify-content: center;
-        }
-        .search-box {
-            position: relative;
-            width: 100%;
-            max-width: 500px;
-        }
-        .search-input {
-            width: 100%;
-            padding: 16px 20px 16px 48px;
-            font-size: 1rem;
-            background-color: var(--surface-card);
-            border: 1px solid var(--border-divider);
-            border-radius: var(--radius-md);
-            color: var(--text-primary);
-            box-shadow: var(--shadow-card);
-            transition: all var(--transition-speed);
-            outline: none;
-        }
-        .search-input:focus {
-            border-color: var(--brand-primary);
-            box-shadow: 0 0 0 3px rgba(26, 106, 255, 0.2);
-        }
-        .search-input::placeholder {
-            color: var(--text-secondary);
-            opacity: 0.7;
-        }
-        .search-icon {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-            pointer-events: none;
-        }
+  .tool-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+  }
+  .tool-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding-right: 26px;
+  }
+  .tool-icon {
+    flex: none;
+    width: 34px; height: 34px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    background: color-mix(in srgb, var(--tool-accent, var(--brand-primary)) 14%, var(--surface-card));
+  }
+  .tool-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tool-desc {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .tool-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2px;
+  }
+  .tool-tag {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    color: var(--tool-accent, var(--brand-primary-text));
+    background: color-mix(in srgb, var(--tool-accent, var(--brand-primary)) 12%, transparent);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .tool-arrow {
+    width: 16px; height: 16px;
+    color: var(--text-secondary);
+    transition: transform var(--transition-fast), color var(--transition-fast);
+  }
+  .tool-card:hover .tool-arrow {
+    transform: translate(2px, -2px);
+    color: var(--brand-primary-text);
+  }
 
-        /* 工具卡片网格 */
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 60px;
-        }
+  /* 缺省态 */
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 64px 16px;
+    color: var(--text-secondary);
+  }
+  .empty-state .empty-icon { font-size: 32px; margin-bottom: 8px; }
 
-        .tool-card {
-            background-color: var(--surface-card);
-            border: 1px solid var(--border-divider);
-            border-radius: var(--radius-md);
-            padding: 24px;
-            box-shadow: var(--shadow-card);
-            transition: transform var(--transition-speed), box-shadow var(--transition-speed), border-color var(--transition-speed);
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-        }
+  /* =====================================================
+     全局组件：轻提示 (Toast) 与 Footer
+     ===================================================== */
+  .toast-container {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--brand-dark);
+    color: var(--on-brand-dark);
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-base), transform var(--transition-base);
+    z-index: 100;
+    box-shadow: var(--shadow-card);
+  }
+  .toast-container.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  
+  footer {
+    text-align: center;
+    padding: 24px 16px 32px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-divider);
+  }
 
-        .tool-card:hover, .tool-card:focus-within {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-hover);
-            border-color: var(--brand-primary);
-        }
-
-        .tool-card:focus-within {
-            outline: 2px solid var(--brand-primary);
-            outline-offset: 2px;
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .card-icon {
-            width: 48px;
-            height: 48px;
-            background-color: var(--surface-overlay);
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: var(--brand-primary);
-        }
-        
-        @media (prefers-color-scheme: dark) {
-            .card-icon { color: var(--brand-light); }
-        }
-
-        .card-title {
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .card-desc {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            flex-grow: 1;
-            margin-bottom: 20px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .card-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: auto;
-        }
-
-        .tag {
-            background-color: var(--surface-overlay);
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-
-        .action-link {
-            color: var(--brand-primary);
-            font-weight: 500;
-            font-size: 0.95rem;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        
-        @media (prefers-color-scheme: dark) {
-            .action-link {
-                color: var(--brand-light);
-            }
-            .action-link:hover {
-                color: var(--on-brand-light);
-            }
-        }
-        
-        .action-link::after {
-            content: "→";
-            transition: transform var(--transition-speed);
-        }
-        
-        .tool-card:hover .action-link::after {
-            transform: translateX(4px);
-        }
-
-        /* 隐藏的绝对定位链接，用于卡片整块点击与键盘聚焦 */
-        .full-card-link {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: 1;
-            opacity: 0;
-        }
-
-        /* 空状态 */
-        .empty-state {
-            text-align: center;
-            padding: 40px 0;
-            color: var(--text-secondary);
-            grid-column: 1 / -1;
-            display: none;
-        }
-
-        /* 页脚 */
-        footer {
-            margin-top: auto;
-            text-align: center;
-            padding: 30px 0;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            border-top: 1px solid var(--border-divider);
-        }
-
-        /* 轻提示 Toast */
-        .toast-container {
-            position: fixed;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            pointer-events: none;
-        }
-        .toast {
-            background-color: var(--surface-card);
-            color: var(--text-primary);
-            padding: 12px 24px;
-            border-radius: var(--radius-sm);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            font-size: 0.95rem;
-            border-left: 4px solid var(--brand-primary);
-            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            pointer-events: auto;
-        }
-        .toast.success { border-left-color: var(--semantic-success); }
-        .toast.danger { border-left-color: var(--semantic-danger); }
-        .toast.warning { border-left-color: var(--semantic-warning); }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-    </style>
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+  @media (max-width: 480px) {
+    .site-header { padding: 22px 16px 14px; }
+    .layout-container { padding: 0 16px; }
+  }
+</style>
 </head>
 <body>
 
-    <header class="app-header">
-        <div class="container">
-            <h1 class="app-title" id="display-title">Toolbox 导航</h1>
-            <div class="app-meta">
-                <span>作者: <strong id="display-author">--</strong></span>
-                <span class="badge" id="display-version">v--</span>
-            </div>
+  <header class="site-header">
+    <div class="brand-lockup">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 8 12 3 3 8l9 5 9-5Z"></path>
+        <path d="M3 8v8l9 5 9-5V8"></path>
+        <path d="M12 13v8"></path>
+      </svg>
+      <h1 class="app-title" id="uiAppTitle"></h1>
+    </div>
+    <div class="identity-row">
+      <span class="identity-item">
+        <svg class="identity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.58 9.59a2 2 0 0 0 2.82 0l4.6-4.6a2 2 0 0 0 0-2.58Z"></path>
+          <circle cx="7.5" cy="7.5" r="1.5"></circle>
+        </svg>
+        <span id="uiVersionText"></span>
+      </span>
+      <span class="identity-divider" aria-hidden="true"></span>
+      <span class="identity-item">
+        <svg class="identity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span id="uiAuthorText"></span>
+      </span>
+    </div>
+  </header>
+
+  <div class="layout-container control-bar">
+    <div class="search-wrap">
+      <div class="input-container">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input id="sysSearchInput" class="search-input" type="text" placeholder="搜索工具名称、描述或分类…" maxlength="60" autocomplete="off">
+      </div>
+      <button type="button" id="sysFavToggleBtn" class="fav-toggle-btn" aria-label="只看收藏">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <main class="layout-container">
+    <div id="uiResultMeta" class="result-meta" aria-live="polite"></div>
+    <div class="tool-grid" id="uiToolGrid"></div>
+  </main>
+
+  <footer>
+    <div class="layout-container"><span id="uiFooterAuthor"></span> - All Rights Reserved.</div>
+  </footer>
+
+  <div id="sysToast" class="toast-container" role="status" aria-live="polite"></div>
+
+  <!-- 重构点：彻底抛弃基于 innerHTML 拼接。使用 Template 避免任意 XSS 问题 -->
+  <template id="tplToolCard">
+    <div class="tool-card">
+      <a class="tool-card-link"></a>
+      <button type="button" class="tool-fav-btn">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+      </button>
+      <div class="tool-card-content" aria-hidden="true">
+        <div class="tool-card-head">
+          <div class="tool-icon"></div>
+          <div class="tool-name"></div>
         </div>
-    </header>
-
-    <main class="container">
-        <!-- 搜索过滤 -->
-        <section class="search-section">
-            <div class="search-box">
-                <!-- SVG Icon -->
-                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input type="text" id="search-input" class="search-input" placeholder="按名称、描述或标签搜索工具..." aria-label="搜索工具">
-            </div>
-        </section>
-
-        <!-- 工具列表 -->
-        <section>
-            <div class="tools-grid" id="tools-container" role="list">
-                <!-- JS 动态渲染卡片 -->
-            </div>
-            <div class="empty-state" id="empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px; opacity: 0.5;">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <p>未找到匹配的工具</p>
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; <span id="current-year"></span> <span id="footer-author"></span>. 保留所有权利.</p>
+        <div class="tool-desc"></div>
+        <div class="tool-footer">
+          <span class="tool-tag"></span>
+          <svg class="tool-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="7" y1="17" x2="17" y2="7"></line>
+            <polyline points="7 7 17 7 17 17"></polyline>
+          </svg>
         </div>
-    </footer>
+      </div>
+    </div>
+  </template>
 
-    <!-- Toast 容器 -->
-    <div class="toast-container" id="toast-container"></div>
+<script>
+/**
+ * Toybox App Script
+ * 遵循《工具开发基础规范》，采用高内聚低耦合模块化重构
+ */
+(function () {
+  'use strict';
 
-    <script>
-        /**
-         * @fileoverview 导航页面核心逻辑
-         * 遵循单一职责、防抖、异常处理、无全局污染原则。
-         */
-        
-        (() => {
-            'use strict';
+  // =====================================================
+  // 1. 全局防崩溃防护 (安全与健壮)
+  // =====================================================
+  window.addEventListener('error', e => console.error('Toybox Error:', e.message));
+  window.addEventListener('unhandledrejection', e => console.error('Toybox Promise Error:', e.reason));
 
-            // ==================================================================
-            // 1. 全局配置与状态
-            // ==================================================================
-            const CONFIG = {
-                // 读取 Meta 元信息
-                meta: {
-                    title: document.title,
-                    author: document.querySelector('meta[name="author"]')?.content || 'Unknown',
-                    version: document.querySelector('meta[name="version"]')?.content || '1.0.0'
-                }
-            };
+  // =====================================================
+  // 2. 数据层设计 (单一数据源与统一数据封装)
+  // =====================================================
+  const TOOL_DATA = [
+    { id: 'image-tinify', name: '图片压缩', desc: '轻量级图片压缩工具。', icon: '🖼️', category: '设计', accent: 'var(--accent-cyan)', url: './image-tinify.html' },
+    { id: 'har-analyzer', name: 'HAR本地分析器', desc: 'HAR本地分析器，支持导入数据进行解析', icon: '🌐', category: '开发', accent: 'var(--brand-primary)', url: './har-analyzer.html' }
+    // { id: 'json-formatter', name: 'JSON 格式化', desc: '格式化、压缩、校验 JSON 数据，支持树形结构查看。', icon: '🧩', category: '开发', accent: 'var(--brand-primary)', url: 'https://example.com/tools/json-formatter' },
+    // { id: 'pomodoro', name: '番茄钟', desc: '简洁的番茄工作法计时器，支持自定义时长与提醒音。', icon: '⏱️', category: '效率', accent: 'var(--semantic-warning)', url: 'https://example.com/tools/pomodoro' },
+    // { id: 'markdown-preview', name: 'Markdown 预览', desc: '实时渲染 Markdown 文本，支持导出为 HTML。', icon: '📝', category: '开发', accent: 'var(--brand-primary)', url: 'https://example.com/tools/markdown-preview' },
+    // { id: 'unit-convert', name: '单位换算', desc: '长度、重量、温度等常用单位互相换算工具。', icon: '📐', category: '实用', accent: 'var(--semantic-success)', url: 'https://example.com/tools/unit-convert' },
+    // { id: 'qr-generator', name: '二维码生成', desc: '输入文本或链接，即时生成可下载的二维码图片。', icon: '🔳', category: '实用', accent: 'var(--semantic-success)', url: 'https://example.com/tools/qr-generator' },
+    // { id: 'word-counter', name: '字数统计', desc: '统计文本字数、字符数与阅读时长，支持中英文。', icon: '🔤', category: '效率', accent: 'var(--semantic-warning)', url: 'https://example.com/tools/word-counter' },
+    // { id: 'random-picker', name: '随机抽签器', desc: '输入名单，随机抽取一项，适合抽奖或分组场景。', icon: '🎲', category: '娱乐', accent: 'var(--accent-coral)', url: 'https://example.com/tools/random-picker' },
+    // { id: 'gradient-maker', name: '渐变生成器', desc: '可视化调节渐变角度与色标，一键复制 CSS 代码。', icon: '🌈', category: '设计', accent: 'var(--accent-cyan)', url: 'https://example.com/tools/gradient-maker' }
+  ];
 
-            const TOOLS_DATA = [
-                {
-                    id: 'image-tinify',
-                    name: '图片压缩',
-                    description: 'Web/Mobile 跨端适配的轻量级图片压缩与格式转换工具，提供优化的排版 UI。',
-                    link: './image-tinify.html',
-                    icon: '🖼️',
-                    tag: '多媒体'
-                },
-                {
-                    id: 'har-analyzer',
-                    name: 'HAR本地分析器',
-                    description: '网络请求HAR文件解析工具，支持导入数据分类及展示优化，快速定位请求异常。',
-                    link: './har-analyzer.html',
-                    icon: '🌐',
-                    tag: '网络诊断'
-                }
-                // {
-                //     id: 'json-formatter',
-                //     name: 'JSON 格式化工具',
-                //     description: '本地化的 JSON 校验、格式化美化与层级折叠展示工具。',
-                //     link: './json-formatter/index.html',
-                //     icon: '{ }',
-                //     tag: '数据处理'
-                // },
-                // {
-                //     id: 'regex-tester',
-                //     name: '正则表达式测试',
-                //     description: '实时高亮的正则匹配测试工具，内置常用规则备忘录。',
-                //     link: './regex-tester/index.html',
-                //     icon: '🧩',
-                //     tag: '开发辅助'
-                // },
-                // {
-                //     id: 'base64-tool',
-                //     name: 'Base64 编解码',
-                //     description: '支持文本与小体积图片的纯离线 Base64 快速相互转换。',
-                //     link: './base64-tool/index.html',
-                //     icon: '🔐',
-                //     tag: '安全/编码'
-                // }
-            ];
+  const StorageManager = {
+    keys: { FAV_LIST: 'toybox.favs_v2', FAV_MODE: 'toybox.favMode_v2' },
+    
+    get(key, fallback) {
+      try {
+        const val = localStorage.getItem(key);
+        return val ? JSON.parse(val) : fallback;
+      } catch (err) { return fallback; }
+    },
+    
+    set(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (err) { /* 静默降级 */ }
+    }
+  };
 
-            // ==================================================================
-            // 2. 异常与安全处理
-            // ==================================================================
-            
-            // 全局异常捕获
-            window.addEventListener('error', (event) => {
-                console.error('[Error捕获]:', event.error);
-                showToast('页面发生未知错误，部分功能可能受限', 'danger');
-            });
-            window.addEventListener('unhandledrejection', (event) => {
-                console.error('[Promise异常]:', event.reason);
-                showToast('异步处理异常，请检查操作', 'warning');
-            });
+  const AppState = {
+    keyword: '',
+    favoritesOnly: StorageManager.get(StorageManager.keys.FAV_MODE, false),
+    favoriteIds: new Set(StorageManager.get(StorageManager.keys.FAV_LIST, [])),
+    
+    toggleFav(id) {
+      const isFav = this.favoriteIds.has(id);
+      if (isFav) this.favoriteIds.delete(id);
+      else this.favoriteIds.add(id);
+      StorageManager.set(StorageManager.keys.FAV_LIST, Array.from(this.favoriteIds));
+      return !isFav;
+    },
+    
+    toggleFavMode() {
+      this.favoritesOnly = !this.favoritesOnly;
+      StorageManager.set(StorageManager.keys.FAV_MODE, this.favoritesOnly);
+    }
+  };
 
-            // ==================================================================
-            // 3. 核心功能函数
-            // ==================================================================
+  // =====================================================
+  // 3. 视图层设计 (DOM 操作隔离，模板绑定)
+  // =====================================================
+  const UIManager = {
+    els: {
+      grid: document.getElementById('uiToolGrid'),
+      search: document.getElementById('sysSearchInput'),
+      favToggle: document.getElementById('sysFavToggleBtn'),
+      meta: document.getElementById('uiResultMeta'),
+      toast: document.getElementById('sysToast'),
+      cardTemplate: document.getElementById('tplToolCard')
+    },
+    
+    toastTimer: null,
+    
+    showToast(message) {
+      this.els.toast.textContent = message;
+      this.els.toast.classList.add('show');
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => this.els.toast.classList.remove('show'), 2200);
+    },
 
-            /**
-             * 安全的 DOM 文本插入 (防 XSS)
-             * @param {string} id DOM节点ID
-             * @param {string} text 文本内容
-             */
-            const setTextSafe = (id, text) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = text;
-            };
+    readMeta() {
+      const getMeta = (n, def) => {
+        const el = document.querySelector(`meta[name="${n}"]`);
+        return el ? el.getAttribute('content') : def;
+      };
+      return {
+        name: getMeta('app-name', 'Toybox'),
+        version: getMeta('app-version', '2.0.0'),
+        author: getMeta('app-author', 'Unknown')
+      };
+    },
 
-            /**
-             * 初始化页面元信息展示
-             */
-            const initMetaDisplay = () => {
-                try {
-                    setTextSafe('display-title', CONFIG.meta.title);
-                    setTextSafe('display-author', CONFIG.meta.author);
-                    setTextSafe('display-version', `v${CONFIG.meta.version}`);
-                    setTextSafe('current-year', new Date().getFullYear().toString());
-                    setTextSafe('footer-author', CONFIG.meta.author);
-                } catch (err) {
-                    console.error('初始化元信息失败:', err);
-                }
-            };
+    renderGlobalInfo() {
+      const meta = this.readMeta();
+      document.title = meta.name;
+      document.getElementById('uiAppTitle').textContent = meta.name;
+      document.getElementById('uiVersionText').textContent = `v${meta.version}`;
+      document.getElementById('uiAuthorText').textContent = meta.author;
+      document.getElementById('uiFooterAuthor').textContent = `© ${new Date().getFullYear()} ${meta.author}`;
+    },
 
-            /**
-             * 防抖函数
-             */
-            const debounce = (fn, delay = 300) => {
-                let timer = null;
-                return function (...args) {
-                    if (timer) clearTimeout(timer);
-                    timer = setTimeout(() => {
-                        fn.apply(this, args);
-                    }, delay);
-                };
-            };
+    renderEmptyState(isEmptyFav) {
+      this.els.grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">${isEmptyFav ? '☆' : '🔍'}</div>
+          <div>${isEmptyFav ? '还没有收藏任何工具，点击卡片右上角的星标试试。' : '没有找到匹配的工具，换个关键词试试。'}</div>
+        </div>`;
+    },
 
-            /**
-             * 显示轻提示
-             * @param {string} message 提示信息
-             * @param {'default'|'success'|'danger'|'warning'} type 提示类型
-             */
-            const showToast = (message, type = 'default') => {
-                const container = document.getElementById('toast-container');
-                if (!container) return;
-                
-                const toast = document.createElement('div');
-                toast.className = `toast ${type}`;
-                toast.textContent = message;
-                
-                container.appendChild(toast);
-                
-                // 3秒后移除
-                setTimeout(() => {
-                    toast.style.animation = 'fadeOut 0.3s ease forwards';
-                    toast.addEventListener('animationend', () => {
-                        toast.remove();
-                    });
-                }, 3000);
-            };
+    // 核心安全重构：采用原生 DOM 节点操作替代 innerHTML
+    createCardNode(tool, isFav, onFavClick) {
+      const clone = document.importNode(this.els.cardTemplate.content, true);
+      const card = clone.querySelector('.tool-card');
+      const link = clone.querySelector('.tool-card-link');
+      const btn = clone.querySelector('.tool-fav-btn');
+      
+      card.style.setProperty('--tool-accent', tool.accent);
+      
+      link.href = tool.url;
+      link.setAttribute('aria-label', `${tool.name}：${tool.desc}`);
+      
+      btn.className = 'tool-fav-btn' + (isFav ? ' is-active' : '');
+      btn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+      btn.setAttribute('aria-label', (isFav ? '取消收藏 ' : '收藏 ') + tool.name);
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        onFavClick(tool);
+      });
 
-            /**
-             * 渲染工具列表
-             * @param {Array} tools 工具数组
-             */
-            const renderTools = (tools) => {
-                const container = document.getElementById('tools-container');
-                const emptyState = document.getElementById('empty-state');
-                
-                if (!container || !emptyState) return;
-                
-                // 清空并安全渲染 (不使用 innerHTML 拼接字符串以防 XSS)
-                container.innerHTML = '';
-                
-                if (tools.length === 0) {
-                    emptyState.style.display = 'block';
-                    return;
-                }
-                
-                emptyState.style.display = 'none';
+      clone.querySelector('.tool-icon').textContent = tool.icon;
+      clone.querySelector('.tool-name').textContent = tool.name;
+      clone.querySelector('.tool-desc').textContent = tool.desc;
+      clone.querySelector('.tool-tag').textContent = tool.category;
+      
+      return clone;
+    },
 
-                const fragment = document.createDocumentFragment();
+    renderGrid(tools, state, onFavClick) {
+      if (!tools.length) {
+        this.els.meta.textContent = '';
+        this.renderEmptyState(state.favoritesOnly);
+        return;
+      }
 
-                tools.forEach(tool => {
-                    // 构建 DOM
-                    const card = document.createElement('article');
-                    card.className = 'tool-card';
-                    card.setAttribute('role', 'listitem');
+      this.els.meta.textContent = state.favoritesOnly 
+        ? `收藏 · 共 ${tools.length} 个工具` 
+        : `共 ${tools.length} 个工具`;
 
-                    // 1. 隐藏的完整链接，方便辅助设备和全卡片点击
-                    const link = document.createElement('a');
-                    link.href = tool.link;
-                    link.className = 'full-card-link';
-                    link.setAttribute('aria-label', `打开 ${tool.name}`);
-                    
-                    // 2. 头部
-                    const header = document.createElement('div');
-                    header.className = 'card-header';
-                    const icon = document.createElement('div');
-                    icon.className = 'card-icon';
-                    icon.textContent = tool.icon;
-                    const title = document.createElement('h2');
-                    title.className = 'card-title';
-                    title.textContent = tool.name;
-                    header.appendChild(icon);
-                    header.appendChild(title);
+      const frag = document.createDocumentFragment();
+      tools.forEach(tool => {
+        const isFav = state.favoriteIds.has(tool.id);
+        frag.appendChild(this.createCardNode(tool, isFav, onFavClick));
+      });
+      
+      this.els.grid.innerHTML = '';
+      this.els.grid.appendChild(frag);
+    },
+    
+    updateControls(state) {
+      this.els.favToggle.classList.toggle('active', state.favoritesOnly);
+      this.els.favToggle.setAttribute('aria-pressed', state.favoritesOnly.toString());
+    }
+  };
 
-                    // 3. 描述
-                    const desc = document.createElement('p');
-                    desc.className = 'card-desc';
-                    desc.textContent = tool.description;
+  // =====================================================
+  // 4. 控制器层 (业务逻辑粘合)
+  // =====================================================
+  const AppController = {
+    // 防抖辅助函数
+    debounce(fn, delay) {
+      let timer = null;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    },
 
-                    // 4. 底部
-                    const footer = document.createElement('div');
-                    footer.className = 'card-footer';
-                    const tag = document.createElement('span');
-                    tag.className = 'tag';
-                    tag.textContent = tool.tag;
-                    const action = document.createElement('span');
-                    action.className = 'action-link';
-                    action.textContent = '进入';
-                    footer.appendChild(tag);
-                    footer.appendChild(action);
+    getFilteredTools() {
+      const kw = AppState.keyword.toLowerCase();
+      return TOOL_DATA.filter(t => {
+        const matchKw = !kw || t.name.toLowerCase().includes(kw) || t.desc.toLowerCase().includes(kw) || t.category.toLowerCase().includes(kw);
+        return AppState.favoritesOnly ? (AppState.favoriteIds.has(t.id) && matchKw) : matchKw;
+      });
+    },
 
-                    // 组装卡片
-                    card.appendChild(link);
-                    card.appendChild(header);
-                    card.appendChild(desc);
-                    card.appendChild(footer);
+    handleFavClick(tool) {
+      const added = AppState.toggleFav(tool.id);
+      UIManager.showToast(added ? `已收藏 ${tool.name}` : `已取消收藏 ${tool.name}`);
+      this.refreshGrid();
+    },
 
-                    fragment.appendChild(card);
-                });
+    refreshGrid() {
+      const data = this.getFilteredTools();
+      UIManager.renderGrid(data, AppState, this.handleFavClick.bind(this));
+    },
 
-                container.appendChild(fragment);
-            };
+    bindEvents() {
+      // 搜索校验与防抖
+      UIManager.els.search.addEventListener('input', this.debounce((e) => {
+        const safeVal = e.target.value.trim().slice(0, 60); // 合法性校验：截取限制
+        AppState.keyword = safeVal;
+        this.refreshGrid();
+      }, 200));
 
-            /**
-             * 处理搜索过滤逻辑
-             */
-            const handleSearch = (e) => {
-                const query = e.target.value.toLowerCase().trim();
-                
-                try {
-                    const filtered = TOOLS_DATA.filter(tool => {
-                        return tool.name.toLowerCase().includes(query) ||
-                               tool.description.toLowerCase().includes(query) ||
-                               tool.tag.toLowerCase().includes(query);
-                    });
-                    renderTools(filtered);
-                } catch (err) {
-                    console.error('搜索过滤失败:', err);
-                }
-            };
+      // 切换收藏模式
+      UIManager.els.favToggle.addEventListener('click', () => {
+        AppState.toggleFavMode();
+        UIManager.updateControls(AppState);
+        this.refreshGrid();
+      });
+    },
 
-            // ==================================================================
-            // 4. 初始化与事件绑定
-            // ==================================================================
-            const init = () => {
-                try {
-                    initMetaDisplay();
-                    renderTools(TOOLS_DATA);
-                    
-                    const searchInput = document.getElementById('search-input');
-                    if (searchInput) {
-                        // 使用防抖优化高频输入
-                        searchInput.addEventListener('input', debounce(handleSearch, 250));
-                    }
-                    
-                    // console.log(`[App Init] ${CONFIG.meta.title} v${CONFIG.meta.version} Ready.`);
-                } catch (err) {
-                    console.error('初始化核心逻辑失败:', err);
-                }
-            };
+    init() {
+      try {
+        UIManager.renderGlobalInfo();
+        UIManager.updateControls(AppState);
+        this.bindEvents();
+        this.refreshGrid();
+      } catch (err) {
+        console.error('Toybox App Init Failed:', err);
+        UIManager.showToast('应用初始化失败');
+      }
+    }
+  };
 
-            // 确保 DOM 加载完成后执行
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
-            } else {
-                init();
-            }
+  // 启动应用
+  document.addEventListener('DOMContentLoaded', () => AppController.init());
 
-        })();
-    </script>
+})();
+</script>
 </body>
 </html>
