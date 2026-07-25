@@ -6,15 +6,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
+    <!-- 应用元信息 -->
     <meta name="app-name" content="图片压缩" />
-    <meta name="app-version" content="2.5.2" />
+    <meta name="app-version" content="2.5.5" />
     <meta name="app-author" content="Hrimyx" />
     <title></title>
     <script>
       document.title = document.querySelector('meta[name="app-name"]').content;
     </script>
-    <!-- 引入 JSZip 库用于全部下载打包 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
       /* 按照冷蓝色彩体系规范设计 */
@@ -67,7 +66,6 @@
         }
       }
 
-      /* 基础重置与排版 */
       * {
         box-sizing: border-box;
         margin: 0;
@@ -89,7 +87,6 @@
           color 0.3s;
       }
 
-      /* 整体容器适配与优化 */
       .app-container {
         width: 100%;
         max-width: 1080px;
@@ -111,7 +108,6 @@
         }
       }
 
-      /* 头部设计 */
       header {
         flex-shrink: 0;
         padding: 12px 24px;
@@ -166,14 +162,12 @@
       }
       .api-count span {
         font-weight: 600;
-        color: var(--brand-primary);
         padding: 3px 10px;
-        background: var(--surface-bg);
         border-radius: var(--radius-md);
-        border: 1px solid var(--border-divider);
+        border: 1px solid transparent;
+        transition: all 0.3s;
       }
 
-      /* 按钮与交互元素 */
       button {
         cursor: pointer;
         border: none;
@@ -222,14 +216,12 @@
       .btn-danger-outline:hover:not(:disabled) {
         background: var(--semantic-danger-bg);
       }
-
       .btn-icon {
         padding: 8px;
         width: 36px;
         height: 36px;
       }
 
-      /* 主体内容区 */
       main {
         flex: 1;
         display: flex;
@@ -238,7 +230,6 @@
         position: relative;
       }
 
-      /* 上传区域 */
       .upload-section {
         flex-shrink: 0;
         padding: 16px 24px;
@@ -294,7 +285,6 @@
         height: 100%;
       }
 
-      /* 文件列表区 */
       .list-section {
         flex: 1;
         overflow-y: auto;
@@ -403,7 +393,6 @@
         font-size: 16px;
       }
 
-      /* 进度条设计 */
       .progress-bar-container {
         position: absolute;
         bottom: 0;
@@ -458,7 +447,6 @@
         }
       }
 
-      /* 底部悬浮容器 */
       .floating-container {
         position: absolute;
         bottom: 24px;
@@ -473,7 +461,6 @@
       .floating-container > * {
         pointer-events: auto;
       }
-
       .stats-pill {
         background: var(--surface-card);
         padding: 6px 14px;
@@ -491,14 +478,12 @@
         font-weight: 600;
         font-size: 14px;
       }
-
       .floating-buttons {
         display: flex;
         flex-direction: column;
         gap: 12px;
         align-items: flex-end;
       }
-
       .floating-btn {
         border-radius: 20px;
         padding: 8px 20px;
@@ -516,7 +501,6 @@
         color: var(--text-secondary);
       }
 
-      /* 弹窗设计 */
       .modal-overlay {
         position: fixed;
         inset: 0;
@@ -612,6 +596,12 @@
         outline: none;
         border-color: var(--brand-primary);
       }
+      .form-control:disabled {
+        background-color: var(--surface-overlay);
+        color: var(--text-secondary);
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
       textarea.form-control {
         resize: vertical;
         min-height: 70px;
@@ -642,7 +632,6 @@
         gap: 12px;
       }
 
-      /* 轻提示 Toast */
       .toast-container {
         position: fixed;
         top: 24px;
@@ -679,7 +668,6 @@
         fill: currentColor;
       }
 
-      /* 移动端细微适配 */
       @media (max-width: 600px) {
         header {
           padding: 8px 12px;
@@ -801,7 +789,6 @@
         </div>
       </header>
 
-      <!-- 主体区域 -->
       <main>
         <div class="upload-section">
           <div class="upload-zone" id="upload-zone">
@@ -864,7 +851,7 @@
       </main>
     </div>
 
-    <!-- 弹窗组件 -->
+    <!-- 配置弹窗 -->
     <div class="modal-overlay" id="modal-settings">
       <div class="modal-content">
         <div class="modal-header">
@@ -898,24 +885,19 @@
             </select>
             <div class="flex-row">
               <input
-                type="number"
+                type="text"
                 class="form-control"
                 id="input-resize-w"
-                placeholder="宽度 (px)"
-                min="1"
-                max="2560"
+                placeholder="宽(1-2560)"
               />
               <input
-                type="number"
+                type="text"
                 class="form-control"
                 id="input-resize-h"
-                placeholder="高度 (px)"
-                min="1"
-                max="2560"
+                placeholder="高(1-2560)"
               />
             </div>
           </div>
-          <!-- 结合官方文档新增转换与元数据保留设置 -->
           <div class="form-group">
             <label>图像转换 (Convert)</label>
             <div class="form-hint">
@@ -964,6 +946,7 @@
       </div>
     </div>
 
+    <!-- 确认弹窗 -->
     <div class="modal-overlay" id="modal-confirm">
       <div class="modal-content" style="max-width: 400px">
         <div class="modal-header">
@@ -1024,7 +1007,6 @@
       };
 
       const PROXY_URL = "https://tinify-proxy.hrimyx.workers.dev";
-      // 将上传超时时间大幅度放宽至 120 秒，适应更大图片
       const UPLOAD_TIMEOUT = 120000;
 
       let lastGlobalErrorAt = 0;
@@ -1048,7 +1030,6 @@
         state: {
           keys: [],
           currentKeyIndex: 0,
-          // 新增 convert 和 preserve 结构体
           settings: {
             resize: { method: "", width: "", height: "" },
             convert: [],
@@ -1152,24 +1133,15 @@
       };
 
       const UI = {
-        formatApiCountText(count) {
-          if (!Store.state.keys || Store.state.keys.length === 0)
-            return "配额：未配置";
-          if (count === null || count === undefined) return "配额：待获取";
-          return `配额：${count}/500`;
-        },
         setApiCountText(count) {
           const apiSpan = document.getElementById("ui-api-count");
           if (!apiSpan) return;
-
-          // 每次更新前先重置样式，以防状态切换时残留
           apiSpan.style.color = "";
           apiSpan.style.borderColor = "";
           apiSpan.style.background = "";
 
           if (!Store.state.keys || Store.state.keys.length === 0) {
             apiSpan.innerText = "配额：未配置";
-            // 未配置时：使用红色警示 (Danger)
             apiSpan.style.color = "var(--semantic-danger)";
             apiSpan.style.borderColor = "var(--semantic-danger)";
             apiSpan.style.background = "var(--semantic-danger-bg)";
@@ -1178,14 +1150,11 @@
             apiSpan.style.color = "var(--brand-primary)";
           } else {
             apiSpan.innerText = `配额：${count}/500`;
-            // Tinify 免费额度为 500。当已使用 >= 450 (即剩余不足 10%) 时预警
             if (count >= 450) {
-              // 额度告警：使用橙色警告 (Warning)
               apiSpan.style.color = "var(--semantic-warning)";
               apiSpan.style.borderColor = "var(--semantic-warning)";
               apiSpan.style.background = "var(--semantic-warning-bg)";
             } else {
-              // 正常状态：使用常规品牌色
               apiSpan.style.color = "var(--brand-primary)";
               apiSpan.style.borderColor = "var(--border-divider)";
               apiSpan.style.background = "var(--surface-bg)";
@@ -1199,9 +1168,8 @@
           const floating = document.getElementById("floating-container");
 
           if (items.length === 0) {
-            if (!empty) {
+            if (!empty)
               list.innerHTML = `<div class="empty-state" id="empty-state">尚未添加图片，赶紧上传体验吧！</div>`;
-            }
             floating.style.display = "none";
           } else {
             if (empty) empty.remove();
@@ -1218,16 +1186,10 @@
                                 <img src="${url}" class="file-thumb" alt="thumb">
                                 <div class="file-meta">
                                     <div class="file-name" title="${file.name}">${file.name}</div>
-                                    <div class="file-type">
-                                        <span>${Utils.formatBytes(file.size)}</span>
-                                        <span style="color:var(--border-divider)">|</span>
-                                        <span>${file.type.split("/")[1].toUpperCase()}</span>
-                                    </div>
+                                    <div class="file-type"><span>${Utils.formatBytes(file.size)}</span><span style="color:var(--border-divider)">|</span><span>${file.type.split("/")[1].toUpperCase()}</span></div>
                                 </div>
                             </div>
-                            <div class="file-status" id="status-${id}">
-                                <div class="file-stats" id="stats-text-${id}">排队等待...</div>
-                            </div>
+                            <div class="file-status" id="status-${id}"><div class="file-stats" id="stats-text-${id}">排队等待...</div></div>
                         </div>
                         <div class="progress-bar-container" id="prog-container-${id}">
                             <div class="progress-bar-fill upload-fill" id="bar-up-${id}"></div>
@@ -1243,7 +1205,6 @@
           const barUp = document.getElementById(`bar-up-${id}`);
           const barCp = document.getElementById(`bar-cp-${id}`);
           const stats = document.getElementById(`stats-text-${id}`);
-
           if (stage === "upload") {
             if (barUp) barUp.style.width = percent + "%";
             if (stats)
@@ -1253,11 +1214,9 @@
             if (barCp) {
               barCp.style.opacity = "1";
               barCp.style.width = percent + "%";
-              if (percent === 100 && text !== "完成" && text !== "失败") {
+              if (percent === 100 && text !== "完成" && text !== "失败")
                 barCp.classList.add("animating");
-              } else {
-                barCp.classList.remove("animating");
-              }
+              else barCp.classList.remove("animating");
             }
             if (stats) stats.innerText = text;
           }
@@ -1270,16 +1229,11 @@
             progGroup.style.opacity = "0";
             setTimeout(() => progGroup.remove(), 300);
           }
-
           const saved = oldSize - newSize;
           const ratio = saved > 0 ? ((saved / oldSize) * 100).toFixed(1) : 0;
-
           Store.addSavedResult(saved > 0 ? saved : 0);
-
           const statusEl = document.getElementById(`status-${id}`);
           if (!statusEl) return;
-
-          // 将被更名的实际文件也反映至前端展示
           const originalNameEl = document
             .getElementById(id)
             .querySelector(".file-name");
@@ -1287,17 +1241,11 @@
             originalNameEl.innerText = name;
             originalNameEl.title = name;
           }
-
           statusEl.innerHTML = `
-                    <div class="file-stats">
-                        <span class="percent">-${ratio}%</span><br>
-                        ${Utils.formatBytes(newSize)}
-                    </div>
+                    <div class="file-stats"><span class="percent">-${ratio}%</span><br>${Utils.formatBytes(newSize)}</div>
                     <button class="btn-outline btn-icon btn-dl" data-url="${blobUrl}" data-name="${name}" title="下载">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    </button>
-                `;
-
+                    </button>`;
           statusEl
             .querySelector(".btn-dl")
             .addEventListener("click", function () {
@@ -1319,7 +1267,6 @@
             bar.classList.remove("animating");
             bar.style.background = "var(--semantic-danger)";
           }
-
           const stats = document.getElementById(`stats-text-${id}`);
           if (stats) {
             stats.innerText = msg;
@@ -1334,27 +1281,18 @@
         updateActionButtons() {
           const isProcessing = Store.state.activeTasks > 0;
           const dlCount = document.querySelectorAll(".btn-dl").length;
-          // 新增：获取当前列表中的所有文件数量（包含成功、处理中和失败的）
           const fileCount = document.querySelectorAll(".file-item").length;
 
-          const btnClear = document.getElementById("btn-clear-all");
-          const btnDownload = document.getElementById("btn-download-all");
-
-          // 逻辑拆分
-          // 只要有文件存在且没有正在处理的任务，就可以点击清空
-          btnClear.disabled = isProcessing || fileCount === 0;
-
-          // 只有存在已成功并生成下载按钮的文件，且没有正在处理的任务时，才可以全部下载
-          btnDownload.disabled = isProcessing || dlCount === 0;
+          document.getElementById("btn-clear-all").disabled =
+            isProcessing || fileCount === 0;
+          document.getElementById("btn-download-all").disabled =
+            isProcessing || dlCount === 0;
         },
         toast(msg) {
           const root = document.getElementById("toast-root");
           const el = document.createElement("div");
           el.className = "toast";
-          el.innerHTML = `
-                    <svg class="toast-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-                    <span>${msg}</span>
-                `;
+          el.innerHTML = `<svg class="toast-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span>${msg}</span>`;
           root.appendChild(el);
           void el.offsetWidth;
           el.classList.add("show");
@@ -1370,13 +1308,11 @@
             const modal = document.getElementById("modal-confirm");
             document.getElementById("confirm-msg").innerText = msg;
             modal.classList.add("active");
-
             const cleanup = () => {
               modal.classList.remove("active");
               document.getElementById("btn-confirm-ok").onclick = null;
               document.getElementById("btn-confirm-cancel").onclick = null;
             };
-
             document.getElementById("btn-confirm-ok").onclick = () => {
               cleanup();
               resolve(true);
@@ -1394,14 +1330,12 @@
           const key = Store.getCurrentKey();
           if (!key) throw new Error("缺少有效密钥");
           const auth = "Basic " + btoa("api:" + key);
-
           const { settings } = Store.state;
 
           return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("POST", `${PROXY_URL}/shrink`);
             xhr.setRequestHeader("Authorization", auth);
-
             if (settings.resize && settings.resize.method) {
               xhr.setRequestHeader("X-Resize-Method", settings.resize.method);
               if (settings.resize.width)
@@ -1409,47 +1343,37 @@
               if (settings.resize.height)
                 xhr.setRequestHeader("X-Resize-Height", settings.resize.height);
             }
-
-            // 将用户的多格式和元数据配置注入请求头
-            if (settings.convert && settings.convert.length > 0) {
+            if (settings.convert && settings.convert.length > 0)
               xhr.setRequestHeader(
                 "X-Convert-Type",
                 settings.convert.join(","),
               );
-            }
-            if (settings.preserve && settings.preserve.length > 0) {
+            if (settings.preserve && settings.preserve.length > 0)
               xhr.setRequestHeader("X-Preserve", settings.preserve.join(","));
-            }
 
             xhr.timeout = UPLOAD_TIMEOUT;
             xhr.responseType = "blob";
             xhr.ontimeout = () =>
               reject(new Error("请求超时，请检查网络后重试"));
-
             xhr.upload.onprogress = (e) => {
               if (e.lengthComputable) {
                 const percent = Math.floor((e.loaded / e.total) * 100);
                 UI.updateProgress(id, "upload", percent, "");
-                if (percent === 100) {
+                if (percent === 100)
                   UI.updateProgress(id, "compress", 100, "云端处理中...");
-                }
               }
             };
-
             xhr.onload = () => {
-              if (xhr.status === 429 || xhr.status === 401) {
+              if (xhr.status === 429 || xhr.status === 401)
                 reject({ type: "auth", status: xhr.status });
-              } else if (xhr.status >= 200 && xhr.status < 300) {
+              else if (xhr.status >= 200 && xhr.status < 300) {
                 const count = xhr.getResponseHeader("compression-count");
                 if (count) {
                   Store.saveApiCount(count);
                   UI.setApiCountText(count);
                 }
-
                 const blob = xhr.response;
                 let finalName = file.name;
-
-                // 动态判断转换后的扩展名，实现对转换格式后的无缝下载兼容
                 if (blob.type) {
                   const extMap = {
                     "image/jpeg": ".jpg",
@@ -1460,13 +1384,11 @@
                   const oldExt = finalName.includes(".")
                     ? finalName.substring(finalName.lastIndexOf("."))
                     : "";
-                  if (newExt && oldExt.toLowerCase() !== newExt) {
+                  if (newExt && oldExt.toLowerCase() !== newExt)
                     finalName =
                       finalName.substring(0, finalName.lastIndexOf(".")) +
                       newExt;
-                  }
                 }
-
                 resolve({
                   size: blob.size,
                   blobUrl: Utils.trackBlobUrl(URL.createObjectURL(blob)),
@@ -1486,7 +1408,6 @@
                 reader.readAsText(xhr.response);
               }
             };
-
             xhr.onerror = () => reject(new Error("网络请求失败"));
             xhr.send(file);
           });
@@ -1526,21 +1447,36 @@
           document.getElementById("brand-author-text").textContent =
             `by ${AppMeta.author}`;
         },
+        toggleResizeInputs() {
+          const methodSelect = document.getElementById("input-resize-method");
+          const inputW = document.getElementById("input-resize-w");
+          const inputH = document.getElementById("input-resize-h");
+
+          if (methodSelect.value === "") {
+            inputW.value = "";
+            inputH.value = "";
+            inputW.disabled = true;
+            inputH.disabled = true;
+          } else {
+            inputW.disabled = false;
+            inputH.disabled = false;
+          }
+        },
         fillSettingsForm() {
           document.getElementById("input-keys").value =
             Store.state.keys.join(", ");
-
           const rs = Store.state.settings.resize || {};
           document.getElementById("input-resize-method").value =
             rs.method || "";
           document.getElementById("input-resize-w").value = rs.width || "";
           document.getElementById("input-resize-h").value = rs.height || "";
 
+          this.toggleResizeInputs(); // 填充完数据后自动根据选项控制禁用状态
+
           const cv = Store.state.settings.convert || [];
           document
             .querySelectorAll('input[name="convertType"]')
             .forEach((cb) => (cb.checked = cv.includes(cb.value)));
-
           const pr = Store.state.settings.preserve || [];
           document
             .querySelectorAll('input[name="preserveMeta"]')
@@ -1578,6 +1514,28 @@
             }
           });
 
+          // 处理缩放规则变更联动
+          document
+            .getElementById("input-resize-method")
+            .addEventListener("change", () => this.toggleResizeInputs());
+
+          // 强制校验只能输入整数，并限制最大值为2560
+          const enforceIntegerAndRange = (e) => {
+            let val = e.target.value;
+            val = val.replace(/[^0-9]/g, ""); // 实时剔除非数字
+            if (val !== "") {
+              let num = parseInt(val, 10);
+              if (num > 2560) val = "2560";
+            }
+            e.target.value = val;
+          };
+          document
+            .getElementById("input-resize-w")
+            .addEventListener("input", enforceIntegerAndRange);
+          document
+            .getElementById("input-resize-h")
+            .addEventListener("input", enforceIntegerAndRange);
+
           document.getElementById("btn-save-settings").onclick = () => {
             const btnSave = document.getElementById("btn-save-settings");
             if (btnSave.disabled) return;
@@ -1592,14 +1550,12 @@
               .map((k) => k.trim())
               .filter(Boolean);
 
-            // 1. 校验 API 密钥格式：必须是 32 位大小写字母或数字
             const keyRegex = /^[A-Za-z0-9]{32}$/;
             for (let i = 0; i < keys.length; i++) {
-              if (!keyRegex.test(keys[i])) {
+              if (!keyRegex.test(keys[i]))
                 return UI.toast(
                   `第 ${i + 1} 个 API 密钥格式错误，应为 32 位字母数字`,
                 );
-              }
             }
 
             const method = document.getElementById("input-resize-method").value;
@@ -1620,13 +1576,10 @@
                 if (!wStr || !hStr)
                   return UI.toast(`${method} 模式需要同时填写宽度和高度`);
               }
-
               if (wStr && (isNaN(w) || w <= 0))
                 return UI.toast("宽度必须为正整数");
               if (hStr && (isNaN(h) || h <= 0))
                 return UI.toast("高度必须为正整数");
-
-              // 2. 校验宽高校验限制：不能大于 2560
               if (wStr && w > 2560) return UI.toast("缩放宽度不能大于 2560px");
               if (hStr && h > 2560) return UI.toast("缩放高度不能大于 2560px");
             }
@@ -1637,8 +1590,6 @@
             const preserve = Array.from(
               document.querySelectorAll('input[name="preserveMeta"]:checked'),
             ).map((cb) => cb.value);
-
-            // 如果密钥被全部清空，重置额度显示
             if (!keys.length) Store.saveApiCount(null);
 
             try {
@@ -1647,9 +1598,7 @@
                 convert,
                 preserve,
               });
-              document
-                .getElementById("modal-settings")
-                .classList.remove("active");
+              modalSettings.classList.remove("active");
               UI.toast("配置已成功保存");
               UI.setApiCountText(Store.state.apiCount);
             } catch (e) {
@@ -1660,13 +1609,11 @@
           const zone = document.getElementById("upload-zone");
           const fileInput = document.getElementById("file-input");
 
-          // 处理点击上传区域：拦截未配置 API 的情况
           fileInput.addEventListener("click", (e) => {
             if (!Store.state.keys.length) {
-              e.preventDefault(); // 关键：阻止浏览器弹出文件选择窗口
+              e.preventDefault();
               UI.toast("请先配置 API 密钥");
-              document.getElementById("modal-settings").classList.add("active");
-              // 自动让输入框获得焦点，提升体验
+              modalSettings.classList.add("active");
               setTimeout(
                 () => document.getElementById("input-keys").focus(),
                 50,
@@ -1679,29 +1626,24 @@
             zone.classList.add("dragover");
           };
           zone.ondragleave = () => zone.classList.remove("dragover");
-
-          // 处理拖拽上传：同样拦截
           zone.ondrop = (e) => {
             e.preventDefault();
             zone.classList.remove("dragover");
-
             if (!Store.state.keys.length) {
               UI.toast("请先配置 API 密钥");
-              document.getElementById("modal-settings").classList.add("active");
+              modalSettings.classList.add("active");
               setTimeout(
                 () => document.getElementById("input-keys").focus(),
                 50,
               );
               return;
             }
-
             this.handleFiles(e.dataTransfer.files);
           };
 
-          // 正常的文件选择流
           fileInput.onchange = (e) => {
             this.handleFiles(e.target.files);
-            e.target.value = ""; // 允许重复选择相同文件
+            e.target.value = "";
           };
 
           document.getElementById("btn-clear-all").onclick = async () => {
@@ -1724,35 +1666,26 @@
             const btns = document.querySelectorAll(".btn-dl");
             if (btns.length === 0) return;
             if (btns.length === 1) return btns[0].click();
-
             btnDownloadAll.dataset.busy = "1";
             try {
               UI.toast(`正在打包 ${btns.length} 张图片，请耐心等待...`);
               const zip = new JSZip();
-
-              // 生成一个专属文件夹将全部图片放入其中
               const folderName = `${AppMeta.name}合集_${new Date().getTime()}`;
               const imgFolder = zip.folder(folderName);
-
-              // 用于记录重名的缓存表
               const nameCounter = {};
 
               for (let i = 0; i < btns.length; i++) {
                 const url = btns[i].getAttribute("data-url");
                 let originalName = btns[i].getAttribute("data-name");
-
-                // 解析文件名以便注入重名后缀
                 let baseName = originalName.includes(".")
                   ? originalName.substring(0, originalName.lastIndexOf("."))
                   : originalName;
                 let ext = originalName.includes(".")
                   ? originalName.substring(originalName.lastIndexOf("."))
                   : "";
-
                 let finalName = originalName;
                 const lowerOriginal = originalName.toLowerCase();
 
-                // 若存在同名文件，追加 (1), (2) ... 处理
                 if (nameCounter[lowerOriginal] !== undefined) {
                   nameCounter[lowerOriginal]++;
                   finalName = `${baseName}(${nameCounter[lowerOriginal]})${ext}`;
@@ -1764,8 +1697,6 @@
                 if (!response.ok)
                   throw new Error(`文件获取失败: ${originalName}`);
                 const blob = await response.blob();
-
-                // 把重命名后的文件塞入内部文件夹
                 imgFolder.file(finalName, blob);
               }
 
@@ -1777,7 +1708,6 @@
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
-
               setTimeout(() => URL.revokeObjectURL(a.href), 5000);
               UI.toast("打包下载成功！");
             } catch (e) {
@@ -1796,23 +1726,18 @@
           const validFiles = [];
 
           incomingFiles.forEach((file) => {
-            if (
-              !["image/jpeg", "image/png", "image/webp"].includes(file.type)
-            ) {
+            if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
               UI.toast(`已跳过不支持的格式: ${file.name}`);
-            } else if (file.size > 15 * 1024 * 1024) {
+            else if (file.size > 15 * 1024 * 1024)
               UI.toast(`已跳过超大文件(>15M): ${file.name}`);
-            } else {
-              validFiles.push(file);
-            }
+            else validFiles.push(file);
           });
 
           if (validFiles.length === 0) return;
-          if (currentItemsCount + validFiles.length > 50) {
+          if (currentItemsCount + validFiles.length > 50)
             return UI.toast(
               `抱歉，列表最多可容纳 50 张图片，当前已选 ${currentItemsCount} 张。请先清空后再试。`,
             );
-          }
 
           Store.state.activeTasks += validFiles.length;
           UI.updateActionButtons();
@@ -1828,9 +1753,7 @@
 
           const processNext = async () => {
             if (currentIndex >= tasks.length) return;
-
             const { file, id } = tasks[currentIndex++];
-
             try {
               const res = await TinifyService.process(file, id);
               UI.renderSuccess(id, file.size, res.size, res.blobUrl, res.name);
@@ -1844,9 +1767,8 @@
             }
           };
 
-          for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, tasks.length); i++) {
+          for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, tasks.length); i++)
             processNext();
-          }
         },
       };
 
