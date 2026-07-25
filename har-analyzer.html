@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
     <meta name="app-name" content="HAR本地分析器">
-    <meta name="app-version" content="1.4.3">
+    <meta name="app-version" content="1.4.4">
     <meta name="app-author" content="Hrimyx">
     <title></title>
     <script>
@@ -80,7 +80,6 @@
         .btn-outline-danger { background: transparent; border-color: var(--border-divider); color: var(--semantic-danger); }
         .btn-outline-warning { background: transparent; border-color: var(--border-divider); color: var(--semantic-warning); }
         
-        /* 修复移动端 hover 粘滞导致的状态未恢复问题 */
         @media (hover: hover) {
             .btn-p:hover:not(:disabled) { background: var(--brand-dark); }
             .btn-s:hover:not(:disabled) { background: var(--surface-overlay); color: var(--text-primary); }
@@ -89,23 +88,24 @@
             .tab-copy-icon-btn:hover:not(:disabled) { background: var(--surface-overlay); }
         }
 
-        /* 为移动端增加点击瞬时反馈（松手即刻恢复） */
         .btn-p:active:not(:disabled) { background: var(--brand-dark); }
         .btn-s:active:not(:disabled) { background: var(--surface-overlay); color: var(--text-primary); }
         .btn-outline-danger:active:not(:disabled) { background: var(--semantic-danger-bg); border-color: var(--semantic-danger); }
         .btn-outline-warning:active:not(:disabled) { background: var(--semantic-warning-bg); border-color: var(--semantic-warning); }
         .tab-copy-icon-btn:active:not(:disabled) { background: var(--surface-overlay); }
 
-        #drop-zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--border-divider); margin: 15px; border-radius: var(--radius-lg); background: var(--surface-card); cursor: pointer; text-align: center; padding: 20px; transition: var(--transition); }
+        #drop-zone { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--border-divider); margin: 15px; border-radius: var(--radius-lg); background: var(--surface-card); cursor: pointer; text-align: center; padding: 20px; transition: var(--transition); }
         #drop-zone:hover, #drop-zone.dragover { border-color: var(--brand-primary); background: var(--surface-bg); }
         #drop-zone.loading { pointer-events: none; opacity: 0.6; cursor: wait; border-color: var(--brand-primary); }
         #drop-zone:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
         .btn:focus-visible, .tab:focus-visible, input:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
         
-        #workspace { display: none; flex-direction: column; height: 100vh; position: relative; }
+        /* 修复核心 1/4: workspace 使用 flex: 1 替代 height: 100vh 杜绝强制撑开视口，加上 min-height: 0 防溢出 */
+        #workspace { display: none; flex-direction: column; flex: 1; min-height: 0; width: 100%; position: relative; }
         #top-panel { background: var(--surface-card); padding: 10px 15px; border-bottom: 1px solid var(--border-divider); display: flex; align-items: center; gap: 8px; z-index: 10; flex-wrap: wrap; }
         #stats { color: var(--text-secondary); font-size: 13px; margin-right: auto; white-space: nowrap; }
-        #main { flex: 1; display: flex; overflow: hidden; position: relative; }
+        /* 修复核心 2/4: main 确保具有 min-height: 0 防止被内部的绝对定位或超长元素撑开 */
+        #main { flex: 1; display: flex; min-height: 0; overflow: hidden; position: relative; }
         
         #filter-overlay { display: none; position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.2); }
         .popover-panel { display: none; position: absolute; top: 52px; left: 15px; background: var(--surface-card); border: 1px solid var(--border-divider); border-radius: var(--radius-md); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.2); width: calc(100% - 30px); max-width: 450px; max-height: 70vh; z-index: 50; flex-direction: column; }
@@ -155,10 +155,10 @@
         .method-post { background: var(--semantic-success-bg); color: var(--semantic-success); }
         .method-unknown { background: var(--surface-overlay); color: var(--text-secondary); }
         
-        #right { width: 60%; background: var(--surface-bg); display: flex !important; flex-direction: column; position: relative; }
+        #right { width: 60%; background: var(--surface-bg); display: flex !important; flex-direction: column; position: relative; min-height: 0; }
         #detail-nav { display: none; background: var(--surface-bg); padding: 8px 12px; border-bottom: 1px solid var(--border-divider); } 
         #empty { display: flex; flex: 1; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px; }
-        #detail { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        #detail { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
         #right.has-data #empty { display: none !important; }
         #right.has-data #detail { display: flex !important; }
 
@@ -179,12 +179,12 @@
         .kv-v { flex: 1; min-width: 0; word-break: break-all; color: var(--text-primary); }
         .img-preview { max-width: 100%; max-height: 250px; border: 1px solid var(--border-divider); margin-top: 10px; object-fit: contain; }
 
-        /* 遵循色彩体系重新设计的移动端悬浮返回按钮 */
         #btn-mobile-back-float {
             display: none;
             position: absolute;
             left: 20px;
-            bottom: 30px;
+            /* 修复核心 3/4: 增加 env 适配手机底部黑条 (Safe Area) */
+            bottom: calc(30px + env(safe-area-inset-bottom, 0px));
             z-index: 999;
             width: 48px;
             height: 48px;
@@ -200,19 +200,10 @@
             outline: none;
         }
         @media (hover: hover) {
-            #btn-mobile-back-float:hover {
-                background: var(--surface-overlay);
-                border-color: var(--brand-primary);
-            }
+            #btn-mobile-back-float:hover { background: var(--surface-overlay); border-color: var(--brand-primary); }
         }
-        #btn-mobile-back-float:active { 
-            background: var(--surface-overlay);
-            transform: scale(0.92);
-        }
-        #btn-mobile-back-float svg {
-            width: 24px;
-            height: 24px;
-        }
+        #btn-mobile-back-float:active { background: var(--surface-overlay); transform: scale(0.92); }
+        #btn-mobile-back-float svg { width: 24px; height: 24px; }
 
         @media (max-width: 768px) {
             #top-panel { padding: 8px 10px; gap: 6px; justify-content: flex-start; }
@@ -228,6 +219,8 @@
             .kv { flex-direction: column; }
             .kv-k { width: 100%; margin-bottom: 2px; } 
             body.mobile-view-detail #right { display: flex !important; }
+            /* 修复核心 4/4: 面板增加额外的 padding-bottom，为左下角的悬浮按钮腾出空间，防止阻挡文本 */
+            .panel { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
         }
     </style>
 </head>
@@ -330,7 +323,6 @@
     </div>
 
     <script>
-        // 应用元信息统一从 head 中的 meta 标签读取，全局仅此一份数据源
         const AppMeta = {
             name: document.querySelector('meta[name="app-name"]').content,
             version: document.querySelector('meta[name="app-version"]').content,
@@ -360,15 +352,6 @@
         const $ = id => document.getElementById(id);
         const esc = s => !s ? '' : String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
 
-        // 简单防抖，用于高频事件（如窗口尺寸变化）避免重复计算
-        function debounce(fn, wait = 150) {
-            let timer = null;
-            return function (...args) {
-                clearTimeout(timer);
-                timer = setTimeout(() => fn.apply(this, args), wait);
-            };
-        }
-
         let toastTimer = null;
         function showToast(msg, type = 'info', actionText = '', onAction = null) {
             const t = $('toast');
@@ -388,7 +371,6 @@
             toastTimer = setTimeout(() => t.classList.remove('show', 'err', 'warn'), actionText ? 5000 : 3000);
         }
 
-        // 全局兜底错误捕获：不向用户暴露内部错误细节，仅在控制台记录以便排查
         window.addEventListener('error', event => {
             console.error('[全局异常]', event.error || event.message);
             showToast('程序出现异常，请重试或刷新页面', 'err');
@@ -461,7 +443,7 @@
                 if (['JSON', 'XML', 'Text'].includes(mime)) return 'Data';
                 if (['HTML', 'JS', 'CSS'].includes(mime)) return mime;
                 if (['Image', 'Audio', 'Video'].includes(mime)) return 'Media';
-                return 'Other'; // Font, Binary, Unknown 自动归类到 Other
+                return 'Other';
             }
         };
 
@@ -476,7 +458,7 @@
 
         function handleFile(file) {
             if (!file) return;
-            if (state.isLoadingFile) return; // 防止重复提交：上一次解析尚未完成
+            if (state.isLoadingFile) return; 
             if (!file.name.toLowerCase().match(/\.(har|json)$/)) {
                 showToast('格式不正确，仅支持 .har 或 .json', 'err');
                 $('file').value = ''; return;
@@ -527,7 +509,7 @@
             state.selectedIds.clear(); state.activeId = null; state.lastDeleted = null;
             ['methods', 'statuses', 'mimeTypes'].forEach(k => { state.filters[k].clear(); state.selectedFilters[k].clear(); });
             state.allItems.forEach(item => {
-                const m = item.request.method || 'UNKNOWN', s = Formatter.statusRange(item.response.status || '0'), c = item._category; // 使用大类存入过滤器
+                const m = item.request.method || 'UNKNOWN', s = Formatter.statusRange(item.response.status || '0'), c = item._category;
                 state.filters.methods.add(m); state.selectedFilters.methods.add(m);
                 state.filters.statuses.add(s); state.selectedFilters.statuses.add(s);
                 state.filters.mimeTypes.add(c); state.selectedFilters.mimeTypes.add(c);
@@ -544,7 +526,7 @@
                     const s = state.searchArgs;
                     if (!state.selectedFilters.methods.has(item.request.method || 'UNKNOWN')) return false;
                     if (!state.selectedFilters.statuses.has(Formatter.statusRange(item.response.status || '0'))) return false;
-                    if (!state.selectedFilters.mimeTypes.has(item._category)) return false; // 基于大类进行过滤校验
+                    if (!state.selectedFilters.mimeTypes.has(item._category)) return false; 
                     if (s.url && !(item.request.url || '').toLowerCase().includes(s.url)) return false;
                     if (s.qhead && !(item.request.headers || []).map(h => `${h.name}: ${h.value}`).join('\n').toLowerCase().includes(s.qhead)) return false;
                     if (s.qbody && !(item.request.postData?.text || '').toLowerCase().includes(s.qbody)) return false;
@@ -644,7 +626,7 @@
         });
 
         $('btn-toggle-filter').addEventListener('click', function() {
-            this.blur(); // 移除焦点，避免无意识残留
+            this.blur(); 
             closePopovers();
             ['methods', 'statuses', 'mimeTypes'].forEach(k => state.tmpSelectedFilters[k] = new Set(state.selectedFilters[k]));
             renderFilterPanel();
@@ -688,7 +670,7 @@
         function clearSearchFields() { ['s-url', 's-qhead', 's-qbody', 's-shead', 's-sbody'].forEach(id => $(id).value = ''); }
         
         $('btn-toggle-search').addEventListener('click', function() {
-            this.blur(); // 移除焦点，避免无意识残留
+            this.blur(); 
             closePopovers();
             ['url', 'qhead', 'qbody', 'shead', 'sbody'].forEach(k => $(`s-${k}`).value = state.searchArgs[k]);
             $('search-popover').style.display = 'flex'; $('filter-overlay').style.display = 'block';
@@ -799,7 +781,7 @@
         });
 
         $('btn-del').addEventListener('click', function() {
-            this.blur(); // 移除焦点，避免无意识残留
+            this.blur(); 
             if (!state.selectedIds.size) return;
             if (!confirm(`重要确认：\n您确定要删除选中的 ${state.selectedIds.size} 条记录吗？`)) return;
             try {
@@ -813,7 +795,6 @@
             } catch(e) { console.error('[删除异常]', e); showToast("删除执行异常", "err"); }
         });
 
-        // 撤销上一次删除操作（数据管理规范：支持撤销/恢复）
         function undoDelete() {
             if (!state.lastDeleted || !state.lastDeleted.length) return;
             try {
@@ -829,7 +810,7 @@
         }
 
         $('btn-clr').addEventListener('click', function() {
-            this.blur(); // 移除焦点，避免无意识残留
+            this.blur(); 
             if (!confirm("确定要清空所有数据并返回首页吗？")) return;
             state.allItems = [];
             state.lastDeleted = null;
@@ -839,7 +820,7 @@
         });
 
         $('btn-exp').addEventListener('click', function() {
-            this.blur(); // 移除焦点，避免无意识残留
+            this.blur(); 
             if (!state.visibleItems.length) return showToast('无数据可导出', 'warn');
             if (!confirm(`确定要导出当前列表显示的 ${state.visibleItems.length} 条请求记录吗？`)) return;
             
