@@ -1157,8 +1157,38 @@
           return `配额：${count}/500`;
         },
         setApiCountText(count) {
-          document.getElementById("ui-api-count").innerText =
-            this.formatApiCountText(count);
+          const apiSpan = document.getElementById("ui-api-count");
+          if (!apiSpan) return;
+
+          // 每次更新前先重置样式，以防状态切换时残留
+          apiSpan.style.color = "";
+          apiSpan.style.borderColor = "";
+          apiSpan.style.background = "";
+
+          if (!Store.state.keys || Store.state.keys.length === 0) {
+            apiSpan.innerText = "配额：未配置";
+            // 未配置时：使用红色警示 (Danger)
+            apiSpan.style.color = "var(--semantic-danger)";
+            apiSpan.style.borderColor = "var(--semantic-danger)";
+            apiSpan.style.background = "var(--semantic-danger-bg)";
+          } else if (count === null || count === undefined) {
+            apiSpan.innerText = "配额：待获取";
+            apiSpan.style.color = "var(--brand-primary)";
+          } else {
+            apiSpan.innerText = `配额：${count}/500`;
+            // Tinify 免费额度为 500。当已使用 >= 450 (即剩余不足 10%) 时预警
+            if (count >= 450) {
+              // 额度告警：使用橙色警告 (Warning)
+              apiSpan.style.color = "var(--semantic-warning)";
+              apiSpan.style.borderColor = "var(--semantic-warning)";
+              apiSpan.style.background = "var(--semantic-warning-bg)";
+            } else {
+              // 正常状态：使用常规品牌色
+              apiSpan.style.color = "var(--brand-primary)";
+              apiSpan.style.borderColor = "var(--border-divider)";
+              apiSpan.style.background = "var(--surface-bg)";
+            }
+          }
         },
         checkEmptyState() {
           const list = document.getElementById("file-list");
@@ -1609,19 +1639,50 @@
           };
 
           const zone = document.getElementById("upload-zone");
+          const fileInput = document.getElementById("file-input");
+
+          // 处理点击上传区域：拦截未配置 API 的情况
+          fileInput.addEventListener("click", (e) => {
+            if (!Store.state.keys.length) {
+              e.preventDefault(); // 关键：阻止浏览器弹出文件选择窗口
+              UI.toast("请先配置 API 密钥");
+              document.getElementById("modal-settings").classList.add("active");
+              // 自动让输入框获得焦点，提升体验
+              setTimeout(
+                () => document.getElementById("input-keys").focus(),
+                50,
+              );
+            }
+          });
+
           zone.ondragover = (e) => {
             e.preventDefault();
             zone.classList.add("dragover");
           };
           zone.ondragleave = () => zone.classList.remove("dragover");
+
+          // 处理拖拽上传：同样拦截
           zone.ondrop = (e) => {
             e.preventDefault();
             zone.classList.remove("dragover");
+
+            if (!Store.state.keys.length) {
+              UI.toast("请先配置 API 密钥");
+              document.getElementById("modal-settings").classList.add("active");
+              setTimeout(
+                () => document.getElementById("input-keys").focus(),
+                50,
+              );
+              return;
+            }
+
             this.handleFiles(e.dataTransfer.files);
           };
-          document.getElementById("file-input").onchange = (e) => {
+
+          // 正常的文件选择流
+          fileInput.onchange = (e) => {
             this.handleFiles(e.target.files);
-            e.target.value = "";
+            e.target.value = ""; // 允许重复选择相同文件
           };
 
           document.getElementById("btn-clear-all").onclick = async () => {
@@ -1710,13 +1771,6 @@
         },
 
         handleFiles(files) {
-          if (!Store.state.keys.length) {
-            UI.toast("请先点击右上角【配置】输入 API 密钥");
-            return document
-              .getElementById("modal-settings")
-              .classList.add("active");
-          }
-
           const currentItemsCount =
             document.querySelectorAll(".file-item").length;
           const incomingFiles = Array.from(files);
