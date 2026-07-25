@@ -1,0 +1,34 @@
+name: Deploy Pages
+
+# 触发条件：当推送到 main 或 dev 分支时触发
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 部署 Main 分支到根目录
+      - name: Deploy Main to Root
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          publish_branch: gh-pages # 自动创建一个 gh-pages 分支用于展示网页
+
+      # 部署 Dev 分支到 dev 子目录
+      - name: Deploy Dev to Preview Folder
+        if: github.ref == 'refs/heads/dev'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          publish_branch: gh-pages
+          destination_dir: dev # 关键配置：指定推送到 dev 文件夹
