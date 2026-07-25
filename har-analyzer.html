@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
     <meta name="app-name" content="HAR本地分析器">
-    <meta name="app-version" content="1.4.0">
+    <meta name="app-version" content="1.4.3">
     <meta name="app-author" content="Hrimyx">
     <title></title>
     <script>
@@ -55,6 +55,9 @@
                 --semantic-warning-bg: #3D2E00;
                 --brand-text: var(--brand-light); 
             }
+            #btn-mobile-back-float {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+            }
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -71,16 +74,28 @@
         .btn { padding: 6px 12px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 5px; min-height: 32px; transition: var(--transition); flex-shrink: 0; outline: none; font-weight: 500; }
         .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
         .btn-p { background: var(--brand-primary); color: var(--on-brand-primary); }
-        .btn-p:hover:not(:disabled) { background: var(--brand-dark); }
         .btn-s { background: var(--surface-card); border-color: var(--border-divider); color: var(--text-secondary); }
-        .btn-s:hover:not(:disabled) { background: var(--surface-overlay); color: var(--text-primary); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-active { background: var(--surface-overlay); color: var(--brand-text); border-color: var(--brand-primary); font-weight: 600; }
         .btn-outline-danger { background: transparent; border-color: var(--border-divider); color: var(--semantic-danger); }
-        .btn-outline-danger:hover:not(:disabled) { background: var(--semantic-danger-bg); border-color: var(--semantic-danger); }
         .btn-outline-warning { background: transparent; border-color: var(--border-divider); color: var(--semantic-warning); }
-        .btn-outline-warning:hover:not(:disabled) { background: var(--semantic-warning-bg); border-color: var(--semantic-warning); }
         
+        /* 修复移动端 hover 粘滞导致的状态未恢复问题 */
+        @media (hover: hover) {
+            .btn-p:hover:not(:disabled) { background: var(--brand-dark); }
+            .btn-s:hover:not(:disabled) { background: var(--surface-overlay); color: var(--text-primary); }
+            .btn-outline-danger:hover:not(:disabled) { background: var(--semantic-danger-bg); border-color: var(--semantic-danger); }
+            .btn-outline-warning:hover:not(:disabled) { background: var(--semantic-warning-bg); border-color: var(--semantic-warning); }
+            .tab-copy-icon-btn:hover:not(:disabled) { background: var(--surface-overlay); }
+        }
+
+        /* 为移动端增加点击瞬时反馈（松手即刻恢复） */
+        .btn-p:active:not(:disabled) { background: var(--brand-dark); }
+        .btn-s:active:not(:disabled) { background: var(--surface-overlay); color: var(--text-primary); }
+        .btn-outline-danger:active:not(:disabled) { background: var(--semantic-danger-bg); border-color: var(--semantic-danger); }
+        .btn-outline-warning:active:not(:disabled) { background: var(--semantic-warning-bg); border-color: var(--semantic-warning); }
+        .tab-copy-icon-btn:active:not(:disabled) { background: var(--surface-overlay); }
+
         #drop-zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--border-divider); margin: 15px; border-radius: var(--radius-lg); background: var(--surface-card); cursor: pointer; text-align: center; padding: 20px; transition: var(--transition); }
         #drop-zone:hover, #drop-zone.dragover { border-color: var(--brand-primary); background: var(--surface-bg); }
         #drop-zone.loading { pointer-events: none; opacity: 0.6; cursor: wait; border-color: var(--brand-primary); }
@@ -153,7 +168,6 @@
         .tab.active { background: var(--surface-bg); color: var(--brand-text); font-weight: bold; border-bottom: 2px solid var(--brand-primary); }
         
         .tab-copy-icon-btn { display: none; margin-left: auto; margin-right: 12px; background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px; border-radius: 4px; transition: var(--transition); color: var(--text-primary); }
-        .tab-copy-icon-btn:hover:not(:disabled) { background: var(--surface-overlay); }
         .tab-copy-icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .panel { display: none; flex: 1; padding: 12px; overflow-x: hidden; overflow-y: auto; font-family: monospace; font-size: 12px; word-break: break-all; }
@@ -165,28 +179,40 @@
         .kv-v { flex: 1; min-width: 0; word-break: break-all; color: var(--text-primary); }
         .img-preview { max-width: 100%; max-height: 250px; border: 1px solid var(--border-divider); margin-top: 10px; object-fit: contain; }
 
-        /* 悬浮返回按钮：默认隐藏，仅移动端详情页显示（见下方媒体查询），避免桌面端误显示 */
+        /* 遵循色彩体系重新设计的移动端悬浮返回按钮 */
         #btn-mobile-back-float {
             display: none;
             position: absolute;
-            left: 14px;
-            bottom: 14px;
-            z-index: 30;
-            width: 44px;
-            height: 44px;
+            left: 20px;
+            bottom: 30px;
+            z-index: 999;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             background: var(--surface-card);
             color: var(--brand-text);
             border: 1px solid var(--border-divider);
             align-items: center;
             justify-content: center;
-            font-size: 18px;
-            line-height: 1;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
             transition: var(--transition);
+            cursor: pointer;
+            outline: none;
         }
-        #btn-mobile-back-float:active { background: var(--surface-overlay); }
+        @media (hover: hover) {
+            #btn-mobile-back-float:hover {
+                background: var(--surface-overlay);
+                border-color: var(--brand-primary);
+            }
+        }
+        #btn-mobile-back-float:active { 
+            background: var(--surface-overlay);
+            transform: scale(0.92);
+        }
+        #btn-mobile-back-float svg {
+            width: 24px;
+            height: 24px;
+        }
 
         @media (max-width: 768px) {
             #top-panel { padding: 8px 10px; gap: 6px; justify-content: flex-start; }
@@ -276,7 +302,13 @@
             
             <div id="right">
                 <div id="detail-nav"><button class="btn btn-s" id="btn-mobile-back">⬅ 返回列表</button></div>
-                <button id="btn-mobile-back-float" title="返回列表" aria-label="返回列表">⬅</button>
+                <!-- 移动端悬浮返回按钮 -->
+                <button id="btn-mobile-back-float" title="返回列表" aria-label="返回列表">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </button>
                 <div id="empty">👈 请选择左侧一条请求查看详情</div>
                 <div id="detail">
                     <div class="tabs" id="tabs-bar">
@@ -611,7 +643,8 @@
             }
         });
 
-        $('btn-toggle-filter').addEventListener('click', () => {
+        $('btn-toggle-filter').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
             closePopovers();
             ['methods', 'statuses', 'mimeTypes'].forEach(k => state.tmpSelectedFilters[k] = new Set(state.selectedFilters[k]));
             renderFilterPanel();
@@ -643,20 +676,28 @@
             ['methods', 'statuses', 'mimeTypes'].forEach(k => state.tmpSelectedFilters[k] = new Set(state.filters[k]));
             renderFilterPanel();
         });
-        $('btn-filter-cancel').addEventListener('click', closePopovers);
+        $('btn-filter-cancel').addEventListener('click', function() {
+            this.blur();
+            closePopovers();
+        });
         $('btn-filter-ok').addEventListener('click', () => {
             ['methods', 'statuses', 'mimeTypes'].forEach(k => state.selectedFilters[k] = new Set(state.tmpSelectedFilters[k]));
             closePopovers(); processPipeline();
         });
 
         function clearSearchFields() { ['s-url', 's-qhead', 's-qbody', 's-shead', 's-sbody'].forEach(id => $(id).value = ''); }
-        $('btn-toggle-search').addEventListener('click', () => {
+        
+        $('btn-toggle-search').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
             closePopovers();
             ['url', 'qhead', 'qbody', 'shead', 'sbody'].forEach(k => $(`s-${k}`).value = state.searchArgs[k]);
             $('search-popover').style.display = 'flex'; $('filter-overlay').style.display = 'block';
         });
         $('btn-search-clear').addEventListener('click', clearSearchFields);
-        $('btn-search-cancel').addEventListener('click', closePopovers);
+        $('btn-search-cancel').addEventListener('click', function() {
+            this.blur();
+            closePopovers();
+        });
         $('btn-search-ok').addEventListener('click', () => {
             ['url', 'qhead', 'qbody', 'shead', 'sbody'].forEach(k => state.searchArgs[k] = $(`s-${k}`).value.trim().toLowerCase());
             closePopovers(); processPipeline();
@@ -757,7 +798,8 @@
             } catch(e) { console.error('[复制异常]', e); showToast("复制失败", "err"); }
         });
 
-        $('btn-del').addEventListener('click', () => {
+        $('btn-del').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
             if (!state.selectedIds.size) return;
             if (!confirm(`重要确认：\n您确定要删除选中的 ${state.selectedIds.size} 条记录吗？`)) return;
             try {
@@ -786,7 +828,8 @@
             }
         }
 
-        $('btn-clr').addEventListener('click', () => {
+        $('btn-clr').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
             if (!confirm("确定要清空所有数据并返回首页吗？")) return;
             state.allItems = [];
             state.lastDeleted = null;
@@ -795,7 +838,8 @@
             showToast('数据已完全清空');
         });
 
-        $('btn-exp').addEventListener('click', () => {
+        $('btn-exp').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
             if (!state.visibleItems.length) return showToast('无数据可导出', 'warn');
             if (!confirm(`确定要导出当前列表显示的 ${state.visibleItems.length} 条请求记录吗？`)) return;
             
