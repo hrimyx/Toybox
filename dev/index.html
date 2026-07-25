@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Hrimyx">
+    <meta name="version" content="1.0.0">
+    <meta name="description" content="奇奇怪怪工具箱">
+    <title>Toybox 导航</title>
+    <style>
+        /* ==========================================================================
+           1. 核心色彩体系 Token (冷蓝设计规范)
+           ========================================================================== */
+        :root {
+            /* 基础中性色 (日间) */
+            --surface-bg: #F7F9FC;
+            --surface-card: #FFFFFF;
+            --surface-overlay: #EBEEF5;
+            --border-divider: #D0D7E5;
+            --text-primary: #1A202C;
+            --text-secondary: #4A5568;
+
+            /* 静态品牌色 */
+            --brand-primary: #1A6AFF; 
+            --on-brand-primary: #FFFFFF;
+            --brand-light: #6B9CFF;
+            --on-brand-light: #0A0F1A;
+            --brand-dark: #0D3B8C;
+            --on-brand-dark: #FFFFFF;
+
+            /* 辅助与点缀色 */
+            --accent-cyan: #00C4EB;
+            --on-accent-cyan: #0A0F1A;
+            --accent-coral: #E64A2E;
+            --on-accent-coral: #FFFFFF;
+
+            /* 语义反馈色 (日间) */
+            --semantic-success: #059669;
+            --semantic-success-bg: #E6FAF3;
+            --semantic-danger: #D92644;
+            --semantic-danger-bg: #FFEBEE;
+            --semantic-warning: #D97706;
+            --semantic-warning-bg: #FFF8E1;
+
+            /* 其他设计变量 */
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-card: 0 4px 16px rgba(10, 15, 26, 0.04);
+            --shadow-hover: 0 8px 24px rgba(26, 106, 255, 0.12);
+            --transition-speed: 0.25s;
+        }
+
+        /* 暗黑模式自适应映射 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --surface-bg: #0A0F1A;
+                --surface-card: #141C2B;
+                --surface-overlay: #1F2A3F;
+                --border-divider: #2C3A54;
+                --text-primary: #E2E8F0;
+                --text-secondary: #A0B0C8;
+
+                /* 语义反馈色 (夜间) */
+                --semantic-success-bg: #0B2F26;
+                --semantic-danger-bg: #3D0F1A;
+                --semantic-warning-bg: #3D2E00;
+            }
+        }
+
+        /* ==========================================================================
+           2. 基础重置与排版
+           ========================================================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--surface-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        ul {
+            list-style: none;
+        }
+
+        /* ==========================================================================
+           3. 布局与组件样式
+           ========================================================================== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+
+        /* 头部信息区 */
+        .app-header {
+            padding: 60px 0 40px;
+            text-align: center;
+        }
+        .app-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+        .app-meta {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .app-meta .badge {
+            background-color: var(--surface-overlay);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* 搜索交互区 */
+        .search-section {
+            margin-bottom: 40px;
+            display: flex;
+            justify-content: center;
+        }
+        .search-box {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 16px 20px 16px 48px;
+            font-size: 1rem;
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-divider);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            box-shadow: var(--shadow-card);
+            transition: all var(--transition-speed);
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 3px rgba(26, 106, 255, 0.2);
+        }
+        .search-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        /* 工具卡片网格 */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .tool-card {
+            background-color: var(--surface-card);
+            border: 1px solid var(--border-divider);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            box-shadow: var(--shadow-card);
+            transition: transform var(--transition-speed), box-shadow var(--transition-speed), border-color var(--transition-speed);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .tool-card:hover, .tool-card:focus-within {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--brand-primary);
+        }
+
+        .tool-card:focus-within {
+            outline: 2px solid var(--brand-primary);
+            outline-offset: 2px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--surface-overlay);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--brand-primary);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .card-icon { color: var(--brand-light); }
+        }
+
+        .card-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            flex-grow: 1;
+            margin-bottom: 20px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .tag {
+            background-color: var(--surface-overlay);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .action-link {
+            color: var(--brand-primary);
+            font-weight: 500;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .action-link {
+                color: var(--brand-light);
+            }
+            .action-link:hover {
+                color: var(--on-brand-light);
+            }
+        }
+        
+        .action-link::after {
+            content: "→";
+            transition: transform var(--transition-speed);
+        }
+        
+        .tool-card:hover .action-link::after {
+            transform: translateX(4px);
+        }
+
+        /* 隐藏的绝对定位链接，用于卡片整块点击与键盘聚焦 */
+        .full-card-link {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 1;
+            opacity: 0;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-secondary);
+            grid-column: 1 / -1;
+            display: none;
+        }
+
+        /* 页脚 */
+        footer {
+            margin-top: auto;
+            text-align: center;
+            padding: 30px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-divider);
+        }
+
+        /* 轻提示 Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        }
+        .toast {
+            background-color: var(--surface-card);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 0.95rem;
+            border-left: 4px solid var(--brand-primary);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            pointer-events: auto;
+        }
+        .toast.success { border-left-color: var(--semantic-success); }
+        .toast.danger { border-left-color: var(--semantic-danger); }
+        .toast.warning { border-left-color: var(--semantic-warning); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="container">
+            <h1 class="app-title" id="display-title">Toolbox 导航</h1>
+            <div class="app-meta">
+                <span>作者: <strong id="display-author">--</strong></span>
+                <span class="badge" id="display-version">v--</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- 搜索过滤 -->
+        <section class="search-section">
+            <div class="search-box">
+                <!-- SVG Icon -->
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="search-input" class="search-input" placeholder="按名称、描述或标签搜索工具..." aria-label="搜索工具">
+            </div>
+        </section>
+
+        <!-- 工具列表 -->
+        <section>
+            <div class="tools-grid" id="tools-container" role="list">
+                <!-- JS 动态渲染卡片 -->
+            </div>
+            <div class="empty-state" id="empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px; opacity: 0.5;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <p>未找到匹配的工具</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; <span id="current-year"></span> <span id="footer-author"></span>. 保留所有权利.</p>
+        </div>
+    </footer>
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        /**
+         * @fileoverview 导航页面核心逻辑
+         * 遵循单一职责、防抖、异常处理、无全局污染原则。
+         */
+        
+        (() => {
+            'use strict';
+
+            // ==================================================================
+            // 1. 全局配置与状态
+            // ==================================================================
+            const CONFIG = {
+                // 读取 Meta 元信息
+                meta: {
+                    title: document.title,
+                    author: document.querySelector('meta[name="author"]')?.content || 'Unknown',
+                    version: document.querySelector('meta[name="version"]')?.content || '1.0.0'
+                }
+            };
+
+            const TOOLS_DATA = [
+                {
+                    id: 'image-tinify',
+                    name: '图片压缩',
+                    description: 'Web/Mobile 跨端适配的轻量级图片压缩与格式转换工具，提供优化的排版 UI。',
+                    link: './image-tinify.html',
+                    icon: '🖼️',
+                    tag: '多媒体'
+                },
+                {
+                    id: 'har-analyzer',
+                    name: 'HAR本地分析器',
+                    description: '网络请求HAR文件解析工具，支持导入数据分类及展示优化，快速定位请求异常。',
+                    link: './har-analyzer.html',
+                    icon: '🌐',
+                    tag: '网络诊断'
+                }
+                // {
+                //     id: 'json-formatter',
+                //     name: 'JSON 格式化工具',
+                //     description: '本地化的 JSON 校验、格式化美化与层级折叠展示工具。',
+                //     link: './json-formatter/index.html',
+                //     icon: '{ }',
+                //     tag: '数据处理'
+                // },
+                // {
+                //     id: 'regex-tester',
+                //     name: '正则表达式测试',
+                //     description: '实时高亮的正则匹配测试工具，内置常用规则备忘录。',
+                //     link: './regex-tester/index.html',
+                //     icon: '🧩',
+                //     tag: '开发辅助'
+                // },
+                // {
+                //     id: 'base64-tool',
+                //     name: 'Base64 编解码',
+                //     description: '支持文本与小体积图片的纯离线 Base64 快速相互转换。',
+                //     link: './base64-tool/index.html',
+                //     icon: '🔐',
+                //     tag: '安全/编码'
+                // }
+            ];
+
+            // ==================================================================
+            // 2. 异常与安全处理
+            // ==================================================================
+            
+            // 全局异常捕获
+            window.addEventListener('error', (event) => {
+                console.error('[Error捕获]:', event.error);
+                showToast('页面发生未知错误，部分功能可能受限', 'danger');
+            });
+            window.addEventListener('unhandledrejection', (event) => {
+                console.error('[Promise异常]:', event.reason);
+                showToast('异步处理异常，请检查操作', 'warning');
+            });
+
+            // ==================================================================
+            // 3. 核心功能函数
+            // ==================================================================
+
+            /**
+             * 安全的 DOM 文本插入 (防 XSS)
+             * @param {string} id DOM节点ID
+             * @param {string} text 文本内容
+             */
+            const setTextSafe = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            /**
+             * 初始化页面元信息展示
+             */
+            const initMetaDisplay = () => {
+                try {
+                    setTextSafe('display-title', CONFIG.meta.title);
+                    setTextSafe('display-author', CONFIG.meta.author);
+                    setTextSafe('display-version', `v${CONFIG.meta.version}`);
+                    setTextSafe('current-year', new Date().getFullYear().toString());
+                    setTextSafe('footer-author', CONFIG.meta.author);
+                } catch (err) {
+                    console.error('初始化元信息失败:', err);
+                }
+            };
+
+            /**
+             * 防抖函数
+             */
+            const debounce = (fn, delay = 300) => {
+                let timer = null;
+                return function (...args) {
+                    if (timer) clearTimeout(timer);
+                    timer = setTimeout(() => {
+                        fn.apply(this, args);
+                    }, delay);
+                };
+            };
+
+            /**
+             * 显示轻提示
+             * @param {string} message 提示信息
+             * @param {'default'|'success'|'danger'|'warning'} type 提示类型
+             */
+            const showToast = (message, type = 'default') => {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+                
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                
+                container.appendChild(toast);
+                
+                // 3秒后移除
+                setTimeout(() => {
+                    toast.style.animation = 'fadeOut 0.3s ease forwards';
+                    toast.addEventListener('animationend', () => {
+                        toast.remove();
+                    });
+                }, 3000);
+            };
+
+            /**
+             * 渲染工具列表
+             * @param {Array} tools 工具数组
+             */
+            const renderTools = (tools) => {
+                const container = document.getElementById('tools-container');
+                const emptyState = document.getElementById('empty-state');
+                
+                if (!container || !emptyState) return;
+                
+                // 清空并安全渲染 (不使用 innerHTML 拼接字符串以防 XSS)
+                container.innerHTML = '';
+                
+                if (tools.length === 0) {
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                
+                emptyState.style.display = 'none';
+
+                const fragment = document.createDocumentFragment();
+
+                tools.forEach(tool => {
+                    // 构建 DOM
+                    const card = document.createElement('article');
+                    card.className = 'tool-card';
+                    card.setAttribute('role', 'listitem');
+
+                    // 1. 隐藏的完整链接，方便辅助设备和全卡片点击
+                    const link = document.createElement('a');
+                    link.href = tool.link;
+                    link.className = 'full-card-link';
+                    link.setAttribute('aria-label', `打开 ${tool.name}`);
+                    
+                    // 2. 头部
+                    const header = document.createElement('div');
+                    header.className = 'card-header';
+                    const icon = document.createElement('div');
+                    icon.className = 'card-icon';
+                    icon.textContent = tool.icon;
+                    const title = document.createElement('h2');
+                    title.className = 'card-title';
+                    title.textContent = tool.name;
+                    header.appendChild(icon);
+                    header.appendChild(title);
+
+                    // 3. 描述
+                    const desc = document.createElement('p');
+                    desc.className = 'card-desc';
+                    desc.textContent = tool.description;
+
+                    // 4. 底部
+                    const footer = document.createElement('div');
+                    footer.className = 'card-footer';
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.textContent = tool.tag;
+                    const action = document.createElement('span');
+                    action.className = 'action-link';
+                    action.textContent = '进入';
+                    footer.appendChild(tag);
+                    footer.appendChild(action);
+
+                    // 组装卡片
+                    card.appendChild(link);
+                    card.appendChild(header);
+                    card.appendChild(desc);
+                    card.appendChild(footer);
+
+                    fragment.appendChild(card);
+                });
+
+                container.appendChild(fragment);
+            };
+
+            /**
+             * 处理搜索过滤逻辑
+             */
+            const handleSearch = (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                
+                try {
+                    const filtered = TOOLS_DATA.filter(tool => {
+                        return tool.name.toLowerCase().includes(query) ||
+                               tool.description.toLowerCase().includes(query) ||
+                               tool.tag.toLowerCase().includes(query);
+                    });
+                    renderTools(filtered);
+                } catch (err) {
+                    console.error('搜索过滤失败:', err);
+                }
+            };
+
+            // ==================================================================
+            // 4. 初始化与事件绑定
+            // ==================================================================
+            const init = () => {
+                try {
+                    initMetaDisplay();
+                    renderTools(TOOLS_DATA);
+                    
+                    const searchInput = document.getElementById('search-input');
+                    if (searchInput) {
+                        // 使用防抖优化高频输入
+                        searchInput.addEventListener('input', debounce(handleSearch, 250));
+                    }
+                    
+                    // console.log(`[App Init] ${CONFIG.meta.title} v${CONFIG.meta.version} Ready.`);
+                } catch (err) {
+                    console.error('初始化核心逻辑失败:', err);
+                }
+            };
+
+            // 确保 DOM 加载完成后执行
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+
+        })();
+    </script>
+</body>
+</html>

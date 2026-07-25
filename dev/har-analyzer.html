@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
+    <meta name="app-name" content="HAR本地分析器">
+    <meta name="app-version" content="1.4.3">
+    <meta name="app-author" content="Hrimyx">
+    <title></title>
+    <script>
+        (function () {
+            const m = n => document.querySelector(`meta[name="${n}"]`).content;
+            document.title = `${m('app-name')} v${m('app-version')} by ${m('app-author')}`;
+        })();
+    </script>
+    <style>
+        :root {
+            --surface-bg: #F7F9FC;
+            --surface-card: #FFFFFF;
+            --surface-overlay: #EBEEF5;
+            --border-divider: #D0D7E5;
+            --text-primary: #1A202C;
+            --text-secondary: #4A5568;
+            --brand-primary: #1A6AFF; 
+            --on-brand-primary: #FFFFFF;
+            --brand-light: #6B9CFF;
+            --on-brand-light: #0A0F1A;
+            --brand-dark: #0D3B8C;
+            --brand-text: var(--brand-primary);
+            --accent-cyan: #00C4EB;
+            --accent-coral: #E64A2E;
+            --on-accent-coral: #FFFFFF;
+            --semantic-success: #059669;
+            --semantic-success-bg: #E6FAF3;
+            --semantic-danger: #D92644;
+            --semantic-danger-bg: #FFEBEE;
+            --semantic-warning: #D97706;
+            --semantic-warning-bg: #FFF8E1;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --transition: all 0.2s ease;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --surface-bg: #0A0F1A;
+                --surface-card: #141C2B;
+                --surface-overlay: #1F2A3F;
+                --border-divider: #2C3A54;
+                --text-primary: #E2E8F0;
+                --text-secondary: #A0B0C8;
+                --semantic-success-bg: #0B2F26;
+                --semantic-danger-bg: #3D0F1A;
+                --semantic-warning-bg: #3D2E00;
+                --brand-text: var(--brand-light); 
+            }
+            #btn-mobile-back-float {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; color: var(--text-primary); background: var(--surface-bg); overflow: hidden; transition: background 0.3s, color 0.3s; }
+        
+        .brand-title-large { font-size: 24px; color: var(--text-primary); margin-bottom: 24px; display: flex; align-items: baseline; gap: 10px; font-weight: 700; }
+        .version-tag-large { font-size: 13px; font-weight: normal; background: var(--surface-overlay); color: var(--text-secondary); padding: 2px 8px; border-radius: 12px; }
+        .author-tag { font-size: 14px; font-weight: normal; color: var(--brand-text); }
+        
+        .top-brand { font-weight: bold; font-size: 15px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .top-brand span { font-size: 11px; font-weight: normal; background: var(--surface-overlay); border: 1px solid var(--border-divider); color: var(--text-secondary); padding: 1px 6px; border-radius: 10px; }
+        .divider { width: 1px; height: 18px; background: var(--border-divider); margin: 0 4px; flex-shrink: 0; }
+
+        .btn { padding: 6px 12px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 5px; min-height: 32px; transition: var(--transition); flex-shrink: 0; outline: none; font-weight: 500; }
+        .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .btn-p { background: var(--brand-primary); color: var(--on-brand-primary); }
+        .btn-s { background: var(--surface-card); border-color: var(--border-divider); color: var(--text-secondary); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-active { background: var(--surface-overlay); color: var(--brand-text); border-color: var(--brand-primary); font-weight: 600; }
+        .btn-outline-danger { background: transparent; border-color: var(--border-divider); color: var(--semantic-danger); }
+        .btn-outline-warning { background: transparent; border-color: var(--border-divider); color: var(--semantic-warning); }
+        
+        /* 修复移动端 hover 粘滞导致的状态未恢复问题 */
+        @media (hover: hover) {
+            .btn-p:hover:not(:disabled) { background: var(--brand-dark); }
+            .btn-s:hover:not(:disabled) { background: var(--surface-overlay); color: var(--text-primary); }
+            .btn-outline-danger:hover:not(:disabled) { background: var(--semantic-danger-bg); border-color: var(--semantic-danger); }
+            .btn-outline-warning:hover:not(:disabled) { background: var(--semantic-warning-bg); border-color: var(--semantic-warning); }
+            .tab-copy-icon-btn:hover:not(:disabled) { background: var(--surface-overlay); }
+        }
+
+        /* 为移动端增加点击瞬时反馈（松手即刻恢复） */
+        .btn-p:active:not(:disabled) { background: var(--brand-dark); }
+        .btn-s:active:not(:disabled) { background: var(--surface-overlay); color: var(--text-primary); }
+        .btn-outline-danger:active:not(:disabled) { background: var(--semantic-danger-bg); border-color: var(--semantic-danger); }
+        .btn-outline-warning:active:not(:disabled) { background: var(--semantic-warning-bg); border-color: var(--semantic-warning); }
+        .tab-copy-icon-btn:active:not(:disabled) { background: var(--surface-overlay); }
+
+        #drop-zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--border-divider); margin: 15px; border-radius: var(--radius-lg); background: var(--surface-card); cursor: pointer; text-align: center; padding: 20px; transition: var(--transition); }
+        #drop-zone:hover, #drop-zone.dragover { border-color: var(--brand-primary); background: var(--surface-bg); }
+        #drop-zone.loading { pointer-events: none; opacity: 0.6; cursor: wait; border-color: var(--brand-primary); }
+        #drop-zone:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+        .btn:focus-visible, .tab:focus-visible, input:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
+        
+        #workspace { display: none; flex-direction: column; height: 100vh; position: relative; }
+        #top-panel { background: var(--surface-card); padding: 10px 15px; border-bottom: 1px solid var(--border-divider); display: flex; align-items: center; gap: 8px; z-index: 10; flex-wrap: wrap; }
+        #stats { color: var(--text-secondary); font-size: 13px; margin-right: auto; white-space: nowrap; }
+        #main { flex: 1; display: flex; overflow: hidden; position: relative; }
+        
+        #filter-overlay { display: none; position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.2); }
+        .popover-panel { display: none; position: absolute; top: 52px; left: 15px; background: var(--surface-card); border: 1px solid var(--border-divider); border-radius: var(--radius-md); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.2); width: calc(100% - 30px); max-width: 450px; max-height: 70vh; z-index: 50; flex-direction: column; }
+        .popover-body { padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .popover-footer { padding: 10px; border-top: 1px solid var(--border-divider); background: var(--surface-bg); display: flex; justify-content: space-between; gap: 8px; border-radius: 0 0 var(--radius-md) var(--radius-md); }
+        
+        .filter-section { border-bottom: 1px dashed var(--border-divider); padding-bottom: 8px; }
+        .filter-section:last-child { border: none; }
+        .filter-title { font-size: 12px; font-weight: bold; color: var(--text-secondary); margin-bottom: 6px; display: flex; justify-content: space-between; }
+        .filter-title span { cursor: pointer; color: var(--brand-text); font-weight: normal; }
+        .filter-options { display: flex; flex-wrap: wrap; gap: 8px; }
+        .filter-label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; background: var(--surface-overlay); padding: 5px 8px; border-radius: 4px; cursor: pointer; }
+        
+        .search-field-group { display: flex; flex-direction: column; gap: 4px; }
+        .search-field-group label { font-size: 12px; font-weight: bold; color: var(--text-secondary); }
+        .search-field-group input { padding: 8px 10px; border: 1px solid var(--border-divider); border-radius: 4px; font-size: 13px; outline: none; background: var(--surface-card); color: var(--text-primary); transition: var(--transition); }
+        .search-field-group input:focus { border-color: var(--brand-primary); }
+
+        #toast { position: fixed; top: -50px; left: 50%; transform: translateX(-50%); background: var(--text-primary); color: var(--surface-bg); padding: 10px 20px; border-radius: var(--radius-md); font-size: 13px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transition: var(--transition); pointer-events: none; text-align: center; display: flex; align-items: center; gap: 12px; }
+        #toast.show { top: 20px; opacity: 1; pointer-events: auto; }
+        #toast.err { background: var(--semantic-danger); color: white; }
+        #toast.warn { background: var(--semantic-warning); color: white; }
+        .toast-action { flex-shrink: 0; background: transparent; border: 1px solid currentColor; color: inherit; padding: 3px 10px; border-radius: var(--radius-md); font-size: 12px; cursor: pointer; font-weight: 600; }
+        .toast-action:hover { background: rgba(255,255,255,0.15); }
+        
+        #left { width: 40%; border-right: 1px solid var(--border-divider); background: var(--surface-card); display: flex; flex-direction: column; }
+        #list-header { padding: 8px 12px; background: var(--surface-bg); border-bottom: 1px solid var(--border-divider); display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-secondary); height: 35px; }
+        #list { flex: 1; overflow-y: auto; }
+        
+        .item { display: flex; padding: 12px 10px; border-bottom: 1px solid var(--border-divider); cursor: pointer; gap: 10px; font-size: 13px; border-left: 4px solid transparent; transition: background 0.1s; align-items: flex-start; }
+        .item:hover { background: var(--surface-overlay); }
+        .item.active { background: var(--surface-bg); border-left-color: var(--brand-primary); }
+        .item.active .url { font-weight: 600; color: var(--brand-text); }
+        
+        .url { word-break: break-all; font-weight: 500; margin: 6px 0; line-height: 1.4; color: var(--text-primary); }
+        .meta { display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 12px; align-items: center; gap: 4px; }
+        
+        .badge-idx { background: var(--surface-overlay); color: var(--text-primary); font-weight: 600; padding: 3px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; }
+        .badge-status, .badge-method { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+        
+        .status-2xx { background: var(--semantic-success-bg); color: var(--semantic-success); }
+        .status-3xx { background: var(--surface-overlay); color: var(--brand-text); }
+        .status-4xx, .status-5xx { background: var(--semantic-danger-bg); color: var(--semantic-danger); }
+        .status-0 { background: var(--semantic-warning-bg); color: var(--semantic-warning); }
+
+        .method-get { background: var(--surface-overlay); color: var(--brand-text); }
+        .method-post { background: var(--semantic-success-bg); color: var(--semantic-success); }
+        .method-unknown { background: var(--surface-overlay); color: var(--text-secondary); }
+        
+        #right { width: 60%; background: var(--surface-bg); display: flex !important; flex-direction: column; position: relative; }
+        #detail-nav { display: none; background: var(--surface-bg); padding: 8px 12px; border-bottom: 1px solid var(--border-divider); } 
+        #empty { display: flex; flex: 1; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px; }
+        #detail { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        #right.has-data #empty { display: none !important; }
+        #right.has-data #detail { display: flex !important; }
+
+        .tabs { display: flex; background: var(--surface-card); border-bottom: 1px solid var(--border-divider); overflow-x: auto; scrollbar-width: none; align-items: center; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab { padding: 10px 14px; font-size: 13px; cursor: pointer; border-right: 1px solid var(--border-divider); color: var(--text-secondary); white-space: nowrap; }
+        .tab.active { background: var(--surface-bg); color: var(--brand-text); font-weight: bold; border-bottom: 2px solid var(--brand-primary); }
+        
+        .tab-copy-icon-btn { display: none; margin-left: auto; margin-right: 12px; background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px; border-radius: 4px; transition: var(--transition); color: var(--text-primary); }
+        .tab-copy-icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .panel { display: none; flex: 1; padding: 12px; overflow-x: hidden; overflow-y: auto; font-family: monospace; font-size: 12px; word-break: break-all; }
+        .panel.active { display: block; }
+        .panel pre { white-space: pre-wrap; margin: 0; color: var(--text-primary); }
+        
+        .kv { margin-bottom: 6px; display: flex; flex-direction: row; align-items: flex-start; line-height: 1.5; }
+        .kv-k { font-weight: bold; color: var(--brand-text); width: 110px; min-width: 110px; flex-shrink: 0; text-align: left; margin-right: 8px; }
+        .kv-v { flex: 1; min-width: 0; word-break: break-all; color: var(--text-primary); }
+        .img-preview { max-width: 100%; max-height: 250px; border: 1px solid var(--border-divider); margin-top: 10px; object-fit: contain; }
+
+        /* 遵循色彩体系重新设计的移动端悬浮返回按钮 */
+        #btn-mobile-back-float {
+            display: none;
+            position: absolute;
+            left: 20px;
+            bottom: 30px;
+            z-index: 999;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--surface-card);
+            color: var(--brand-text);
+            border: 1px solid var(--border-divider);
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            transition: var(--transition);
+            cursor: pointer;
+            outline: none;
+        }
+        @media (hover: hover) {
+            #btn-mobile-back-float:hover {
+                background: var(--surface-overlay);
+                border-color: var(--brand-primary);
+            }
+        }
+        #btn-mobile-back-float:active { 
+            background: var(--surface-overlay);
+            transform: scale(0.92);
+        }
+        #btn-mobile-back-float svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        @media (max-width: 768px) {
+            #top-panel { padding: 8px 10px; gap: 6px; justify-content: flex-start; }
+            .top-brand { width: 100%; justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid var(--border-divider); order: -2; font-size: 16px; }
+            .divider { display: none; }
+            #stats { font-size: 12px; width: 100%; order: -1; padding-bottom: 4px; border-bottom: 1px dashed var(--border-divider); margin-bottom: 2px; }
+            #top-panel .btn { padding: 4px 8px; font-size: 12px; flex: 1; justify-content: center; }
+            #left { width: 100%; flex: 1; display: flex; }
+            #right { display: none !important; width: 100%; position: absolute; top: 0; left: 0; height: 100%; z-index: 20; } 
+            #detail-nav { display: none !important; }
+            body.mobile-view-detail #btn-mobile-back-float { display: flex; }
+            .popover-panel { top: 96px; } 
+            .kv { flex-direction: column; }
+            .kv-k { width: 100%; margin-bottom: 2px; } 
+            body.mobile-view-detail #right { display: flex !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+    <div id="filter-overlay"></div>
+
+    <div id="drop-zone" tabindex="0" role="button" aria-label="点击或拖拽文件以打开 HAR 文件">
+        <h1 class="brand-title-large">
+            <span id="brand-name-large"></span>
+            <span class="version-tag-large" id="brand-version-large"></span>
+            <span class="author-tag" id="brand-author-large"></span>
+        </h1>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 12 15 15"></polyline></svg>
+        <p style="font-size:14px; color:var(--text-secondary);">拖拽文件或 <strong style="color:var(--brand-text);">点击选择 .har / .json</strong></p>
+        <input type="file" id="file" accept=".har,.json,application/json,text/plain,*/*" style="display:none">
+    </div>
+
+    <div id="workspace">
+        <div id="top-panel">
+            <div class="top-brand"><span id="brand-name-small"></span> <span id="brand-version-small"></span> <span id="brand-author-small" style="font-size:12px;color:var(--brand-text);border:none;background:transparent;"></span></div>
+            <div class="divider"></div>
+            
+            <div id="stats">总数: 0 (当前显示: 0) | 当前选中: 0</div>
+            <button class="btn btn-s" id="btn-toggle-filter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg> 筛选</button>
+            <button class="btn btn-s" id="btn-toggle-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> 搜索</button>
+            
+            <div style="flex:1; display:none;"></div> 
+            
+            <button class="btn btn-outline-danger" id="btn-del" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg> 删除</button>
+            <button class="btn btn-p" id="btn-exp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> 导出</button>
+            <button class="btn btn-outline-warning" id="btn-clr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36"></path><polyline points="3 4 3 12 11 12"></polyline></svg> 清除</button>
+        </div>
+
+        <div id="filter-popover" class="popover-panel">
+            <div class="popover-body" id="filter-container"></div>
+            <div class="popover-footer">
+                <button class="btn btn-s" id="btn-filter-all">全选</button>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-s" id="btn-filter-cancel">取消</button>
+                    <button class="btn btn-p" id="btn-filter-ok">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="search-popover" class="popover-panel">
+            <div class="popover-body">
+                <div class="search-field-group"><label>URL</label><input type="text" id="s-url" placeholder="模糊搜索 URL..."></div>
+                <div class="search-field-group"><label>请求头 (Request Headers)</label><input type="text" id="s-qhead" placeholder="模糊搜索 字段名 或 值..."></div>
+                <div class="search-field-group"><label>请求体 (Request Body)</label><input type="text" id="s-qbody" placeholder="模糊搜索 请求发送的内容..."></div>
+                <div class="search-field-group"><label>响应头 (Response Headers)</label><input type="text" id="s-shead" placeholder="模糊搜索 字段名 或 值..."></div>
+                <div class="search-field-group"><label>响应体 (Response Body)</label><input type="text" id="s-sbody" placeholder="模糊搜索 服务器返回的内容..."></div>
+            </div>
+            <div class="popover-footer">
+                <button class="btn btn-s" id="btn-search-clear">清空</button>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-s" id="btn-search-cancel">取消</button>
+                    <button class="btn btn-p" id="btn-search-ok">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="main">
+            <div id="left">
+                <div id="list-header">
+                    <input type="checkbox" id="all-chk" style="cursor:pointer; width:16px; height:16px;">
+                    <span>全选 / 请求列表</span>
+                </div>
+                <div id="list"></div>
+            </div>
+            
+            <div id="right">
+                <div id="detail-nav"><button class="btn btn-s" id="btn-mobile-back">⬅ 返回列表</button></div>
+                <!-- 移动端悬浮返回按钮 -->
+                <button id="btn-mobile-back-float" title="返回列表" aria-label="返回列表">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </button>
+                <div id="empty">👈 请选择左侧一条请求查看详情</div>
+                <div id="detail">
+                    <div class="tabs" id="tabs-bar">
+                        <div class="tab active" data-target="p-url">通用</div>
+                        <div class="tab" data-target="p-qhead">请求头</div>
+                        <div class="tab" data-target="p-qbody">请求体</div>
+                        <div class="tab" data-target="p-shead">响应头</div>
+                        <div class="tab" data-target="p-sbody">响应体</div>
+                        <button class="tab-copy-icon-btn" id="global-copy-btn" title="复制内容">📋</button>
+                    </div>
+                    <div id="p-url" class="panel active"></div>
+                    <div id="p-qhead" class="panel"></div>
+                    <div id="p-qbody" class="panel"></div>
+                    <div id="p-shead" class="panel"></div>
+                    <div id="p-sbody" class="panel"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 应用元信息统一从 head 中的 meta 标签读取，全局仅此一份数据源
+        const AppMeta = {
+            name: document.querySelector('meta[name="app-name"]').content,
+            version: document.querySelector('meta[name="app-version"]').content,
+            author: document.querySelector('meta[name="app-author"]').content
+        };
+        (function renderBrand() {
+            document.getElementById('brand-name-large').textContent = AppMeta.name;
+            document.getElementById('brand-version-large').textContent = `v${AppMeta.version}`;
+            document.getElementById('brand-author-large').textContent = `by ${AppMeta.author}`;
+
+            document.getElementById('brand-name-small').textContent = AppMeta.name;
+            document.getElementById('brand-version-small').textContent = `v${AppMeta.version}`;
+            document.getElementById('brand-author-small').textContent = `by ${AppMeta.author}`;
+        })();
+
+        const state = {
+            harLogBase: {}, allItems: [], visibleItems: [], selectedIds: new Set(), activeId: null,
+            filters: { methods: new Set(), statuses: new Set(), mimeTypes: new Set() },
+            selectedFilters: { methods: new Set(), statuses: new Set(), mimeTypes: new Set() },
+            tmpSelectedFilters: { methods: new Set(), statuses: new Set(), mimeTypes: new Set() },
+            searchArgs: { url: '', qhead: '', qbody: '', shead: '', sbody: '' },
+            currentRaw: { url: "", qbody: "", sbody: "", panel: "p-url" },
+            isLoadingFile: false,
+            lastDeleted: null
+        };
+
+        const $ = id => document.getElementById(id);
+        const esc = s => !s ? '' : String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+
+        // 简单防抖，用于高频事件（如窗口尺寸变化）避免重复计算
+        function debounce(fn, wait = 150) {
+            let timer = null;
+            return function (...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), wait);
+            };
+        }
+
+        let toastTimer = null;
+        function showToast(msg, type = 'info', actionText = '', onAction = null) {
+            const t = $('toast');
+            t.innerHTML = '';
+            const textSpan = document.createElement('span');
+            textSpan.textContent = msg;
+            t.appendChild(textSpan);
+            if (actionText && typeof onAction === 'function') {
+                const actionBtn = document.createElement('button');
+                actionBtn.textContent = actionText;
+                actionBtn.className = 'toast-action';
+                actionBtn.addEventListener('click', () => { onAction(); t.classList.remove('show', 'err', 'warn'); clearTimeout(toastTimer); });
+                t.appendChild(actionBtn);
+            }
+            t.className = type === 'err' ? 'show err' : (type === 'warn' ? 'show warn' : 'show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show', 'err', 'warn'), actionText ? 5000 : 3000);
+        }
+
+        // 全局兜底错误捕获：不向用户暴露内部错误细节，仅在控制台记录以便排查
+        window.addEventListener('error', event => {
+            console.error('[全局异常]', event.error || event.message);
+            showToast('程序出现异常，请重试或刷新页面', 'err');
+        });
+        window.addEventListener('unhandledrejection', event => {
+            console.error('[未处理的Promise异常]', event.reason);
+            showToast('操作未能完成，请重试', 'err');
+        });
+
+        const Formatter = {
+            time(timeStr) {
+                if (!timeStr) return "00/00 00:00:00.000";
+                const d = new Date(timeStr);
+                if (isNaN(d.getTime())) return "00/00 00:00:00.000";
+                const pad = (n, l = 2) => String(n).padStart(l, '0');
+                return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+            },
+            bytes(bytes) {
+                const b = parseInt(bytes); if (isNaN(b) || b <= 0) return "0 B";
+                const units = ['B', 'KB', 'MB', 'GB']; const i = Math.floor(Math.log(b) / Math.log(1024));
+                return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + units[Math.min(i, units.length - 1)];
+            },
+            statusRange(status) {
+                const s = parseInt(status); if (isNaN(s) || s === 0) return "0";
+                if (s >= 100 && s < 200) return "1xx"; if (s >= 200 && s < 300) return "2xx";
+                if (s >= 300 && s < 400) return "3xx"; if (s >= 400 && s < 500) return "4xx";
+                if (s >= 500 && s < 600) return "5xx"; return "其他";
+            },
+            statusClass(status) {
+                const s = parseInt(status);
+                if (s >= 200 && s < 300) return 'status-2xx';
+                if (s >= 300 && s < 400) return 'status-3xx';
+                if (s >= 400) return 'status-4xx';
+                return 'status-0';
+            },
+            methodClass(method) {
+                const m = String(method).toUpperCase().trim();
+                return m === 'GET' ? 'method-get' : (m === 'POST' ? 'method-post' : 'method-unknown');
+            },
+            mimeType(item) {
+                const mime = (item.response.content?.mimeType || '').toLowerCase();
+                const url = (item.request.url || '').split('?')[0].toLowerCase();
+                
+                if (mime.includes('json')) return 'JSON';
+                if (mime.includes('xml')) return 'XML';
+                if (mime.includes('html')) return 'HTML';
+                if (mime.includes('javascript') || mime.includes('text/js') || mime.includes('x-javascript')) return 'JS';
+                if (mime.includes('css')) return 'CSS';
+                if (mime.includes('text/plain')) return 'Text';
+                if (mime.includes('image/')) return 'Image';
+                if (mime.includes('font/') || mime.includes('application/font') || mime.includes('x-font')) return 'Font';
+                if (mime.includes('audio/')) return 'Audio';
+                if (mime.includes('video/')) return 'Video';
+                if (mime.includes('octet-stream') || mime.includes('application/pdf')) return 'Binary';
+                
+                if (/\.(json)$/.test(url)) return 'JSON';
+                if (/\.(xml)$/.test(url)) return 'XML';
+                if (/\.(html|htm)$/.test(url)) return 'HTML';
+                if (/\.(js|mjs)$/.test(url)) return 'JS';
+                if (/\.(css)$/.test(url)) return 'CSS';
+                if (/\.(txt|log)$/.test(url)) return 'Text';
+                if (/\.(png|jpg|jpeg|gif|webp|svg|ico|bmp)$/.test(url)) return 'Image';
+                if (/\.(woff|woff2|ttf|otf|eot)$/.test(url)) return 'Font';
+                if (/\.(mp3|wav|ogg)$/.test(url)) return 'Audio';
+                if (/\.(mp4|webm|avi)$/.test(url)) return 'Video';
+
+                return 'Unknown';
+            },
+            mimeCategory(mime) {
+                if (['JSON', 'XML', 'Text'].includes(mime)) return 'Data';
+                if (['HTML', 'JS', 'CSS'].includes(mime)) return mime;
+                if (['Image', 'Audio', 'Video'].includes(mime)) return 'Media';
+                return 'Other'; // Font, Binary, Unknown 自动归类到 Other
+            }
+        };
+
+        $('drop-zone').addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') $('file').click(); });
+        $('drop-zone').addEventListener('keydown', e => {
+            if ((e.key === 'Enter' || e.key === ' ') && !state.isLoadingFile) { e.preventDefault(); $('file').click(); }
+        });
+        $('drop-zone').addEventListener('dragover', e => { e.preventDefault(); $('drop-zone').classList.add('dragover'); });
+        $('drop-zone').addEventListener('dragleave', () => $('drop-zone').classList.remove('dragover'));
+        $('drop-zone').addEventListener('drop', e => { e.preventDefault(); if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+        $('file').addEventListener('change', e => { if(e.target.files.length) handleFile(e.target.files[0]); });
+
+        function handleFile(file) {
+            if (!file) return;
+            if (state.isLoadingFile) return; // 防止重复提交：上一次解析尚未完成
+            if (!file.name.toLowerCase().match(/\.(har|json)$/)) {
+                showToast('格式不正确，仅支持 .har 或 .json', 'err');
+                $('file').value = ''; return;
+            }
+            state.isLoadingFile = true;
+            $('drop-zone').classList.add('loading');
+            showToast('正在解析文件，请稍候…');
+
+            const r = new FileReader();
+            const finishLoading = () => {
+                state.isLoadingFile = false;
+                $('drop-zone').classList.remove('loading');
+                $('file').value = '';
+            };
+            r.onload = e => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if (!json?.log?.entries?.length) throw new Error("缺少网络请求数据");
+
+                    state.harLogBase = { ...json.log };
+                    state.allItems = json.log.entries.map((item, i) => {
+                        const specificMime = Formatter.mimeType(item);
+                        return {
+                            ...item, _id: `r_${Date.now()}_${i}`, _idx: i + 1,
+                            _mime: specificMime,
+                            _category: Formatter.mimeCategory(specificMime),
+                            _rawMime: item.response.content?.mimeType || 'unknown'
+                        };
+                    });
+                    resetWorkspace();
+                    showToast(`加载成功，共 ${state.allItems.length} 条记录`);
+                } catch (err) {
+                    console.error('[文件解析异常]', err);
+                    showToast('文件解析失败，请确认文件为有效的 HAR/JSON 格式', 'err');
+                } finally {
+                    finishLoading();
+                }
+            };
+            r.onerror = () => {
+                console.error('[文件读取异常]', r.error);
+                showToast('文件读取失败，请重试', 'err');
+                finishLoading();
+            };
+            r.readAsText(file);
+        }
+
+        function resetWorkspace() {
+            state.selectedIds.clear(); state.activeId = null; state.lastDeleted = null;
+            ['methods', 'statuses', 'mimeTypes'].forEach(k => { state.filters[k].clear(); state.selectedFilters[k].clear(); });
+            state.allItems.forEach(item => {
+                const m = item.request.method || 'UNKNOWN', s = Formatter.statusRange(item.response.status || '0'), c = item._category; // 使用大类存入过滤器
+                state.filters.methods.add(m); state.selectedFilters.methods.add(m);
+                state.filters.statuses.add(s); state.selectedFilters.statuses.add(s);
+                state.filters.mimeTypes.add(c); state.selectedFilters.mimeTypes.add(c);
+            });
+            clearSearchFields();
+            $('drop-zone').style.display = 'none'; $('workspace').style.display = 'flex';
+            toggleDetailView(false);
+            processPipeline();
+        }
+
+        function processPipeline() {
+            try {
+                state.visibleItems = state.allItems.filter(item => {
+                    const s = state.searchArgs;
+                    if (!state.selectedFilters.methods.has(item.request.method || 'UNKNOWN')) return false;
+                    if (!state.selectedFilters.statuses.has(Formatter.statusRange(item.response.status || '0'))) return false;
+                    if (!state.selectedFilters.mimeTypes.has(item._category)) return false; // 基于大类进行过滤校验
+                    if (s.url && !(item.request.url || '').toLowerCase().includes(s.url)) return false;
+                    if (s.qhead && !(item.request.headers || []).map(h => `${h.name}: ${h.value}`).join('\n').toLowerCase().includes(s.qhead)) return false;
+                    if (s.qbody && !(item.request.postData?.text || '').toLowerCase().includes(s.qbody)) return false;
+                    if (s.shead && !(item.response.headers || []).map(h => `${h.name}: ${h.value}`).join('\n').toLowerCase().includes(s.shead)) return false;
+                    if (s.sbody && !(item.response.content?.text || '').toLowerCase().includes(s.sbody)) return false;
+                    return true;
+                });
+                
+                const vIds = new Set(state.visibleItems.map(i => i._id));
+                for (let id of state.selectedIds) if (!vIds.has(id)) state.selectedIds.delete(id);
+                if (state.activeId && !vIds.has(state.activeId)) toggleDetailView(false);
+                
+                renderList();
+                updateTopBar();
+            } catch (error) {
+                showToast("过滤数据时出现异常", "err");
+            }
+        }
+
+        function renderList() {
+          try {
+            $('list').innerHTML = state.visibleItems.map(item => `
+                <div class="item ${item._id === state.activeId ? 'active' : ''}" data-id="${item._id}">
+                    <input type="checkbox" class="row-chk" ${state.selectedIds.has(item._id) ? 'checked' : ''} style="margin-top:10px;">
+                    <div style="flex:1; min-width:0;" class="row-click">
+                        <div class="meta">
+                            <span class="badge-idx">#${item._idx}</span><span>${Formatter.time(item.startedDateTime)}</span>
+                            <div style="margin-left:auto; display:flex; gap:4px;">
+                                <span class="badge-method ${Formatter.methodClass(item.request.method)}">${item.request.method || 'UNK'}</span>
+                                <span class="badge-status ${Formatter.statusClass(item.response.status)}">${item.response.status || 0}</span>
+                            </div>
+                        </div>
+                        <div class="url">${esc(item.request.url)}</div>
+                        <div class="meta">
+                            <span style="color:var(--brand-text); font-weight:500;">${esc(item._mime)}</span>
+                            <span style="font-family:monospace;">↑ ${Formatter.bytes(item.request.bodySize >= 0 ? item.request.bodySize : item.request.postData?.text?.length)} | ↓ ${Formatter.bytes(item.response.bodySize >= 0 ? item.response.bodySize : item.response.content?.size)}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+          } catch (e) {
+            console.error('[列表渲染异常]', e);
+            $('list').innerHTML = '';
+            showToast('列表渲染出现异常', 'err');
+            return;
+          }
+
+            const listEl = $('list');
+            listEl.onclick = e => {
+                const itemEl = e.target.closest('.item');
+                if (!itemEl) return;
+                const id = itemEl.dataset.id;
+                if (e.target.classList.contains('row-chk')) {
+                    e.target.checked ? state.selectedIds.add(id) : state.selectedIds.delete(id);
+                    updateTopBar();
+                } else if (e.target.closest('.row-click')) {
+                    showDetail(id);
+                }
+            };
+        }
+
+        function updateTopBar() {
+            $('stats').innerText = `总数: ${state.allItems.length} (显示: ${state.visibleItems.length}) | 选中: ${state.selectedIds.size}`;
+            $('btn-del').disabled = state.selectedIds.size === 0;
+            
+            const vLen = state.visibleItems.length;
+            const chkLen = state.visibleItems.filter(i => state.selectedIds.has(i._id)).length;
+            $('all-chk').checked = vLen > 0 && chkLen === vLen;
+            $('all-chk').indeterminate = chkLen > 0 && chkLen < vLen;
+
+            $('btn-toggle-search').className = Object.values(state.searchArgs).some(v => v) ? 'btn btn-active' : 'btn btn-s';
+            let isFiltered = ['methods', 'statuses', 'mimeTypes'].some(k => state.selectedFilters[k].size < state.filters[k].size);
+            $('btn-toggle-filter').className = isFiltered ? 'btn btn-active' : 'btn btn-s';
+        }
+
+        $('all-chk').addEventListener('change', e => {
+            const isChecked = e.target.checked;
+            state.visibleItems.forEach(i => isChecked ? state.selectedIds.add(i._id) : state.selectedIds.delete(i._id));
+            document.querySelectorAll('.row-chk').forEach(chk => chk.checked = isChecked);
+            updateTopBar();
+        });
+
+        function closePopovers() {
+            $('filter-popover').style.display = 'none';
+            $('search-popover').style.display = 'none';
+            $('filter-overlay').style.display = 'none';
+        }
+        $('filter-overlay').addEventListener('click', closePopovers);
+
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if ($('filter-popover').style.display === 'flex' || $('search-popover').style.display === 'flex') {
+                closePopovers();
+            } else if (document.body.classList.contains('mobile-view-detail')) {
+                document.body.classList.remove('mobile-view-detail');
+            }
+        });
+
+        $('btn-toggle-filter').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
+            closePopovers();
+            ['methods', 'statuses', 'mimeTypes'].forEach(k => state.tmpSelectedFilters[k] = new Set(state.selectedFilters[k]));
+            renderFilterPanel();
+            $('filter-popover').style.display = 'flex'; $('filter-overlay').style.display = 'block';
+        });
+        
+        function renderFilterPanel() {
+            const buildHTML = (title, key, set) => {
+                const arr = Array.from(set).sort();
+                if (!arr.length) return '';
+                return `<div class="filter-section"><div class="filter-title">${title}</div>
+                    <div class="filter-options">${arr.map(v => `<label class="filter-label"><input type="checkbox" data-key="${key}" value="${esc(v)}" ${state.tmpSelectedFilters[key].has(v)?'checked':''}> ${esc(v)}</label>`).join('')}</div></div>`;
+            };
+            
+            $('filter-container').innerHTML = 
+                buildHTML('请求方法 (Request Method)', 'methods', state.filters.methods) + 
+                buildHTML('状态码 (Status Code)', 'statuses', state.filters.statuses) + 
+                buildHTML('内容类型 (Content Type)', 'mimeTypes', state.filters.mimeTypes);
+            
+            $('filter-container').onchange = e => {
+                if(e.target.tagName !== 'INPUT') return;
+                const key = e.target.dataset.key;
+                const value = e.target.value;  
+                e.target.checked ? state.tmpSelectedFilters[key].add(value) : state.tmpSelectedFilters[key].delete(value);
+            };
+        }
+        
+        $('btn-filter-all').addEventListener('click', () => {
+            ['methods', 'statuses', 'mimeTypes'].forEach(k => state.tmpSelectedFilters[k] = new Set(state.filters[k]));
+            renderFilterPanel();
+        });
+        $('btn-filter-cancel').addEventListener('click', function() {
+            this.blur();
+            closePopovers();
+        });
+        $('btn-filter-ok').addEventListener('click', () => {
+            ['methods', 'statuses', 'mimeTypes'].forEach(k => state.selectedFilters[k] = new Set(state.tmpSelectedFilters[k]));
+            closePopovers(); processPipeline();
+        });
+
+        function clearSearchFields() { ['s-url', 's-qhead', 's-qbody', 's-shead', 's-sbody'].forEach(id => $(id).value = ''); }
+        
+        $('btn-toggle-search').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
+            closePopovers();
+            ['url', 'qhead', 'qbody', 'shead', 'sbody'].forEach(k => $(`s-${k}`).value = state.searchArgs[k]);
+            $('search-popover').style.display = 'flex'; $('filter-overlay').style.display = 'block';
+        });
+        $('btn-search-clear').addEventListener('click', clearSearchFields);
+        $('btn-search-cancel').addEventListener('click', function() {
+            this.blur();
+            closePopovers();
+        });
+        $('btn-search-ok').addEventListener('click', () => {
+            ['url', 'qhead', 'qbody', 'shead', 'sbody'].forEach(k => state.searchArgs[k] = $(`s-${k}`).value.trim().toLowerCase());
+            closePopovers(); processPipeline();
+        });
+
+        function toggleDetailView(hasData) {
+            if (hasData) { $('right').classList.add('has-data'); document.body.classList.add('mobile-view-detail'); } 
+            else { state.activeId = null; $('right').classList.remove('has-data'); document.body.classList.remove('mobile-view-detail'); document.querySelectorAll('.item').forEach(el => el.classList.remove('active')); }
+        }
+        $('btn-mobile-back').addEventListener('click', () => document.body.classList.remove('mobile-view-detail'));
+        $('btn-mobile-back-float').addEventListener('click', () => document.body.classList.remove('mobile-view-detail'));
+
+        function showDetail(id) {
+            state.activeId = id;
+            document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+            const item = state.allItems.find(i => i._id === id); 
+            if (!item) return;
+            
+            toggleDetailView(true);
+            switchTab('p-url');
+
+            try {
+                const renderKV = arr => (!arr || !arr.length) ? '<div style="color:var(--text-secondary);">无数据</div>' : arr.map(h => `<div class="kv"><span class="kv-k">${esc(h.name)}:</span><span class="kv-v">${esc(h.value)}</span></div>`).join('');
+
+                state.currentRaw.url = item.request.url || "";
+                state.currentRaw.qbody = item.request.postData?.text || "";
+                state.currentRaw.sbody = item.response.content?.text || "";
+
+                $('p-url').innerHTML = [{name: "完整URL", value: state.currentRaw.url}, {name: "方法", value: item.request.method}, {name: "状态", value: `${item.response.status} ${item.response.statusText}`}, {name: "时间", value: Formatter.time(item.startedDateTime)}]
+                    .map(h => `<div class="kv"><span class="kv-k">${esc(h.name)}:</span><span class="kv-v">${esc(h.value)}</span></div>`).join('');
+
+                $('p-qhead').innerHTML = renderKV(item.request.headers);
+                $('p-shead').innerHTML = renderKV(item.response.headers);
+
+                $('p-qbody').innerHTML = formatBody(state.currentRaw.qbody, item.request.postData?.mimeType, "qbody");
+                $('p-sbody').innerHTML = formatBody(state.currentRaw.sbody, item.response.content?.mimeType, "sbody", item.response.content?.encoding);
+
+                syncCopyBtn();
+            } catch (e) {
+                console.error('[详情渲染异常]', e);
+                showToast('详情渲染出现异常', 'err');
+            }
+        }
+
+        function formatBody(text, mime, type, encoding) {
+            if (!text) return '<span style="color:var(--text-secondary);">无数据</span>';
+            mime = String(mime).toLowerCase();
+            
+            if (mime.startsWith('image/') && encoding === 'base64') return `<div><img class="img-preview" src="data:${mime};base64,${text.trim()}"></div>`;
+            
+            const isSpecialType = encoding === 'base64' || mime.includes('font') || mime.includes('audio') || mime.includes('video') || mime.includes('octet-stream') || mime.includes('application/pdf');
+            if (isSpecialType && text.length > 500) {
+                const truncated = text.substring(0, 500) + `\n\n... [特殊数据过长，已截取前 500 字符，原数据总长：${text.length}] ...`;
+                return `<pre style="color:var(--text-secondary);">${esc(truncated)}</pre>`;
+            }
+
+            try { 
+                if (mime.includes('json') || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                    const parsed = JSON.stringify(JSON.parse(text), null, 2);
+                    state.currentRaw[type] = parsed;
+                    return `<pre style="color:var(--semantic-success);">${esc(parsed)}</pre>`;
+                }
+            } catch(e) {}
+            return `<pre>${esc(text)}</pre>`;
+        }
+
+        function switchTab(targetId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.target === targetId));
+            document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === targetId));
+            state.currentRaw.panel = targetId;
+            syncCopyBtn();
+        }
+
+        $('tabs-bar').addEventListener('click', e => {
+            if (e.target.classList.contains('tab')) switchTab(e.target.dataset.target);
+        });
+
+        function syncCopyBtn() {
+            const btn = $('global-copy-btn');
+            const p = state.currentRaw.panel;
+            if (!state.activeId || !['p-url','p-qbody','p-sbody'].includes(p)) { btn.style.display = "none"; return; }
+            let has = (p === 'p-url' && state.currentRaw.url) || (p === 'p-qbody' && state.currentRaw.qbody) || (p === 'p-sbody' && state.currentRaw.sbody);
+            btn.style.display = "inline-block"; btn.disabled = !has;
+        }
+
+        $('global-copy-btn').addEventListener('click', () => {
+            try {
+                let text = "";
+                if(state.currentRaw.panel === 'p-url') text = state.currentRaw.url;
+                if(state.currentRaw.panel === 'p-qbody') text = state.currentRaw.qbody;
+                if(state.currentRaw.panel === 'p-sbody') text = state.currentRaw.sbody;
+                
+                const ta = document.createElement("textarea");
+                ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; 
+                document.body.appendChild(ta); ta.select(); 
+                document.execCommand("copy"); document.body.removeChild(ta);
+                showToast("📋 已复制到剪贴板");
+            } catch(e) { console.error('[复制异常]', e); showToast("复制失败", "err"); }
+        });
+
+        $('btn-del').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
+            if (!state.selectedIds.size) return;
+            if (!confirm(`重要确认：\n您确定要删除选中的 ${state.selectedIds.size} 条记录吗？`)) return;
+            try {
+                const count = state.selectedIds.size;
+                const removedIds = new Set(state.selectedIds);
+                state.lastDeleted = state.allItems.filter(i => removedIds.has(i._id));
+                state.allItems = state.allItems.filter(i => !removedIds.has(i._id));
+                state.selectedIds.clear();
+                processPipeline();
+                showToast(`已成功移除 ${count} 项记录`, 'info', '撤销', undoDelete);
+            } catch(e) { console.error('[删除异常]', e); showToast("删除执行异常", "err"); }
+        });
+
+        // 撤销上一次删除操作（数据管理规范：支持撤销/恢复）
+        function undoDelete() {
+            if (!state.lastDeleted || !state.lastDeleted.length) return;
+            try {
+                const restored = state.lastDeleted;
+                state.lastDeleted = null;
+                state.allItems = state.allItems.concat(restored).sort((a, b) => a._idx - b._idx);
+                processPipeline();
+                showToast(`已恢复 ${restored.length} 项记录`);
+            } catch (e) {
+                console.error('[撤销异常]', e);
+                showToast('撤销失败，请重试', 'err');
+            }
+        }
+
+        $('btn-clr').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
+            if (!confirm("确定要清空所有数据并返回首页吗？")) return;
+            state.allItems = [];
+            state.lastDeleted = null;
+            resetWorkspace();
+            $('workspace').style.display = 'none'; $('drop-zone').style.display = 'flex';
+            showToast('数据已完全清空');
+        });
+
+        $('btn-exp').addEventListener('click', function() {
+            this.blur(); // 移除焦点，避免无意识残留
+            if (!state.visibleItems.length) return showToast('无数据可导出', 'warn');
+            if (!confirm(`确定要导出当前列表显示的 ${state.visibleItems.length} 条请求记录吗？`)) return;
+            
+            try {
+                const cleanEntries = state.visibleItems.map(({ _id, _idx, _mime, _category, _rawMime, ...rest }) => rest);
+                const exportObj = { log: { ...state.harLogBase, entries: cleanEntries } };
+                const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url; a.download = `har_export_${Date.now()}.har`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                showToast('🎉 导出成功！');
+            } catch (err) {
+                console.error('[导出异常]', err);
+                showToast('导出失败，请重试', 'err');
+            }
+        });
+    </script>
+</body>
+</html>
