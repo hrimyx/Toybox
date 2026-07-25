@@ -1,6 +1,5 @@
 name: Deploy Pages
 
-# 触发条件：当推送到 main 或 dev 分支时触发
 on:
   push:
     branches:
@@ -21,7 +20,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
-          publish_branch: gh-pages # 自动创建一个 gh-pages 分支用于展示网页
+          publish_branch: gh-pages
+          keep_files: true # 🌟 关键修复：防止清空 dev 预览文件夹
 
       # 部署 Dev 分支到 dev 子目录
       - name: Deploy Dev to Preview Folder
@@ -31,4 +31,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
           publish_branch: gh-pages
-          destination_dir: dev # 关键配置：指定推送到 dev 文件夹
+          destination_dir: dev
+          keep_files: true # 🌟 关键修复：防止清空 main 主目录
