@@ -1,0 +1,2100 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="app-name" content="连连看" />
+    <meta name="version" content="v2.3.3" />
+    <meta name="author" content="Hrimyx" />
+    <title>连连看</title>
+    <style>
+      /* 遵循冷蓝色彩体系设计规范 (CSS Variables) */
+      :root {
+        --surface-bg: #f7f9fc;
+        --surface-card: #ffffff;
+        --surface-overlay: #ebeef5;
+        --border-divider: #d0d7e5;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+
+        --brand-primary: #1a6aff;
+        --on-brand-primary: #ffffff;
+        --brand-light: #6b9cff;
+        --brand-dark: #0d3b8c;
+
+        --accent-cyan: #00c4eb;
+        --accent-coral: #e64a2e;
+
+        --semantic-success: #059669;
+        --success-bg: #e6faf3;
+        --semantic-danger: #d92644;
+        --danger-bg: #ffebee;
+        --semantic-warning: #d97706;
+        --warning-bg: #fff8e1;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --surface-bg: #0a0f1a;
+          --surface-card: #141c2b;
+          --surface-overlay: #1f2a3f;
+          --border-divider: #2c3a54;
+          --text-primary: #e2e8f0;
+          --text-secondary: #a0b0c8;
+          --success-bg: #0b2f26;
+          --danger-bg: #3d0f1a;
+          --warning-bg: #3d2e00;
+        }
+      }
+
+      /* 全局样式 */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      body {
+        background-color: var(--surface-bg);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+        transition:
+          background-color 0.3s,
+          color 0.3s;
+      }
+
+      /* 视图容器 (SPA结构) */
+      .view {
+        display: none;
+        width: 100%;
+        max-width: 600px;
+        height: 100%;
+        padding: 20px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        overflow-y: auto;
+        animation: fade-in 0.3s ease;
+      }
+      .view.active {
+        display: flex;
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* 头部元信息 */
+      header {
+        text-align: center;
+        margin-bottom: 32px;
+        margin-top: 40px;
+      }
+      h1 {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+        letter-spacing: 2px;
+      }
+      .meta-info {
+        font-size: 14px;
+        color: var(--text-secondary);
+      }
+
+      /* 通用按钮 */
+      button {
+        background-color: var(--surface-card);
+        color: var(--text-primary);
+        border: 1px solid var(--border-divider);
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 100%;
+        max-width: 300px;
+        margin-bottom: 16px;
+        touch-action: manipulation;
+      }
+      button:hover:not(:disabled) {
+        background-color: var(--surface-overlay);
+      }
+      button:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      button.primary {
+        background-color: var(--brand-primary);
+        color: var(--on-brand-primary);
+        border: none;
+      }
+      button.primary:hover:not(:disabled) {
+        background-color: var(--brand-light);
+      }
+      button.danger {
+        background-color: var(--accent-coral);
+        color: var(--on-brand-primary);
+        border: none;
+      }
+
+      /* 菜单组 */
+      .menu-group {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* 设置面板 */
+      .settings-card {
+        background: var(--surface-card);
+        border: 1px solid var(--border-divider);
+        border-radius: 12px;
+        width: 100%;
+        padding: 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+      .settings-group {
+        margin-bottom: 20px;
+      }
+      .settings-group:last-child {
+        margin-bottom: 0;
+      }
+      .settings-title {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+      .radio-group {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .radio-label {
+        flex: 1;
+        min-width: 80px;
+        text-align: center;
+        padding: 10px;
+        border: 1px solid var(--border-divider);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        background: var(--surface-bg);
+        touch-action: manipulation;
+      }
+      .radio-label input {
+        display: none;
+      }
+      .radio-label.active {
+        border-color: var(--brand-primary);
+        background: var(--brand-primary);
+        color: var(--on-brand-primary);
+      }
+
+      /* 游戏界面头部 */
+      .game-header {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        background: var(--surface-card);
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        border: 1px solid var(--border-divider);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+
+      .timer-container {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        gap: 12px;
+      }
+      .timer-bar-bg {
+        flex: 1;
+        height: 12px;
+        background: var(--surface-overlay);
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--border-divider);
+      }
+      .timer-bar {
+        height: 100%;
+        background: var(--brand-primary);
+        transition:
+          width 1s linear,
+          background-color 0.3s;
+      }
+      .timer-bar.danger {
+        background: var(--semantic-danger);
+      }
+      .timer-text {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        width: 48px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        transition: color 0.3s;
+      }
+      .timer-text.danger {
+        color: var(--semantic-danger);
+      }
+
+      .game-controls-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+      }
+
+      /* 关卡与特点指示器 */
+      .game-level-container {
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .game-level-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--brand-primary);
+        white-space: nowrap;
+      }
+      .game-level-desc {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+
+      .game-controls {
+        display: flex;
+        gap: 8px;
+      }
+      .game-controls button {
+        margin: 0;
+        padding: 8px 12px;
+        width: auto;
+        font-size: 14px;
+      }
+
+      .game-container {
+        position: relative;
+        background-color: var(--surface-card);
+        padding: 4px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-divider);
+        width: 100%;
+        aspect-ratio: 1;
+        max-width: 600px;
+        max-height: calc(100vh - 200px);
+        overflow: hidden;
+      }
+
+      .board {
+        display: grid;
+        gap: 2px;
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      .cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        cursor: pointer;
+        background-color: var(--surface-bg);
+        border: 2px solid var(--border-divider);
+        box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.02);
+        transition:
+          background-color 0.2s,
+          box-shadow 0.2s,
+          border-color 0.2s;
+        font-size: 24px;
+        line-height: 1;
+        touch-action: manipulation;
+        box-sizing: border-box;
+      }
+
+      .cell:hover:not(.empty) {
+        background-color: var(--surface-overlay);
+      }
+      .cell.selected {
+        border-color: var(--brand-primary);
+        background-color: var(--surface-overlay);
+        box-shadow: 0 0 8px var(--brand-light);
+        z-index: 2;
+      }
+      .cell.hinted {
+        animation: hint-pulse 0.8s ease-in-out infinite;
+        z-index: 2;
+      }
+      .cell.empty {
+        opacity: 0;
+        pointer-events: none;
+        border: 2px solid transparent;
+        box-shadow: none;
+      }
+
+      @keyframes hint-pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(0, 196, 235, 0.7);
+          border-color: var(--accent-cyan);
+        }
+        50% {
+          box-shadow: 0 0 0 6px rgba(0, 196, 235, 0);
+          border-color: var(--brand-primary);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(0, 196, 235, 0);
+          border-color: var(--accent-cyan);
+        }
+      }
+
+      #line-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .path-core-anim {
+        stroke-dasharray: 8 6;
+        animation: path-flow 0.4s linear infinite;
+      }
+      @keyframes path-flow {
+        to {
+          stroke-dashoffset: -14;
+        }
+      }
+
+      /* 暂停遮罩层 */
+      .pause-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(247, 249, 252, 0.85);
+        backdrop-filter: blur(4px);
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+      @media (prefers-color-scheme: dark) {
+        .pause-overlay {
+          background: rgba(10, 15, 26, 0.85);
+        }
+      }
+      .pause-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .pause-overlay h2 {
+        margin-bottom: 24px;
+        color: var(--text-primary);
+        letter-spacing: 2px;
+      }
+
+      /* 悬浮交互组件 */
+      .toast-container {
+        position: fixed;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .toast {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: fade-in 0.3s forwards;
+      }
+      .toast.success {
+        background: var(--success-bg);
+        color: var(--semantic-success);
+        border: 1px solid var(--semantic-success);
+      }
+      .toast.warning {
+        background: var(--warning-bg);
+        color: var(--semantic-warning);
+        border: 1px solid var(--semantic-warning);
+      }
+      .toast.danger {
+        background: var(--danger-bg);
+        color: var(--semantic-danger);
+        border: 1px solid var(--semantic-danger);
+      }
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .modal-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .modal-card {
+        background: var(--surface-card);
+        border: 1px solid var(--border-divider);
+        padding: 24px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 320px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+        transform: scale(0.9);
+        transition: transform 0.3s;
+      }
+      .modal-overlay.active .modal-card {
+        transform: scale(1);
+      }
+      .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+      }
+      .modal-body {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+        line-height: 1.5;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+      .modal-actions button {
+        margin-bottom: 0;
+        width: auto;
+      }
+
+      /* 返回栏 */
+      .top-bar {
+        width: 100%;
+        display: flex;
+        justify-content: flex-start;
+        padding: 10px 0;
+      }
+      .top-bar button {
+        width: auto;
+        padding: 6px 12px;
+        margin: 0;
+        font-size: 14px;
+      }
+
+      /* 移动端/窄屏 适配拓展 */
+      @media (max-width: 480px) {
+        .game-container {
+          padding: 2px;
+        }
+        .board {
+          gap: 1px;
+        }
+        .game-level-container {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 2px;
+        }
+        .game-level-desc {
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 交互反馈组件 -->
+    <div id="toast-container" class="toast-container"></div>
+    <div id="modal" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-title" id="modal-title">提示</div>
+        <div class="modal-body" id="modal-body">内容</div>
+        <div class="modal-actions">
+          <button id="modal-btn-cancel">取消</button>
+          <button id="modal-btn-confirm" class="primary">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关卡成功结算界面 -->
+    <div id="win-modal" class="modal-overlay">
+      <div class="modal-card" style="text-align: center; padding-top: 32px">
+        <h2
+          style="
+            font-size: 24px;
+            color: var(--semantic-success);
+            margin-bottom: 12px;
+          "
+        >
+          闯关成功！
+        </h2>
+        <div
+          id="win-time-text"
+          style="
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-weight: 600;
+          "
+        >
+          用时: 0 秒
+        </div>
+        <div class="menu-group">
+          <button id="btn-win-next" class="primary">下一关</button>
+          <button id="btn-win-replay">重玩本关</button>
+          <button id="btn-win-menu">返回主菜单</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 视图：开始页面 -->
+    <div id="view-start" class="view active">
+      <header>
+        <h1 id="tool-title">连连看</h1>
+        <div class="meta-info" id="tool-meta">加载中...</div>
+      </header>
+      <div class="menu-group">
+        <button id="btn-menu-start" class="primary">开始游戏</button>
+        <button id="btn-menu-levels">选择关卡</button>
+        <button id="btn-menu-settings">设置</button>
+      </div>
+    </div>
+
+    <!-- 视图：选择关卡 -->
+    <div id="view-levels" class="view">
+      <div class="top-bar"><button class="btn-back">返回</button></div>
+      <header><h1>选择关卡</h1></header>
+      <div class="menu-group">
+        <button class="primary btn-level" data-level="1">
+          第一关 (经典模式)
+        </button>
+        <button class="primary btn-level" data-level="2">
+          第二关 (上下分离)
+        </button>
+        <button class="primary btn-level" data-level="3">
+          第三关 (左右分离)
+        </button>
+        <button class="primary btn-level" data-level="4">
+          第四关 (四角分离)
+        </button>
+        <button class="primary btn-level" data-level="5">
+          第五关 (逆时针螺旋)
+        </button>
+        <button class="primary btn-level" data-level="6">
+          第六关 (顺时针螺旋)
+        </button>
+      </div>
+    </div>
+
+    <!-- 视图：设置页面 -->
+    <div id="view-settings" class="view">
+      <div class="top-bar"><button class="btn-back">返回并保存</button></div>
+      <header><h1>设置</h1></header>
+      <div class="settings-card">
+        <div class="settings-group">
+          <div class="settings-title">游戏难度</div>
+          <div class="radio-group" id="settings-difficulty">
+            <label class="radio-label"
+              ><input type="radio" name="difficulty" value="easy" />简单</label
+            >
+            <label class="radio-label"
+              ><input
+                type="radio"
+                name="difficulty"
+                value="normal"
+              />一般</label
+            >
+            <label class="radio-label"
+              ><input type="radio" name="difficulty" value="hard" />困难</label
+            >
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-title">图标主题</div>
+          <div class="radio-group" id="settings-theme">
+            <label class="radio-label"
+              ><input type="radio" name="theme" value="fruit" />水果 🍉</label
+            >
+            <label class="radio-label"
+              ><input type="radio" name="theme" value="animal" />动物 🐼</label
+            >
+            <label class="radio-label"
+              ><input type="radio" name="theme" value="ocean" />海洋 🐬</label
+            >
+            <label class="radio-label"
+              ><input type="radio" name="theme" value="toy" />玩具 🧸</label
+            >
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-title">音效与音乐</div>
+          <div class="radio-group" id="settings-sound">
+            <label class="radio-label"
+              ><input type="radio" name="sound" value="on" />开启 🔊</label
+            >
+            <label class="radio-label"
+              ><input type="radio" name="sound" value="off" />关闭 🔇</label
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 视图：游戏界面 -->
+    <div id="view-game" class="view">
+      <div
+        class="top-bar"
+        style="justify-content: space-between; align-items: center"
+      >
+        <button id="btn-game-back">返回菜单</button>
+        <button id="btn-game-pause" class="primary">暂停</button>
+        <button id="btn-game-restart" class="danger">重玩本关</button>
+      </div>
+
+      <div class="game-header">
+        <div class="game-controls-row">
+          <div class="game-level-container">
+            <span class="game-level-title" id="game-level-title">第 1 关</span>
+            <span class="game-level-desc" id="game-level-desc">(经典模式)</span>
+          </div>
+          <div class="game-controls">
+            <button id="btn-game-hint">
+              提示 x<span id="txt-hints">0</span>
+            </button>
+            <button id="btn-game-shuffle">
+              洗牌 x<span id="txt-shuffles">0</span>
+            </button>
+          </div>
+        </div>
+        <div class="timer-container">
+          <div class="timer-bar-bg">
+            <div class="timer-bar" id="game-timer-bar"></div>
+          </div>
+          <div class="timer-text" id="game-timer-text">0S</div>
+        </div>
+      </div>
+
+      <div class="game-container" id="board-container">
+        <div id="game-board" class="board"></div>
+        <svg id="line-svg"></svg>
+
+        <div id="pause-overlay" class="pause-overlay">
+          <h2>游戏已暂停</h2>
+          <button id="btn-resume" class="primary">继续游戏</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.addEventListener("error", (e) => {
+        console.error("Runtime Error:", e.message);
+        UI.showToast("发生未知错误，请刷新重试", "danger");
+      });
+      window.addEventListener("unhandledrejection", (e) => {
+        console.error("Promise Rejection:", e.reason);
+        UI.showToast("操作异常，请重试", "danger");
+      });
+
+      // ================= 静态配置区 =================
+      const CONFIG = {
+        STORAGE_KEY: "hrimyx_lianliankan_v2_3_0_config",
+        ANIMATION_DUR: 400,
+        LEVEL_DESCS: {
+          1: "经典模式",
+          2: "上下分离",
+          3: "左右分离",
+          4: "四角分离",
+          5: "逆时针螺旋",
+          6: "顺时针螺旋",
+        },
+        // 本次迭代需求更新：简单/一般/困难 图案种类修改为 8/12/18
+        DIFFICULTIES: {
+          easy: { r: 6, c: 6, types: 8, time: 300, hints: 10, shuffles: 5 },
+          normal: { r: 8, c: 8, types: 12, time: 240, hints: 5, shuffles: 3 },
+          hard: { r: 10, c: 10, types: 18, time: 200, hints: 2, shuffles: 1 },
+        },
+        // 4个主题，每个主题包含 20 种高识别度图案
+        THEMES: {
+          fruit: [
+            "🍎",
+            "🍏",
+            "🍐",
+            "🍊",
+            "🍋",
+            "🍌",
+            "🍉",
+            "🍇",
+            "🍓",
+            "🫐",
+            "🍈",
+            "🍒",
+            "🍑",
+            "🥭",
+            "🍍",
+            "🥥",
+            "🥝",
+            "🍅",
+            "🥑",
+            "🫒",
+          ],
+          animal: [
+            "🐶",
+            "🐱",
+            "🐭",
+            "🐹",
+            "🐰",
+            "🦊",
+            "🐻",
+            "🐼",
+            "🐨",
+            "🐯",
+            "🦁",
+            "🐮",
+            "🐷",
+            "🐸",
+            "🐵",
+            "🐔",
+            "🐧",
+            "🐦",
+            "🦆",
+            "🦅",
+          ],
+          ocean: [
+            "🐬",
+            "🐙",
+            "🦀",
+            "🐠",
+            "🦭",
+            "🐚",
+            "🦐",
+            "🐢",
+            "🐳",
+            "🐡",
+            "🦑",
+            "🦈",
+            "🐋",
+            "🦞",
+            "🦪",
+            "🪼",
+            "🪸",
+            "🐟",
+            "🐊",
+            "🐧",
+          ],
+          toy: [
+            "🧸",
+            "🤖",
+            "🎲",
+            "🎯",
+            "🪁",
+            "🧩",
+            "🪆",
+            "🚂",
+            "🪀",
+            "🎨",
+            "🎺",
+            "🏓",
+            "🎮",
+            "🎳",
+            "🪅",
+            "🎠",
+            "🎡",
+            "🎢",
+            "🧱",
+            "🛹",
+          ],
+        },
+      };
+
+      // ================= 数据管理模块 =================
+      const Storage = {
+        loadConfig() {
+          try {
+            const data = localStorage.getItem(CONFIG.STORAGE_KEY);
+            return data ? JSON.parse(data) : null;
+          } catch (e) {
+            return null;
+          }
+        },
+        saveConfig(config) {
+          try {
+            localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(config));
+          } catch (e) {}
+        },
+      };
+
+      // ================= UI与交互模块 =================
+      const UI = {
+        initMetaInfo() {
+          const title = document.title;
+          const version = document.querySelector(
+            'meta[name="version"]',
+          ).content;
+          const author = document.querySelector('meta[name="author"]').content;
+          document.getElementById("tool-title").innerText = title;
+          document.getElementById("tool-meta").innerText =
+            `${title} | ${version} | 作者: ${author}`;
+        },
+        switchView(viewId) {
+          document
+            .querySelectorAll(".view")
+            .forEach((v) => v.classList.remove("active"));
+          document.getElementById(viewId).classList.add("active");
+        },
+        showToast(message, type = "success") {
+          const container = document.getElementById("toast-container");
+          const toast = document.createElement("div");
+          toast.className = `toast ${type}`;
+          toast.innerText = message;
+          container.appendChild(toast);
+          setTimeout(() => {
+            toast.style.opacity = "0";
+            toast.style.transform = "translateY(-20px)";
+            toast.style.transition = "all 0.3s";
+            setTimeout(() => toast.remove(), 300);
+          }, 2000);
+        },
+        showConfirm(title, message, onConfirm, onCancel = null) {
+          const modal = document.getElementById("modal");
+          document.getElementById("modal-title").innerText = title;
+          document.getElementById("modal-body").innerText = message;
+
+          const btnConfirm = document.getElementById("modal-btn-confirm");
+          const btnCancel = document.getElementById("modal-btn-cancel");
+
+          const newConfirm = btnConfirm.cloneNode(true);
+          const newCancel = btnCancel.cloneNode(true);
+          btnConfirm.replaceWith(newConfirm);
+          btnCancel.replaceWith(newCancel);
+
+          const closeModal = () => modal.classList.remove("active");
+
+          newConfirm.addEventListener("click", () => {
+            closeModal();
+            if (onConfirm) onConfirm();
+          });
+          newCancel.addEventListener("click", () => {
+            closeModal();
+            if (onCancel) onCancel();
+          });
+          modal.classList.add("active");
+        },
+      };
+
+      // ================= 音频引擎 =================
+      class AudioEngine {
+        constructor() {
+          this.ctx = null;
+          this.bgmSource = null;
+          this.bgmGain = null;
+          this.chiptuneBuffer = null;
+          this.enabled = true;
+          this.isBgmPlaying = false;
+        }
+
+        init(enabled) {
+          this.enabled = enabled === "on";
+          this.tryStart();
+        }
+
+        tryStart() {
+          if (!this.enabled) {
+            this.stopBGM();
+            return;
+          }
+          if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) {
+              this.ctx = new AC();
+              this.ctx.onstatechange = () => {
+                if (this.ctx && this.ctx.state === "running" && this.enabled) {
+                  this.ensureBGM();
+                }
+              };
+            }
+          }
+          if (this.ctx) {
+            if (this.ctx.state === "suspended") {
+              this.ctx
+                .resume()
+                .then(() => {
+                  this.ensureBGM();
+                })
+                .catch(() => {});
+            } else if (this.ctx.state === "running") {
+              this.ensureBGM();
+            }
+          }
+        }
+
+        unlockAndPlay() {
+          if (!this.enabled) return;
+          this.tryStart();
+        }
+
+        updateSetting(enabled) {
+          this.enabled = enabled === "on";
+          if (!this.enabled) {
+            this.stopBGM();
+          } else {
+            this.tryStart();
+          }
+        }
+
+        ensureBGM() {
+          if (!this.enabled || !this.ctx || this.ctx.state !== "running")
+            return;
+          if (this.isBgmPlaying && this.bgmSource) return;
+
+          this.stopBGMInternal();
+
+          try {
+            if (!this.chiptuneBuffer) {
+              this.chiptuneBuffer = this.generateChiptuneBuffer();
+            }
+
+            this.bgmSource = this.ctx.createBufferSource();
+            this.bgmSource.buffer = this.chiptuneBuffer;
+            this.bgmSource.loop = true;
+
+            this.bgmGain = this.ctx.createGain();
+            this.bgmGain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+
+            this.bgmSource.connect(this.bgmGain);
+            this.bgmGain.connect(this.ctx.destination);
+
+            this.bgmSource.start(0);
+            this.isBgmPlaying = true;
+          } catch (e) {
+            this.isBgmPlaying = false;
+          }
+        }
+
+        stopBGMInternal() {
+          if (this.bgmSource) {
+            try {
+              this.bgmSource.stop();
+              this.bgmSource.disconnect();
+            } catch (e) {}
+            this.bgmSource = null;
+          }
+          if (this.bgmGain) {
+            try {
+              this.bgmGain.disconnect();
+            } catch (e) {}
+            this.bgmGain = null;
+          }
+          this.isBgmPlaying = false;
+        }
+
+        stopBGM() {
+          this.stopBGMInternal();
+        }
+
+        playClear() {
+          if (!this.enabled || !this.ctx || this.ctx.state !== "running")
+            return;
+          try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+            osc.frequency.exponentialRampToValueAtTime(
+              1046.5,
+              this.ctx.currentTime + 0.15,
+            ); // C6
+
+            gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(
+              0.01,
+              this.ctx.currentTime + 0.15,
+            );
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.15);
+          } catch (e) {}
+        }
+
+        generateChiptuneBuffer() {
+          const sampleRate = this.ctx.sampleRate;
+          const bpm = 90;
+          const noteLen = 60 / bpm / 2;
+
+          const melody = [
+            523.25, 659.25, 783.99, 659.25, 493.88, 587.33, 783.99, 587.33,
+            440.0, 523.25, 659.25, 523.25, 329.63, 392.0, 659.25, 392.0, 349.23,
+            440.0, 523.25, 659.25, 523.25, 440.0, 392.0, 329.63, 293.66, 349.23,
+            440.0, 523.25, 392.0, 493.88, 587.33, 493.88,
+          ];
+
+          const bass = [
+            130.81, 0, 130.81, 0, 246.94, 0, 123.47, 0, 220.0, 0, 110.0, 0,
+            164.81, 0, 82.41, 0, 174.61, 0, 87.31, 0, 130.81, 0, 65.41, 0,
+            146.83, 0, 73.42, 0, 196.0, 0, 98.0, 0,
+          ];
+
+          const numFrames = Math.floor(noteLen * melody.length * sampleRate);
+          const buffer = this.ctx.createBuffer(1, numFrames, sampleRate);
+          const channel = buffer.getChannelData(0);
+
+          for (let i = 0; i < numFrames; i++) {
+            const t = i / sampleRate;
+            const step = Math.floor(t / noteLen);
+            if (step >= melody.length) continue;
+
+            const tNote = t % noteLen;
+
+            const fMelody = melody[step];
+            let vMelody = 0;
+            if (fMelody > 0) {
+              const phase = (t * fMelody) % 1.0;
+              const tri = Math.abs(phase - 0.5) * 4 - 1;
+              const env = Math.exp(-tNote * 5.5);
+              vMelody = tri * env * 0.16;
+            }
+
+            const fBass = bass[step];
+            let vBass = 0;
+            if (fBass > 0) {
+              const phase = (t * fBass) % 1.0;
+              const sine = Math.sin(phase * 2 * Math.PI);
+              const env = Math.exp(-tNote * 3.5);
+              vBass = sine * env * 0.22;
+            }
+
+            channel[i] = vMelody + vBass;
+          }
+          return buffer;
+        }
+      }
+
+      // ================= 游戏核心引擎 =================
+      class GameEngine {
+        constructor(app) {
+          this.app = app;
+          this.selected = null;
+          this.isAnimating = false;
+          this.timerId = null;
+          this.isPaused = false;
+
+          document
+            .getElementById("btn-game-hint")
+            .addEventListener("click", () => this.useHint());
+          document
+            .getElementById("btn-game-shuffle")
+            .addEventListener("click", () => this.useShuffle());
+
+          document
+            .getElementById("btn-game-pause")
+            .addEventListener("click", () => {
+              if (this.isPaused) {
+                this.resumeTimer();
+              } else {
+                this.pause();
+              }
+            });
+
+          document
+            .getElementById("btn-resume")
+            .addEventListener("click", () => this.resumeTimer());
+
+          document
+            .getElementById("btn-game-back")
+            .addEventListener("click", () => {
+              const wasPaused = this.isPaused;
+              this.pause();
+              UI.showConfirm(
+                "返回主菜单",
+                "关卡进度将直接丢弃，确认返回吗？",
+                () => {
+                  this.stopTimer();
+                  document
+                    .getElementById("pause-overlay")
+                    .classList.remove("active");
+                  this.app.gameState = null;
+                  UI.switchView("view-start");
+                },
+                () => {
+                  if (!wasPaused) this.resumeTimer();
+                },
+              );
+            });
+
+          document
+            .getElementById("btn-game-restart")
+            .addEventListener("click", () => {
+              const wasPaused = this.isPaused;
+              this.pause();
+              UI.showConfirm(
+                "重玩本关",
+                "确定丢弃当前进度并重新开始本局吗？",
+                () => {
+                  document
+                    .getElementById("pause-overlay")
+                    .classList.remove("active");
+                  this.startNew();
+                },
+                () => {
+                  if (!wasPaused) this.resumeTimer();
+                },
+              );
+            });
+
+          document
+            .getElementById("btn-win-next")
+            .addEventListener("click", () => {
+              document.getElementById("win-modal").classList.remove("active");
+              this.app.currentLevel++;
+              this.startNew();
+            });
+          document
+            .getElementById("btn-win-replay")
+            .addEventListener("click", () => {
+              document.getElementById("win-modal").classList.remove("active");
+              this.startNew();
+            });
+          document
+            .getElementById("btn-win-menu")
+            .addEventListener("click", () => {
+              document.getElementById("win-modal").classList.remove("active");
+              UI.switchView("view-start");
+            });
+        }
+
+        get totalRows() {
+          return this.app.settings.r + 2;
+        }
+        get totalCols() {
+          return this.app.settings.c + 2;
+        }
+
+        startNew() {
+          this.selected = null;
+          this.isAnimating = false;
+          this.isPaused = false;
+          this.app.gameState = {
+            board: [],
+            time: this.app.settings.time,
+            hints: this.app.settings.hints,
+            shuffles: this.app.settings.shuffles,
+          };
+
+          document.getElementById("pause-overlay").classList.remove("active");
+          this.updatePauseButtonUI();
+
+          const lvl = this.app.currentLevel;
+          document.getElementById("game-level-title").innerText =
+            `第 ${lvl} 关`;
+          document.getElementById("game-level-desc").innerText =
+            `(${CONFIG.LEVEL_DESCS[lvl] || "自定义"})`;
+
+          this.generateBoard();
+          this.renderBoard();
+          this.updateHeader();
+
+          this.startTimer();
+        }
+
+        pause() {
+          if (this.isPaused) return;
+          this.isPaused = true;
+          this.stopTimer();
+          document.getElementById("pause-overlay").classList.add("active");
+          this.updatePauseButtonUI();
+        }
+
+        resumeTimer() {
+          if (!this.app.gameState || this.app.gameState.time <= 0) return;
+          this.isPaused = false;
+          document.getElementById("pause-overlay").classList.remove("active");
+          this.updatePauseButtonUI();
+          this.startTimer();
+        }
+
+        updatePauseButtonUI() {
+          const btn = document.getElementById("btn-game-pause");
+          if (this.isPaused) {
+            btn.innerText = "继续";
+          } else {
+            btn.innerText = "暂停";
+          }
+        }
+
+        startTimer() {
+          this.stopTimer();
+          this.renderTimer();
+          this.timerId = setInterval(() => {
+            this.app.gameState.time--;
+            this.renderTimer();
+
+            if (this.app.gameState.time <= 0) {
+              this.stopTimer();
+              this.app.gameState = null;
+              UI.showConfirm(
+                "时间到！",
+                "很遗憾，倒计时用尽了。是否重新开始本关？",
+                () => {
+                  this.startNew();
+                },
+                () => {
+                  UI.switchView("view-start");
+                },
+              );
+            }
+          }, 1000);
+        }
+
+        stopTimer() {
+          if (this.timerId) {
+            clearInterval(this.timerId);
+            this.timerId = null;
+          }
+        }
+
+        renderTimer() {
+          const totalTime = this.app.settings.time;
+          const currentTime = this.app.gameState.time;
+          const percent = Math.max(0, (currentTime / totalTime) * 100);
+
+          const timeStr = `${currentTime}S`;
+          const timerText = document.getElementById("game-timer-text");
+          const timerBar = document.getElementById("game-timer-bar");
+
+          timerText.innerText = timeStr;
+          timerBar.style.width = `${percent}%`;
+
+          if (currentTime <= 30) {
+            timerBar.classList.add("danger");
+            timerText.classList.add("danger");
+          } else {
+            timerBar.classList.remove("danger");
+            timerText.classList.remove("danger");
+          }
+        }
+
+        updateHeader() {
+          document.getElementById("txt-hints").innerText =
+            this.app.gameState.hints;
+          document.getElementById("txt-shuffles").innerText =
+            this.app.gameState.shuffles;
+        }
+
+        generateBoard() {
+          const { r, c, types } = this.app.settings;
+          const themeEmojis =
+            CONFIG.THEMES[this.app.config.theme] || CONFIG.THEMES.fruit;
+
+          // 从当前主题的 20 种图案中，随机抽取当前难度所需的 types 种图案 (8/12/18)
+          const availableEmojis = [...themeEmojis]
+            .sort(() => Math.random() - 0.5)
+            .slice(0, types);
+
+          this.app.gameState.board = Array.from(
+            { length: this.totalRows },
+            () => Array(this.totalCols).fill(0),
+          );
+
+          let tilePool = [];
+          const totalPairs = (r * c) / 2;
+
+          for (let i = 0; i < totalPairs; i++) {
+            const emoji = availableEmojis[i % types];
+            tilePool.push(emoji, emoji);
+          }
+          tilePool.sort(() => Math.random() - 0.5);
+
+          let idx = 0;
+          for (let i = 1; i <= r; i++) {
+            for (let j = 1; j <= c; j++) {
+              this.app.gameState.board[i][j] = tilePool[idx++];
+            }
+          }
+
+          if (this.checkAvailableMoves() === "NO_MOVES") {
+            this.shuffleTiles(true);
+          }
+        }
+
+        renderBoard() {
+          const container = document.getElementById("game-board");
+          const tR = this.totalRows;
+          const tC = this.totalCols;
+          container.style.gridTemplateColumns = `repeat(${tC}, 1fr)`;
+          container.style.gridTemplateRows = `repeat(${tR}, 1fr)`;
+          container.innerHTML = "";
+
+          const maxDim = Math.max(tR, tC);
+          const fontSize =
+            maxDim >= 12
+              ? "clamp(20px, 6vw, 32px)"
+              : maxDim >= 10
+                ? "clamp(24px, 7vw, 36px)"
+                : "clamp(28px, 8vw, 42px)";
+
+          for (let r = 0; r < tR; r++) {
+            for (let c = 0; c < tC; c++) {
+              const cell = document.createElement("div");
+              cell.id = `cell-${r}-${c}`;
+              cell.style.fontSize = fontSize;
+              const value = this.app.gameState.board[r][c];
+
+              if (value === 0) {
+                cell.className = "cell empty";
+              } else {
+                cell.className = "cell";
+                cell.innerText = value;
+                cell.addEventListener("click", () => this.onCellClick(r, c));
+              }
+              container.appendChild(cell);
+            }
+          }
+          document.getElementById("line-svg").innerHTML = "";
+        }
+
+        onCellClick(r, c) {
+          if (
+            this.isAnimating ||
+            this.isPaused ||
+            this.app.gameState.board[r][c] === 0
+          )
+            return;
+
+          const current = { r, c };
+          const currentDom = document.getElementById(`cell-${r}-${c}`);
+
+          if (this.selected && this.selected.r === r && this.selected.c === c) {
+            currentDom.classList.remove("selected");
+            this.selected = null;
+            return;
+          }
+
+          if (!this.selected) {
+            this.selected = current;
+            currentDom.classList.add("selected");
+            return;
+          }
+
+          const prevDom = document.getElementById(
+            `cell-${this.selected.r}-${this.selected.c}`,
+          );
+
+          if (
+            this.app.gameState.board[this.selected.r][this.selected.c] !==
+            this.app.gameState.board[r][c]
+          ) {
+            prevDom.classList.remove("selected");
+            this.selected = current;
+            currentDom.classList.add("selected");
+            return;
+          }
+
+          const path = this.findPath(this.selected, current);
+          if (path) {
+            this.isAnimating = true;
+            this.drawPath(path);
+            this.app.audio.playClear();
+
+            this.app.gameState.board[this.selected.r][this.selected.c] = 0;
+            this.app.gameState.board[r][c] = 0;
+            prevDom.classList.remove("selected");
+
+            setTimeout(() => {
+              document.getElementById("line-svg").innerHTML = "";
+              this.selected = null;
+              this.isAnimating = false;
+
+              prevDom.className = "cell empty";
+              currentDom.className = "cell empty";
+
+              if (this.app.currentLevel > 1) {
+                this.applyGravity();
+              }
+
+              this.checkGameWinOrDeadlock();
+            }, CONFIG.ANIMATION_DUR);
+          } else {
+            prevDom.classList.remove("selected");
+            this.selected = current;
+            currentDom.classList.add("selected");
+          }
+        }
+
+        applyGravity() {
+          const level = this.app.currentLevel;
+          const r = this.app.settings.r;
+          const c = this.app.settings.c;
+          const board = this.app.gameState.board;
+
+          const shiftUp = (j, startR, endR) => {
+            let arr = [];
+            for (let i = startR; i <= endR; i++) {
+              if (board[i][j] !== 0) arr.push(board[i][j]);
+            }
+            for (let i = startR; i <= endR; i++) {
+              board[i][j] = arr.shift() || 0;
+            }
+          };
+          const shiftDown = (j, startR, endR) => {
+            let arr = [];
+            for (let i = startR; i <= endR; i++) {
+              if (board[i][j] !== 0) arr.push(board[i][j]);
+            }
+            for (let i = endR; i >= startR; i--) {
+              board[i][j] = arr.pop() || 0;
+            }
+          };
+          const shiftLeft = (i, startC, endC) => {
+            let arr = [];
+            for (let j = startC; j <= endC; j++) {
+              if (board[i][j] !== 0) arr.push(board[i][j]);
+            }
+            for (let j = startC; j <= endC; j++) {
+              board[i][j] = arr.shift() || 0;
+            }
+          };
+          const shiftRight = (i, startC, endC) => {
+            let arr = [];
+            for (let j = startC; j <= endC; j++) {
+              if (board[i][j] !== 0) arr.push(board[i][j]);
+            }
+            for (let j = endC; j >= startC; j--) {
+              board[i][j] = arr.pop() || 0;
+            }
+          };
+
+          const applyVerticalSplit = () => {
+            const midR = Math.floor(r / 2);
+            for (let j = 1; j <= c; j++) {
+              shiftUp(j, 1, midR);
+              shiftDown(j, midR + 1, r);
+            }
+          };
+
+          const applyHorizontalSplit = () => {
+            const midC = Math.floor(c / 2);
+            for (let i = 1; i <= r; i++) {
+              shiftLeft(i, 1, midC);
+              shiftRight(i, midC + 1, c);
+            }
+          };
+
+          const applyFourCornerSplit = () => {
+            const midR = Math.floor(r / 2);
+            const midC = Math.floor(c / 2);
+
+            const shiftQuadrant = (
+              startR,
+              endR,
+              startC,
+              endC,
+              toTop,
+              toLeft,
+            ) => {
+              let changed;
+              do {
+                changed = false;
+                const rDir = toTop ? 1 : -1;
+                const cDir = toLeft ? 1 : -1;
+                const rBegin = toTop ? startR : endR,
+                  rEndBound = toTop ? endR : startR;
+                const cBegin = toLeft ? startC : endC,
+                  cEndBound = toLeft ? endC : startC;
+
+                for (
+                  let i = rBegin;
+                  toTop ? i <= rEndBound : i >= rEndBound;
+                  i += rDir
+                ) {
+                  for (
+                    let j = cBegin;
+                    toLeft ? j <= cEndBound : j >= cEndBound;
+                    j += cDir
+                  ) {
+                    if (board[i][j] === 0) continue;
+                    let nextI = i - rDir,
+                      nextJ = j - cDir;
+                    let canMoveR =
+                      (toTop ? nextI >= startR : nextI <= endR) &&
+                      board[nextI][j] === 0;
+                    let canMoveC =
+                      (toLeft ? nextJ >= startC : nextJ <= endC) &&
+                      board[i][nextJ] === 0;
+                    let canMoveDiag =
+                      canMoveR && canMoveC && board[nextI][nextJ] === 0;
+
+                    if (canMoveDiag) {
+                      board[nextI][nextJ] = board[i][j];
+                      board[i][j] = 0;
+                      changed = true;
+                    } else if (canMoveR) {
+                      board[nextI][j] = board[i][j];
+                      board[i][j] = 0;
+                      changed = true;
+                    } else if (canMoveC) {
+                      board[i][nextJ] = board[i][j];
+                      board[i][j] = 0;
+                      changed = true;
+                    }
+                  }
+                }
+              } while (changed);
+            };
+
+            shiftQuadrant(1, midR, 1, midC, true, true);
+            shiftQuadrant(1, midR, midC + 1, c, true, false);
+            shiftQuadrant(midR + 1, r, 1, midC, false, true);
+            shiftQuadrant(midR + 1, r, midC + 1, c, false, false);
+          };
+
+          const applySpiral = (isClockwise) => {
+            const path = [];
+            let top = 1,
+              bottom = r,
+              left = 1,
+              right = c;
+
+            if (isClockwise) {
+              while (top <= bottom && left <= right) {
+                for (let j = left; j <= right; j++) path.push({ r: top, c: j });
+                top++;
+                for (let i = top; i <= bottom; i++)
+                  path.push({ r: i, c: right });
+                right--;
+                if (top <= bottom) {
+                  for (let j = right; j >= left; j--)
+                    path.push({ r: bottom, c: j });
+                  bottom--;
+                }
+                if (left <= right) {
+                  for (let i = bottom; i >= top; i--)
+                    path.push({ r: i, c: left });
+                  left++;
+                }
+              }
+            } else {
+              while (top <= bottom && left <= right) {
+                for (let i = top; i <= bottom; i++)
+                  path.push({ r: i, c: left });
+                left++;
+                if (top <= bottom) {
+                  for (let j = left; j <= right; j++)
+                    path.push({ r: bottom, c: j });
+                  bottom--;
+                }
+                if (left <= right) {
+                  for (let i = bottom; i >= top; i--)
+                    path.push({ r: i, c: left });
+                  right--;
+                }
+                if (top <= bottom) {
+                  for (let j = right; j >= left; j--)
+                    path.push({ r: top, c: j });
+                  top++;
+                }
+              }
+            }
+
+            let arr = [];
+            for (const p of path) {
+              if (board[p.r][p.c] !== 0) arr.push(board[p.r][p.c]);
+            }
+            while (arr.length < path.length) arr.unshift(0);
+            for (let i = 0; i < path.length; i++) {
+              board[path[i].r][path[i].c] = arr[i];
+            }
+          };
+
+          if (level === 2) applyVerticalSplit();
+          else if (level === 3) applyHorizontalSplit();
+          else if (level === 4) applyFourCornerSplit();
+          else if (level === 5) applySpiral(false);
+          else if (level === 6) applySpiral(true);
+
+          this.renderBoard();
+        }
+
+        useHint() {
+          if (this.isAnimating || this.isPaused) return;
+          if (this.app.gameState.hints <= 0) {
+            UI.showToast("提示次数已用完", "warning");
+            return;
+          }
+
+          const pair = this.getAvailablePair();
+          if (pair) {
+            this.app.gameState.hints--;
+            this.updateHeader();
+            const c1 = document.getElementById(
+              `cell-${pair.p1.r}-${pair.p1.c}`,
+            );
+            const c2 = document.getElementById(
+              `cell-${pair.p2.r}-${pair.p2.c}`,
+            );
+            c1.classList.add("hinted");
+            c2.classList.add("hinted");
+            setTimeout(() => {
+              c1.classList.remove("hinted");
+              c2.classList.remove("hinted");
+            }, 1000);
+          } else {
+            UI.showToast("当前没有可以连接的图案", "warning");
+          }
+        }
+
+        useShuffle() {
+          if (this.isAnimating || this.isPaused) return;
+          if (this.app.gameState.shuffles <= 0) {
+            UI.showToast("洗牌次数已用完", "warning");
+            return;
+          }
+
+          this.app.gameState.shuffles--;
+          this.updateHeader();
+          this.shuffleTiles();
+          UI.showToast("方块已重新洗牌");
+        }
+
+        shuffleTiles(isSilent = false) {
+          const activeTiles = [];
+          for (let r = 1; r <= this.app.settings.r; r++) {
+            for (let c = 1; c <= this.app.settings.c; c++) {
+              if (this.app.gameState.board[r][c] !== 0) {
+                activeTiles.push(this.app.gameState.board[r][c]);
+              }
+            }
+          }
+          if (activeTiles.length === 0) return;
+
+          let attempts = 0;
+          do {
+            activeTiles.sort(() => Math.random() - 0.5);
+            let idx = 0;
+            for (let r = 1; r <= this.app.settings.r; r++) {
+              for (let c = 1; c <= this.app.settings.c; c++) {
+                if (this.app.gameState.board[r][c] !== 0) {
+                  this.app.gameState.board[r][c] = activeTiles[idx++];
+                }
+              }
+            }
+            attempts++;
+          } while (this.checkAvailableMoves() === "NO_MOVES" && attempts < 30);
+
+          this.renderBoard();
+          this.selected = null;
+        }
+
+        checkGameWinOrDeadlock() {
+          const status = this.checkAvailableMoves();
+          if (status === "WIN") {
+            this.stopTimer();
+            const timeTaken = this.app.settings.time - this.app.gameState.time;
+            this.app.gameState = null;
+
+            document.getElementById("win-time-text").innerText =
+              `用时: ${timeTaken} 秒`;
+            const btnNext = document.getElementById("btn-win-next");
+
+            if (this.app.currentLevel >= 6) {
+              btnNext.style.display = "none";
+            } else {
+              btnNext.style.display = "block";
+            }
+
+            document.getElementById("win-modal").classList.add("active");
+          } else if (status === "NO_MOVES") {
+            UI.showToast("当前局面无解，已触发保底自动洗牌", "warning");
+            setTimeout(() => {
+              this.shuffleTiles(true);
+            }, 1000);
+          }
+        }
+
+        isEmpty(p) {
+          return this.app.gameState.board[p.r][p.c] === 0;
+        }
+
+        isStraight(p1, p2) {
+          if (p1.r !== p2.r && p1.c !== p2.c) return false;
+          if (p1.r === p2.r) {
+            const min = Math.min(p1.c, p2.c),
+              max = Math.max(p1.c, p2.c);
+            for (let c = min + 1; c < max; c++)
+              if (this.app.gameState.board[p1.r][c] !== 0) return false;
+            return true;
+          } else {
+            const min = Math.min(p1.r, p2.r),
+              max = Math.max(p1.r, p2.r);
+            for (let r = min + 1; r < max; r++)
+              if (this.app.gameState.board[r][p1.c] !== 0) return false;
+            return true;
+          }
+        }
+
+        cleanPath(path) {
+          if (!path || path.length <= 2) return path;
+          const res = [path[0]];
+          for (let i = 1; i < path.length - 1; i++) {
+            const prev = res[res.length - 1],
+              curr = path[i],
+              next = path[i + 1];
+            if (
+              (prev.r === curr.r && curr.r === next.r) ||
+              (prev.c === curr.c && curr.c === next.c)
+            )
+              continue;
+            if (curr.r === prev.r && curr.c === prev.c) continue;
+            res.push(curr);
+          }
+          res.push(path[path.length - 1]);
+          return res;
+        }
+
+        findPath(p1, p2) {
+          if (this.isStraight(p1, p2)) return this.cleanPath([p1, p2]);
+          const pA = { r: p1.r, c: p2.c };
+          if (
+            this.isEmpty(pA) &&
+            this.isStraight(p1, pA) &&
+            this.isStraight(pA, p2)
+          )
+            return this.cleanPath([p1, pA, p2]);
+          const pB = { r: p2.r, c: p1.c };
+          if (
+            this.isEmpty(pB) &&
+            this.isStraight(p1, pB) &&
+            this.isStraight(pB, p2)
+          )
+            return this.cleanPath([p1, pB, p2]);
+
+          const dirs = [
+            [0, 1],
+            [0, -1],
+            [1, 0],
+            [-1, 0],
+          ];
+          for (const d of dirs) {
+            let r = p1.r + d[0],
+              c = p1.c + d[1];
+            while (
+              r >= 0 &&
+              r < this.totalRows &&
+              c >= 0 &&
+              c < this.totalCols &&
+              this.app.gameState.board[r][c] === 0
+            ) {
+              const p3 = { r, c };
+              const cA = { r: p3.r, c: p2.c };
+              if (
+                this.isEmpty(cA) &&
+                this.isStraight(p3, cA) &&
+                this.isStraight(cA, p2)
+              )
+                return this.cleanPath([p1, p3, cA, p2]);
+              const cB = { r: p2.r, c: p3.c };
+              if (
+                this.isEmpty(cB) &&
+                this.isStraight(p3, cB) &&
+                this.isStraight(cB, p2)
+              )
+                return this.cleanPath([p1, p3, cB, p2]);
+              r += d[0];
+              c += d[1];
+            }
+          }
+          return null;
+        }
+
+        getAvailablePair() {
+          const tiles = [];
+          for (let r = 1; r <= this.app.settings.r; r++) {
+            for (let c = 1; c <= this.app.settings.c; c++) {
+              if (this.app.gameState.board[r][c] !== 0) {
+                tiles.push({ r, c, val: this.app.gameState.board[r][c] });
+              }
+            }
+          }
+          for (let i = 0; i < tiles.length; i++) {
+            for (let j = i + 1; j < tiles.length; j++) {
+              if (
+                tiles[i].val === tiles[j].val &&
+                this.findPath(tiles[i], tiles[j])
+              ) {
+                return { p1: tiles[i], p2: tiles[j] };
+              }
+            }
+          }
+          return null;
+        }
+
+        checkAvailableMoves() {
+          let hasTile = false;
+          for (let r = 1; r <= this.app.settings.r; r++) {
+            for (let c = 1; c <= this.app.settings.c; c++) {
+              if (this.app.gameState.board[r][c] !== 0) {
+                hasTile = true;
+                break;
+              }
+            }
+          }
+          if (!hasTile) return "WIN";
+          return this.getAvailablePair() ? "HAS_MOVES" : "NO_MOVES";
+        }
+
+        drawPath(path) {
+          const svg = document.getElementById("line-svg");
+          const pointsStr = path
+            .map((p) => {
+              const cell = document.getElementById(`cell-${p.r}-${p.c}`);
+              const x = cell.offsetLeft + cell.offsetWidth / 2;
+              const y = cell.offsetTop + cell.offsetHeight / 2;
+              return `${x},${y}`;
+            })
+            .join(" ");
+
+          const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+          const glow = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "polyline",
+          );
+          glow.setAttribute("points", pointsStr);
+          glow.setAttribute("fill", "none");
+          glow.setAttribute("stroke", "var(--accent-cyan)");
+          glow.setAttribute("stroke-width", "8");
+          glow.setAttribute("stroke-linejoin", "round");
+          glow.setAttribute("stroke-linecap", "round");
+          glow.setAttribute("opacity", "0.4");
+
+          const core = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "polyline",
+          );
+          core.setAttribute("points", pointsStr);
+          core.setAttribute("fill", "none");
+          core.setAttribute("stroke", "var(--on-brand-primary)");
+          core.setAttribute("stroke-width", "3");
+          core.setAttribute("stroke-linejoin", "round");
+          core.setAttribute("stroke-linecap", "round");
+          core.classList.add("path-core-anim");
+
+          g.appendChild(glow);
+          g.appendChild(core);
+          svg.appendChild(g);
+        }
+      }
+
+      // ================= 应用程序主控 =================
+      class App {
+        constructor() {
+          this.config = { difficulty: "easy", theme: "fruit", sound: "on" };
+          this.gameState = null;
+          this.currentLevel = 1;
+          this.audio = new AudioEngine();
+          this.engine = new GameEngine(this);
+          this.init();
+        }
+
+        get settings() {
+          return CONFIG.DIFFICULTIES[this.config.difficulty];
+        }
+
+        init() {
+          UI.initMetaInfo();
+          this.loadConfigData();
+          this.bindEvents();
+          this.syncSettingsUI();
+
+          this.audio.init(this.config.sound);
+
+          const unlockAudio = () => {
+            this.audio.unlockAndPlay();
+          };
+
+          ["click", "touchstart", "keydown", "pointerdown"].forEach((evt) => {
+            window.addEventListener(evt, unlockAudio, { passive: true });
+          });
+
+          document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+              this.audio.unlockAndPlay();
+            } else if (this.gameState && !this.engine.isPaused) {
+              this.engine.pause();
+            }
+          });
+
+          window.addEventListener("focus", () => {
+            this.audio.unlockAndPlay();
+          });
+        }
+
+        loadConfigData() {
+          const data = Storage.loadConfig();
+          if (data) {
+            Object.assign(this.config, data);
+          }
+        }
+
+        saveConfigData() {
+          Storage.saveConfig(this.config);
+        }
+
+        syncSettingsUI() {
+          document
+            .querySelectorAll(".radio-label")
+            .forEach((label) => label.classList.remove("active"));
+
+          const diffRadio = document.querySelector(
+            `input[name="difficulty"][value="${this.config.difficulty}"]`,
+          );
+          if (diffRadio) {
+            diffRadio.checked = true;
+            diffRadio.parentElement.classList.add("active");
+          }
+
+          const themeRadio = document.querySelector(
+            `input[name="theme"][value="${this.config.theme}"]`,
+          );
+          if (themeRadio) {
+            themeRadio.checked = true;
+            themeRadio.parentElement.classList.add("active");
+          }
+
+          const soundRadio = document.querySelector(
+            `input[name="sound"][value="${this.config.sound}"]`,
+          );
+          if (soundRadio) {
+            soundRadio.checked = true;
+            soundRadio.parentElement.classList.add("active");
+          }
+        }
+
+        bindEvents() {
+          document
+            .getElementById("btn-menu-start")
+            .addEventListener("click", () => {
+              this.currentLevel = 1;
+              UI.switchView("view-game");
+              this.engine.startNew();
+            });
+
+          document
+            .getElementById("btn-menu-levels")
+            .addEventListener("click", () => UI.switchView("view-levels"));
+          document
+            .getElementById("btn-menu-settings")
+            .addEventListener("click", () => {
+              this.syncSettingsUI();
+              UI.switchView("view-settings");
+            });
+
+          document.querySelectorAll(".btn-level").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              this.currentLevel = parseInt(e.target.dataset.level);
+              UI.switchView("view-game");
+              this.engine.startNew();
+            });
+          });
+
+          document.querySelectorAll(".btn-back").forEach((btn) => {
+            if (btn.id !== "btn-game-back") {
+              btn.addEventListener("click", () => UI.switchView("view-start"));
+            }
+          });
+
+          document
+            .getElementById("settings-difficulty")
+            .addEventListener("change", (e) => {
+              this.config.difficulty = e.target.value;
+              this.saveConfigData();
+              this.syncSettingsUI();
+            });
+
+          document
+            .getElementById("settings-theme")
+            .addEventListener("change", (e) => {
+              this.config.theme = e.target.value;
+              this.saveConfigData();
+              this.syncSettingsUI();
+            });
+
+          document
+            .getElementById("settings-sound")
+            .addEventListener("change", (e) => {
+              this.config.sound = e.target.value;
+              this.saveConfigData();
+              this.syncSettingsUI();
+              this.audio.updateSetting(this.config.sound);
+            });
+        }
+      }
+
+      try {
+        new App();
+      } catch (e) {
+        console.error("App init failed:", e);
+        UI.showToast("应用初始化失败", "danger");
+      }
+    </script>
+  </body>
+</html>
