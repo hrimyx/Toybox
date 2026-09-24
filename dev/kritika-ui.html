@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI布局工具</title>
+    <meta name="author" content="Hrimyx">
+    <style>
+        /* 11. 颜色 Token - 冷蓝色彩体系 */
+        :root {
+            --brand-primary: #1A6AFF;
+            --brand-light: #78A2F8;
+            --brand-dark: #0D3B8C;
+            --on-brand: #FFFFFF;
+            --accent-cyan: #18B8D8;
+            --success: #0B9468;
+            --warning: #C77A08;
+            --danger: #D0445A;
+            --bg: #F7F9FC;
+            --surface: #FFFFFF;
+            --surface-alt: #EBEEF5;
+            --border: #D0D7E5;
+            --text: #1A202C;
+            --text-secondary: #4A5568;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0A0F1A;
+                --surface: #141C2B;
+                --surface-alt: #1F2A3F;
+                --border: #2C3A54;
+                --text: #E2E8F0;
+                --text-secondary: #A0B0C8;
+            }
+        }
+
+        /* 基础重置 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 顶部操作区 */
+        .header {
+            height: 60px;
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+        .header-title {
+            font-weight: bold;
+            color: var(--brand-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .version-badge {
+            font-size: 12px;
+            background: var(--surface-alt);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+        .btn {
+            background-color: var(--surface-alt);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background-color: var(--border);
+        }
+        .btn.primary {
+            background-color: var(--brand-primary);
+            color: var(--on-brand);
+            border-color: var(--brand-primary);
+        }
+        .btn.primary:hover {
+            background-color: var(--brand-dark);
+        }
+        .btn.active {
+            background-color: var(--brand-primary);
+            color: var(--on-brand);
+            border-color: var(--brand-primary);
+        }
+
+        .header-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 中间画布区域 */
+        .main-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background-color: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .canvas {
+            width: 1920px;
+            height: 1080px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
+            transform-origin: center center;
+            /* 允许外部头部标签可见 */
+            overflow: visible; 
+        }
+
+        /* 画布内控件元素 */
+        .ui-element {
+            position: absolute;
+            background: rgba(26, 106, 255, 0.15);
+            border: 1px solid var(--brand-primary);
+            cursor: grab;
+            display: block;
+            user-select: none;
+            overflow: visible;
+        }
+        .ui-element:active {
+            cursor: grabbing;
+        }
+        .ui-element.selected {
+            border: 1px solid var(--warning);
+            /* 使用 inset box-shadow 替代 border 变粗，避免视觉宽高抖动 */
+            box-shadow: inset 0 0 0 1px var(--warning);
+            background: rgba(199, 122, 8, 0.15);
+        }
+        
+        /* 独立抽出的头部区域：整合文字和操作按钮，解决互相遮挡 */
+        .elem-header {
+            position: absolute;
+            bottom: 100%; /* 放置在元素正上方外侧 */
+            left: -1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid var(--brand-primary);
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            padding: 2px 6px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+        .ui-element.selected .elem-header {
+            border-color: var(--warning);
+        }
+        .elem-label {
+            color: var(--brand-dark);
+            font-size: 12px;
+            font-weight: bold;
+        }
+        @media (prefers-color-scheme: dark) {
+            .elem-label {
+                color: var(--brand-light);
+            }
+        }
+        .elem-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .elem-action-btn {
+            width: 18px;
+            height: 18px;
+            background: var(--bg);
+            border: 1px solid var(--brand-primary);
+            color: var(--brand-primary);
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            opacity: 0.8;
+            transition: all 0.2s;
+        }
+        .ui-element.selected .elem-action-btn {
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+        .elem-action-btn:hover {
+            background: var(--brand-primary);
+            color: var(--on-brand);
+            opacity: 1;
+        }
+        .ui-element.selected .elem-action-btn:hover {
+            background: var(--warning);
+        }
+
+        /* 底部信息区域 */
+        .footer {
+            background-color: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 15px 20px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .info-value {
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 40px;
+        }
+        .info-input {
+            width: 80px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+        }
+        .info-input:focus {
+            border-color: var(--brand-primary);
+        }
+        .info-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .footer-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 600px;
+            max-width: 90vw;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 20px;
+            flex: 1;
+        }
+        .modal-body textarea {
+            width: 100%;
+            height: 300px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            resize: none;
+            outline: none;
+        }
+        .modal-body textarea:focus {
+            border-color: var(--brand-primary);
+        }
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .error-msg {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-group">
+            <button class="btn" id="btn-import-modal">导入</button>
+            <button class="btn" id="btn-export-modal">导出</button>
+        </div>
+        <div class="header-title">
+            UI布局工具 <span class="version-badge" id="version-display"></span>
+        </div>
+        <div class="header-group">
+            <button class="btn scheme-btn active" data-scheme="1">方案一</button>
+            <button class="btn scheme-btn" data-scheme="2">方案二</button>
+            <button class="btn scheme-btn" data-scheme="3">方案三</button>
+        </div>
+    </header>
+
+    <main class="main-container" id="main-container">
+        <div class="canvas" id="canvas">
+            <!-- 控件元素将在此动态渲染 -->
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="info-row">
+            <span class="info-label">索引:</span>
+            <span class="info-value" id="info-id">-</span>
+            
+            <span class="info-label">名称:</span>
+            <span class="info-value" id="info-name">-</span>
+            
+            <span class="info-label">X:</span>
+            <input type="number" class="info-input" id="info-x" disabled step="1">
+            
+            <span class="info-label">Y:</span>
+            <input type="number" class="info-input" id="info-y" disabled step="1">
+            
+            <span class="info-label">样式:</span>
+            <span class="info-value" id="info-style">-</span>
+            
+            <span class="info-label">尺寸:</span>
+            <span class="info-value" id="info-size">-</span>
+
+            <div class="footer-actions">
+                <button class="btn" id="btn-switch-style" style="display: none;">切换样式</button>
+                <button class="btn primary" id="btn-send-bottom" disabled>置底</button>
+            </div>
+        </div>
+        <div class="info-row">
+            <!-- 文案简化 -->
+            <span class="info-label">说明:</span>
+            <span class="info-value" id="info-desc">-</span>
+            <span style="margin-left:auto; color:var(--text-secondary); font-size: 12px;">提示: 选中后按方向键微调 (Ctrl/Shift+方向键大幅移动)</span>
+        </div>
+    </footer>
+
+    <!-- 导入导出弹窗 -->
+    <div class="modal-overlay" id="io-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modal-title">导入/导出</span>
+                <button class="btn" style="padding: 2px 8px;" id="btn-close-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="io-textarea" placeholder=""></textarea>
+                <div class="error-msg" id="io-error"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn primary" id="btn-confirm-io">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 动态维护版本号
+        const APP_VERSION = "1.1.5";
+        document.getElementById('version-display').textContent = 'v' + APP_VERSION;
+
+        // 画布尺寸常量
+        const CANVAS_WIDTH = 1920;
+        const CANVAS_HEIGHT = 1080;
+
+        // --- 核心数据 ---
+        const uiData = {
+            "1": { "name": "对话UI", "size": [[1130, 280]] },
+            "2": { "name": "BOSS血条", "size": [[1150, 130]] },
+            "3": { "name": "目标血条", "size": [[435, 85]] },
+            "4": { "name": "战斗信息", "size": [[256, 256]] },
+            "5": { "name": "计时器", "size": [[222, 46]] },
+            "6": { "name": "耐久度", "size": [[80, 70]] },
+            "7": { "name": "其他技能快捷栏", "size": [[126, 60]] },
+            "8": { "name": "队友信息", "size": [[320, 362]] },
+            "9": { "name": "任务", "size": [[292, 500]] },
+            "10": { "name": "获取信息", "size": [[320, 160]] },
+            "11": { "name": "疲劳值", "size": [[279, 16]] },
+            "12": { "name": "角色增益", "size": [[364, 165]], "desc": "四角1尺寸左上开始顺时针" },
+            "13": { "name": "角色减益", "size": [[364, 110]], "desc": "四角1尺寸左上开始顺时针" },
+            "14": { "name": "被动技能冷却", "size": [[280, 60]], "desc": "样式～但不变" },
+            "17": { "name": "基本菜单", "size": [[504, 41], [504, 41], [42, 492], [42, 492]], "desc": "4样式2尺寸左右上下" },
+            "19": { "name": "商城菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下" },
+            "20": { "name": "职业特殊能量条", "size": [[280, 70]] },
+            "21": { "name": "角色信息", "size": [[410, 140]] },
+            "22": { "name": "经验值", "size": [[1918, 10]] },
+            "23": { "name": "技能能量条", "size": [[270, 8]] },
+            "24": { "name": "迷你地图", "size": [[315, 333]] },
+            "26": { "name": "频道副本名", "size": [[360, 30]] },
+            "27": { "name": "活动菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下" },
+            "28": { "name": "聊天", "size": [[404, 388]] },
+            "29": { "name": "通知条幅", "size": [[550, 70]] },
+            "30": { "name": "快捷栏1", "size": [[360, 70], [180, 120], [90, 220], [45, 420]], "desc": "4样式4尺寸" },
+            "31": { "name": "快捷栏2", "size": [[360, 50], [180, 100], [90, 200], [45, 400]], "desc": "4样式4尺寸" },
+            "32": { "name": "快捷栏3", "size": [[360, 50], [180, 100], [90, 200], [45, 400]], "desc": "4样式4尺寸" },
+            "33": { "name": "其他通知", "size": [[199, 80]] },
+            "34": { "name": "录像", "size": [[42, 43]] },
+            "35": { "name": "HP", "size": [[362, 30], [65, 120]], "fixsize": [[362, 30], [53, 120]], "desc": "2样式2尺寸；修正待确认1高-7，2宽-12" },
+            "36": { "name": "MP", "size": [[366, 25], [81, 116]], "fixsize": [[366, 25], [53, 120]], "desc": "2样式2尺寸；修正待确认1高-7，2宽-29" },
+            "37": { "name": "EX", "size": [[364, 25]] },
+            "38": { "name": "魔核", "size": [[364, 40]] },
+            "44": { "name": "变身", "size": [[42, 42]] },
+            "45": { "name": "强调菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下" },
+            "46": { "name": "伤害统计栏", "size": [[277, 120]], "fixsize": [[277, 190]], "desc": "修正高190"},
+            "47": { "name": "快捷技能预览", "size": [[180, 100]] }
+        };
+
+        const defaultSchemes = {
+            1: {"29":[0,429,255,0,1],"19":[1428,961,1,0,1],"45":[1428,856,1,0,1],"33":[1248,519,0,0,1],"35":[384,945,0,0,1],"21":[0,903,255,0,1],"31":[1074,927,0,0,1],"13":[384,657,2,0,1],"47":[1161,751,1,0,1],"11":[13,1044,255,0,1],"23":[817,741,255,0,1],"17":[1404,1020,1,0,1],"37":[384,993,255,0,1],"27":[1428,907,1,0,1],"8":[0,0,255,0,1],"9":[1620,358,255,0,1],"2":[379,31,255,0,1],"3":[741,162,255,0,1],"1":[390,103,255,0,1],"6":[1503,273,255,0,1],"7":[1182,849,255,0,1],"4":[1248,271,255,0,1],"5":[841,0,255,0,1],"28":[0,496,255,0,1],"38":[384,1020,255,0,1],"36":[384,969,0,0,1],"30":[1074,993,0,0,1],"32":[822,960,1,0,1],"46":[1641,259,255,0,1],"44":[1329,859,255,0,1],"20":[813,756,255,0,1],"12":[384,768,3,0,1],"22":[0,1065,255,0,1],"10":[1245,598,255,0,1],"24":[1596,21,255,0,1],"34":[1542,21,255,0,1],"26":[1548,0,255,0,1],"14":[811,870,0,0,1]},
+            2: {"29":[0,432,255,0,1],"19":[1425,966,1,0,1],"45":[1422,822,1,0,1],"33":[126,874,0,0,1],"35":[576,868,1,0,1],"21":[0,906,255,0,1],"31":[925,864,0,0,1],"13":[396,861,2,0,1],"47":[1167,768,1,0,1],"11":[15,1047,255,0,1],"23":[816,678,255,0,1],"17":[1399,1020,1,0,1],"37":[774,777,255,0,1],"27":[1425,906,1,0,1],"8":[0,0,255,0,1],"9":[1620,369,255,0,1],"2":[378,33,255,0,1],"3":[744,165,255,0,1],"1":[390,109,255,0,1],"6":[1511,276,255,0,1],"7":[1218,658,255,0,1],"4":[1249,274,255,0,1],"5":[843,0,255,0,1],"28":[0,478,255,1,1],"38":[774,804,255,0,1],"36":[1344,868,1,0,1],"30":[925,907,0,0,1],"32":[678,876,1,0,1],"46":[1641,261,255,0,1],"44":[1458,939,255,0,1],"20":[813,697,255,0,1],"12":[450,661,2,0,1],"22":[0,1063,255,0,1],"10":[1293,532,255,0,1],"24":[1593,24,255,0,1],"34":[1545,25,255,0,1],"26":[1593,0,255,0,1],"14":[1197,727,0,0,1]},
+            3: {"29":[0,603,255,0,1],"19":[0,184,0,0,1],"45":[1867,564,3,0,1],"33":[1578,117,0,0,1],"35":[330,42,0,0,1],"21":[0,0,255,0,1],"31":[1245,942,1,0,1],"13":[1011,720,2,0,1],"47":[453,834,1,0,1],"11":[855,1047,255,0,1],"23":[840,694,255,0,1],"17":[1872,0,2,0,1],"37":[330,81,255,0,1],"27":[0,135,0,0,1],"8":[0,237,255,0,1],"9":[1575,195,255,0,1],"2":[717,0,255,0,1],"3":[723,126,255,0,1],"1":[420,210,255,0,1],"6":[1380,757,255,0,1],"7":[1141,894,255,0,1],"4":[1311,147,255,0,1],"5":[408,0,255,0,1],"28":[0,675,255,0,1],"38":[330,100,255,0,1],"36":[330,63,0,0,1],"30":[567,942,1,0,1],"32":[811,981,0,0,1],"46":[1641,261,255,0,1],"44":[1323,906,255,0,1],"20":[810,897,255,0,1],"12":[648,729,3,0,1],"22":[0,1066,255,0,1],"10":[429,280,255,0,1],"24":[1554,696,255,0,1],"34":[1494,697,255,0,1],"26":[1506,1032,255,0,1],"14":[1011,831,0,0,1]}
+        };
+
+        // --- 状态管理 ---
+        let currentConfig = JSON.parse(JSON.stringify(defaultSchemes[1]));
+        let selectedId = null;
+        let currentMinZIndex = 100;
+        let canvasScale = 1;
+
+        // DOM 节点引用
+        const mainContainer = document.getElementById('main-container');
+        const canvas = document.getElementById('canvas');
+        
+        // Info Area
+        const elInfoId = document.getElementById('info-id');
+        const elInfoName = document.getElementById('info-name');
+        const elInfoX = document.getElementById('info-x');
+        const elInfoY = document.getElementById('info-y');
+        const elInfoStyle = document.getElementById('info-style');
+        const elInfoSize = document.getElementById('info-size');
+        const elInfoDesc = document.getElementById('info-desc');
+        const btnSwitchStyle = document.getElementById('btn-switch-style');
+        const btnSendBottom = document.getElementById('btn-send-bottom');
+
+        // Modals
+        const ioModal = document.getElementById('io-modal');
+        const ioTextarea = document.getElementById('io-textarea');
+        const ioError = document.getElementById('io-error');
+        const modalTitle = document.getElementById('modal-title');
+        const btnConfirmIo = document.getElementById('btn-confirm-io');
+        let currentIoMode = '';
+
+        // --- 画布缩放自适应 ---
+        function resizeCanvas() {
+            const containerW = mainContainer.clientWidth - 40;
+            const containerH = mainContainer.clientHeight - 40;
+            const scaleX = containerW / CANVAS_WIDTH;
+            const scaleY = containerH / CANVAS_HEIGHT;
+            canvasScale = Math.min(scaleX, scaleY);
+            
+            if(canvasScale < 0.1) canvasScale = 0.1;
+            canvas.style.transform = `scale(${canvasScale})`;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- 核心功能函数 ---
+        function getAvailableSizes(id) {
+            const data = uiData[id];
+            if (!data) return [];
+            return data.fixsize ? data.fixsize : data.size;
+        }
+
+        function getSafeStyleIndex(id, rawStyle) {
+            const sizes = getAvailableSizes(id);
+            if (sizes.length === 0) return 0;
+            if (rawStyle === 255) return 0;
+            if (rawStyle >= sizes.length) return rawStyle % sizes.length;
+            return rawStyle;
+        }
+
+        function renderCanvas() {
+            canvas.innerHTML = '';
+            currentMinZIndex = 100;
+            
+            for (const id in currentConfig) {
+                if (!uiData[id]) continue;
+                // 初始化渲染时也要约束位置，防越界脏数据
+                updateElementPosition(id, currentConfig[id][0], currentConfig[id][1], true);
+                const node = createUIElement(id);
+                canvas.appendChild(node);
+            }
+            if (selectedId && currentConfig[selectedId]) {
+                selectElement(selectedId);
+            } else {
+                clearSelection();
+            }
+        }
+
+        function createUIElement(id) {
+            const conf = currentConfig[id];
+            const data = uiData[id];
+            const sizes = getAvailableSizes(id);
+            const styleIdx = getSafeStyleIndex(id, conf[2]);
+            const size = sizes[styleIdx];
+
+            const el = document.createElement('div');
+            el.className = 'ui-element';
+            if (id === selectedId) el.classList.add('selected');
+            el.dataset.id = id;
+            el.style.left = conf[0] + 'px';
+            el.style.top = conf[1] + 'px';
+            el.style.width = size[0] + 'px';
+            el.style.height = size[1] + 'px';
+            el.style.zIndex = currentMinZIndex;
+
+            // 独立的头部区域（置于上方外侧），包含标签与按钮，彻底解决遮挡问题
+            const header = document.createElement('div');
+            header.className = 'elem-header';
+
+            const label = document.createElement('span');
+            label.className = 'elem-label';
+            label.textContent = `${id}: ${data.name}`;
+            header.appendChild(label);
+
+            const actions = document.createElement('div');
+            actions.className = 'elem-actions';
+
+            if (sizes.length > 1) {
+                const sBtn = document.createElement('button');
+                sBtn.className = 'elem-action-btn';
+                sBtn.title = '切换样式';
+                sBtn.innerHTML = '🔄';
+                sBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    handleSwitchStyle(id);
+                };
+                actions.appendChild(sBtn);
+            }
+
+            const bBtn = document.createElement('button');
+            bBtn.className = 'elem-action-btn';
+            bBtn.title = '置底';
+            bBtn.innerHTML = '⬇️';
+            bBtn.onclick = (e) => {
+                e.stopPropagation();
+                handleSendBottom(id);
+            };
+            actions.appendChild(bBtn);
+
+            header.appendChild(actions);
+            el.appendChild(header);
+
+            return el;
+        }
+
+        function selectElement(id) {
+            const prev = canvas.querySelector('.ui-element.selected');
+            if (prev) prev.classList.remove('selected');
+
+            selectedId = id;
+            const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
+            if (el) el.classList.add('selected');
+
+            updateInfoArea();
+        }
+
+        function clearSelection() {
+            selectedId = null;
+            const prev = canvas.querySelector('.ui-element.selected');
+            if (prev) prev.classList.remove('selected');
+
+            elInfoId.textContent = '-';
+            elInfoName.textContent = '-';
+            elInfoX.value = '';
+            elInfoY.value = '';
+            elInfoStyle.textContent = '-';
+            elInfoSize.textContent = '-';
+            elInfoDesc.textContent = '-';
+            
+            elInfoX.disabled = true;
+            elInfoY.disabled = true;
+            btnSwitchStyle.style.display = 'none';
+            btnSendBottom.disabled = true;
+        }
+
+        function updateInfoArea() {
+            if (!selectedId || !currentConfig[selectedId] || !uiData[selectedId]) return;
+
+            const conf = currentConfig[selectedId];
+            const data = uiData[selectedId];
+            const sizes = getAvailableSizes(selectedId);
+            const styleIdx = getSafeStyleIndex(selectedId, conf[2]);
+            const size = sizes[styleIdx];
+
+            elInfoId.textContent = selectedId;
+            elInfoName.textContent = data.name;
+            elInfoX.value = conf[0];
+            elInfoY.value = conf[1];
+            elInfoStyle.textContent = (conf[2] === 255) ? `255(渲染${styleIdx})` : conf[2];
+            elInfoSize.textContent = `${size[0]} × ${size[1]}`;
+            elInfoDesc.textContent = data.desc || '无';
+
+            elInfoX.disabled = false;
+            elInfoY.disabled = false;
+            btnSendBottom.disabled = false;
+
+            if (sizes.length > 1) {
+                btnSwitchStyle.style.display = 'inline-block';
+            } else {
+                btnSwitchStyle.style.display = 'none';
+            }
+        }
+
+        function handleSwitchStyle(id) {
+            const sizes = getAvailableSizes(id);
+            if (sizes.length <= 1) return;
+            
+            let curStyle = getSafeStyleIndex(id, currentConfig[id][2]);
+            let nextStyle = (curStyle + 1) % sizes.length;
+            
+            currentConfig[id][2] = nextStyle; 
+            
+            const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
+            if (el) {
+                const newSize = sizes[nextStyle];
+                el.style.width = newSize[0] + 'px';
+                el.style.height = newSize[1] + 'px';
+            }
+            // 切换样式后重新限制边界 (可能新尺寸导致越界)
+            updateElementPosition(id, currentConfig[id][0], currentConfig[id][1]);
+            
+            if (selectedId === id) updateInfoArea();
+        }
+
+        function handleSendBottom(id) {
+            const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
+            if (el) {
+                currentMinZIndex--;
+                el.style.zIndex = currentMinZIndex;
+            }
+        }
+
+        // 统一处理坐标更新并强制限制边界
+        function updateElementPosition(id, newX, newY, skipDomUpdate = false) {
+            const sizes = getAvailableSizes(id);
+            const conf = currentConfig[id];
+            const styleIdx = getSafeStyleIndex(id, conf[2]);
+            const elW = sizes[styleIdx][0];
+            const elH = sizes[styleIdx][1];
+
+            newX = Math.round(newX);
+            newY = Math.round(newY);
+
+            // 画布内限制移动范围，不能超出右下角和左上角
+            newX = Math.max(0, Math.min(newX, CANVAS_WIDTH - elW));
+            newY = Math.max(0, Math.min(newY, CANVAS_HEIGHT - elH));
+            
+            currentConfig[id][0] = newX;
+            currentConfig[id][1] = newY;
+
+            if (!skipDomUpdate) {
+                const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
+                if (el) {
+                    el.style.left = newX + 'px';
+                    el.style.top = newY + 'px';
+                }
+                if (selectedId === id) {
+                    elInfoX.value = newX;
+                    elInfoY.value = newY;
+                }
+            }
+        }
+
+        function handleManualCoordinateChange() {
+            if (!selectedId) return;
+            const newX = parseInt(elInfoX.value) || 0;
+            const newY = parseInt(elInfoY.value) || 0;
+            updateElementPosition(selectedId, newX, newY);
+        }
+        
+        elInfoX.addEventListener('input', handleManualCoordinateChange);
+        elInfoY.addEventListener('input', handleManualCoordinateChange);
+        btnSwitchStyle.addEventListener('click', () => { if(selectedId) handleSwitchStyle(selectedId); });
+        btnSendBottom.addEventListener('click', () => { if(selectedId) handleSendBottom(selectedId); });
+
+        // --- 拖拽功能实现 ---
+        let isDragging = false;
+        let dragTarget = null;
+        let startClientX, startClientY;
+        let startLeft, startTop;
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return; 
+            const el = e.target.closest('.ui-element');
+            if (!el) {
+                clearSelection();
+                return;
+            }
+            if (e.target.closest('.elem-actions')) return;
+
+            const id = el.dataset.id;
+            selectElement(id);
+
+            isDragging = true;
+            dragTarget = el;
+            
+            startClientX = e.clientX;
+            startClientY = e.clientY;
+            
+            startLeft = currentConfig[id][0];
+            startTop = currentConfig[id][1];
+            
+            el.setPointerCapture(e.pointerId);
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!isDragging || !dragTarget) return;
+            
+            const dx = (e.clientX - startClientX) / canvasScale;
+            const dy = (e.clientY - startClientY) / canvasScale;
+            
+            updateElementPosition(selectedId, startLeft + dx, startTop + dy);
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (isDragging && dragTarget) {
+                dragTarget.releasePointerCapture(e.pointerId);
+            }
+            isDragging = false;
+            dragTarget = null;
+        });
+
+        // --- 键盘方向键微调功能（已优化 Ctrl/Meta 大幅移动及拦截滚动） ---
+        window.addEventListener('keydown', (e) => {
+            if (!selectedId) return;
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+            let step = (e.ctrlKey || e.metaKey || e.shiftKey) ? 10 : 1;
+            let dx = 0, dy = 0;
+
+            switch(e.key) {
+                case 'ArrowUp': dy = -step; break;
+                case 'ArrowDown': dy = step; break;
+                case 'ArrowLeft': dx = -step; break;
+                case 'ArrowRight': dx = step; break;
+                default: return; 
+            }
+
+            e.preventDefault(); // 防止页面在按下方向键时滚动
+            const curX = currentConfig[selectedId][0];
+            const curY = currentConfig[selectedId][1];
+            updateElementPosition(selectedId, curX + dx, curY + dy);
+        });
+
+        // --- 顶部方案切换 ---
+        document.querySelectorAll('.scheme-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.scheme-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                const schemeId = e.target.dataset.scheme;
+                if (defaultSchemes[schemeId]) {
+                    currentConfig = JSON.parse(JSON.stringify(defaultSchemes[schemeId]));
+                    renderCanvas();
+                }
+            });
+        });
+
+        // --- 导入导出管理 ---
+        const btnImportModal = document.getElementById('btn-import-modal');
+        const btnExportModal = document.getElementById('btn-export-modal');
+        
+        btnImportModal.addEventListener('click', () => {
+            currentIoMode = 'import';
+            modalTitle.textContent = '导入配置';
+            ioTextarea.value = '';
+            ioTextarea.readOnly = false;
+            ioTextarea.placeholder = '请在此粘贴JSON配置代码...';
+            ioError.style.display = 'none';
+            btnConfirmIo.textContent = '确认导入';
+            ioModal.classList.add('active');
+            setTimeout(() => ioTextarea.focus(), 100);
+        });
+
+        btnExportModal.addEventListener('click', () => {
+            currentIoMode = 'export';
+            modalTitle.textContent = '导出配置';
+            ioTextarea.value = JSON.stringify(currentConfig);
+            ioTextarea.readOnly = true;
+            ioTextarea.placeholder = '';
+            ioError.style.display = 'block';
+            ioError.style.color = 'var(--success)';
+            ioError.textContent = '当前配置已生成，点击下方按钮复制。';
+            btnConfirmIo.textContent = '复制到剪贴板';
+            ioModal.classList.add('active');
+        });
+
+        document.getElementById('btn-close-modal').addEventListener('click', () => {
+            ioModal.classList.remove('active');
+        });
+
+        btnConfirmIo.addEventListener('click', () => {
+            if (currentIoMode === 'import') {
+                const raw = ioTextarea.value.trim();
+                if (!raw) {
+                    ioError.style.display = 'block';
+                    ioError.style.color = 'var(--danger)';
+                    ioError.textContent = '导入内容不能为空';
+                    return;
+                }
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('配置应为键值对对象');
+                    
+                    for (const key in parsed) {
+                        if (!Array.isArray(parsed[key]) || parsed[key].length < 5) {
+                            throw new Error(`节点 [${key}] 数据格式不正确`);
+                        }
+                    }
+                    currentConfig = parsed;
+                    renderCanvas();
+                    document.querySelectorAll('.scheme-btn').forEach(b => b.classList.remove('active'));
+                    ioModal.classList.remove('active');
+                } catch (err) {
+                    ioError.style.display = 'block';
+                    ioError.style.color = 'var(--danger)';
+                    ioError.textContent = '导入失败，格式错误: ' + err.message;
+                }
+            } else if (currentIoMode === 'export') {
+                ioTextarea.select();
+                try {
+                    document.execCommand('copy');
+                    ioError.style.color = 'var(--success)';
+                    ioError.textContent = '复制成功！';
+                } catch (err) {
+                    ioError.style.color = 'var(--danger)';
+                    ioError.textContent = '复制失败，请手动全选复制。';
+                }
+            }
+        });
+
+        ioModal.addEventListener('click', (e) => {
+            if (e.target === ioModal) {
+                ioModal.classList.remove('active');
+            }
+        });
+
+        // --- 初始化启动 ---
+        window.onload = () => {
+            resizeCanvas();
+            renderCanvas();
+        };
+
+    </script>
+</body>
+</html>
