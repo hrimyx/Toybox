@@ -6,9 +6,9 @@
 <title>Toybox</title>
 <meta name="description" content="Toybox —— 奇奇怪怪小工具导航中心">
 <!-- 应用元信息，全局唯一数据源 -->
-<meta name="app-name" content="Toybox">
-<meta name="app-version" content="2.0.0">
-<meta name="app-author" content="Hrimyx">
+<meta name="name" content="Toybox">
+<meta name="version" content="2.0.0">
+<meta name="author" content="Hrimyx">
 <style>
   /* =====================================================
      Design Tokens —— 冷蓝色彩体系
@@ -622,9 +622,9 @@
         return el ? el.getAttribute('content') : def;
       };
       return {
-        name: getMeta('app-name', 'Toybox'),
-        version: getMeta('app-version', '2.0.0'),
-        author: getMeta('app-author', 'Unknown')
+        name: getMeta('name', 'Toybox'),
+        version: getMeta('version', '2.0.0'),
+        author: getMeta('author', 'Unknown')
       };
     },
 
