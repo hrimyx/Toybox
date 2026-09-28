@@ -3,25 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UI布局工具</title>
+    <!-- 元数据仅在此处维护；<title> 与页面上的名称、版本号由脚本启动时读取 -->
+    <meta name="name" content="KritikaUI">
+    <meta name="version" content="1.3.1">
     <meta name="author" content="Hrimyx">
+    <title></title>
+
+    <!-- ==================== 样式区 ==================== -->
     <style>
-        /* 11. 颜色 Token - 冷蓝色彩体系 */
+        /* ---------- 设计 Token：颜色（冷蓝色彩体系） ---------- */
         :root {
             --brand-primary: #1A6AFF;
             --brand-light: #78A2F8;
             --brand-dark: #0D3B8C;
             --on-brand: #FFFFFF;
+
             --accent-cyan: #18B8D8;
+
             --success: #0B9468;
             --warning: #C77A08;
             --danger: #D0445A;
+
             --bg: #F7F9FC;
             --surface: #FFFFFF;
             --surface-alt: #EBEEF5;
             --border: #D0D7E5;
+
             --text: #1A202C;
             --text-secondary: #4A5568;
+
+            /* 间距 / 圆角 / 尺寸 / 字号 */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 20px;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --control-h: 36px;
+            --font-sm: 12px;
+            --font-base: 14px;
+            --z-labels: 500;
+            --z-guides: 999;
+            --z-modal: 9999;
+            --z-toast: 10000;
+
+            color-scheme: light dark;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -30,866 +57,1643 @@
                 --surface: #141C2B;
                 --surface-alt: #1F2A3F;
                 --border: #2C3A54;
+
                 --text: #E2E8F0;
                 --text-secondary: #A0B0C8;
             }
         }
 
-        /* 基础重置 */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        /* 触屏设备放大控件点击区域 */
+        @media (pointer: coarse) {
+            :root { --control-h: 44px; }
         }
+
+        /* ---------- 基础 ---------- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        [hidden] { display: none !important; }
+
         body {
             background-color: var(--bg);
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: var(--font-base);
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        /* 顶部操作区 */
-        .header {
-            height: 60px;
-            background-color: var(--surface);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            flex-shrink: 0;
-            z-index: 100;
+        :focus-visible {
+            outline: 2px solid var(--brand-primary);
+            outline-offset: 2px;
         }
-        .header-title {
-            font-weight: bold;
-            color: var(--brand-primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .version-badge {
-            font-size: 12px;
-            background: var(--surface-alt);
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: var(--text-secondary);
-        }
+
+        /* ---------- 按钮 ---------- */
         .btn {
+            min-height: var(--control-h);
             background-color: var(--surface-alt);
             color: var(--text);
             border: 1px solid var(--border);
-            padding: 6px 16px;
-            border-radius: 4px;
+            padding: 0 var(--space-lg);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
+            font-size: var(--font-base);
+            transition: background-color 0.15s;
         }
-        .btn:hover {
-            background-color: var(--border);
-        }
-        .btn.primary {
-            background-color: var(--brand-primary);
-            color: var(--on-brand);
-            border-color: var(--brand-primary);
-        }
-        .btn.primary:hover {
-            background-color: var(--brand-dark);
-        }
+        .btn:hover:not(:disabled) { background-color: var(--border); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn.primary,
         .btn.active {
             background-color: var(--brand-primary);
             color: var(--on-brand);
             border-color: var(--brand-primary);
         }
+        .btn.primary:hover:not(:disabled),
+        .btn.active:hover:not(:disabled) { background-color: var(--brand-dark); }
+        .btn.danger {
+            background-color: var(--danger);
+            color: var(--on-brand);
+            border-color: var(--danger);
+        }
+        .btn.danger:hover:not(:disabled) { background-color: var(--danger); opacity: 0.85; }
+        .btn.icon { min-width: var(--control-h); padding: 0; }
 
-        .header-group {
+        /* ---------- 顶部操作区 ---------- */
+        .header {
+            min-height: 60px;
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
             display: flex;
-            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: var(--space-sm) var(--space-md);
+            padding: var(--space-sm) var(--space-xl);
+            flex-shrink: 0;
+            z-index: 100;
+        }
+        .header-group { display: flex; gap: var(--space-sm); }
+        .header-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--brand-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        .version-badge {
+            font-size: var(--font-sm);
+            font-weight: normal;
+            background: var(--surface-alt);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+        }
+        @media (prefers-color-scheme: dark) {
+            .header-title { color: var(--brand-light); }
+        }
+        @media (max-width: 720px) {
+            .header { padding: var(--space-sm) var(--space-md); justify-content: center; }
+            .header-title { order: -1; width: 100%; justify-content: center; }
         }
 
-        /* 中间画布区域 */
+        /* ---------- 画布区域 ---------- */
         .main-container {
             flex: 1;
+            min-height: 0;
             overflow: hidden;
             position: relative;
-            background-color: var(--bg);
             display: flex;
             justify-content: center;
             align-items: center;
         }
+        .fatal { color: var(--danger); padding: var(--space-xl); text-align: center; }
         .canvas {
+            /* --inv-scale 由脚本写入（1/缩放比），使边框、标签、按钮在缩放后仍保持清晰可读 */
+            --px: calc(1px * var(--inv-scale, 1));
             width: 1920px;
             height: 1080px;
             background-color: var(--surface);
             border: 1px solid var(--border);
             position: relative;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--brand-dark) 15%, transparent);
             flex-shrink: 0;
             transform-origin: center center;
-            /* 允许外部头部标签可见 */
-            overflow: visible; 
-        }
-
-        /* 画布内控件元素 */
-        .ui-element {
-            position: absolute;
-            background: rgba(26, 106, 255, 0.15);
-            border: 1px solid var(--brand-primary);
-            cursor: grab;
-            display: block;
-            user-select: none;
             overflow: visible;
         }
-        .ui-element:active {
-            cursor: grabbing;
+
+        /* ---------- 画布内控件与其标签（共用状态色变量） ---------- */
+        .ui-element,
+        .elem-header {
+            --el-accent: var(--brand-primary);
+            --el-fg: var(--brand-primary);
         }
-        .ui-element.selected {
-            border: 1px solid var(--warning);
-            /* 使用 inset box-shadow 替代 border 变粗，避免视觉宽高抖动 */
-            box-shadow: inset 0 0 0 1px var(--warning);
-            background: rgba(199, 122, 8, 0.15);
+        .ui-element.selected,
+        .elem-header.selected {
+            --el-accent: var(--warning);
+            --el-fg: var(--warning);
         }
-        
-        /* 独立抽出的头部区域：整合文字和操作按钮，解决互相遮挡 */
+        .ui-element.measured,
+        .elem-header.measured {
+            --el-accent: var(--success);
+            --el-fg: var(--success);
+        }
+        @media (prefers-color-scheme: dark) {
+            .ui-element,
+            .elem-header { --el-fg: var(--brand-light); }
+        }
+
+        .ui-element {
+            position: absolute;
+            background: color-mix(in srgb, var(--el-accent) 15%, transparent);
+            border: var(--px) solid var(--el-accent);
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .ui-element:active { cursor: grabbing; }
+
+        /* 标签层：独立于控件之上，避免被其他控件遮挡；位置由脚本自动错位 */
+        #labels-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: var(--z-labels);
+        }
         .elem-header {
             position: absolute;
-            bottom: 100%; /* 放置在元素正上方外侧 */
-            left: -1px;
+            top: 0; left: 0;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--space-sm);
             background: var(--surface);
-            border: 1px solid var(--brand-primary);
-            border-bottom: none;
-            border-radius: 4px 4px 0 0;
+            border: 1px solid var(--el-accent);
+            border-radius: var(--radius-sm);
             padding: 2px 6px;
             white-space: nowrap;
-            z-index: 10;
+            z-index: 1;
+            transform: scale(var(--inv-scale, 1));
+            transform-origin: left top;
+            pointer-events: auto;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
         }
-        .ui-element.selected .elem-header {
-            border-color: var(--warning);
-        }
+        /* 选中/测量目标的标签置顶 */
+        .elem-header.selected,
+        .elem-header.measured { z-index: 2; }
         .elem-label {
             color: var(--brand-dark);
-            font-size: 12px;
+            font-size: var(--font-sm);
             font-weight: bold;
         }
         @media (prefers-color-scheme: dark) {
-            .elem-label {
-                color: var(--brand-light);
-            }
+            .elem-label { color: var(--brand-light); }
         }
-        .elem-actions {
-            display: flex;
-            gap: 4px;
-        }
+        .elem-actions { display: flex; gap: var(--space-xs); }
         .elem-action-btn {
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
             background: var(--bg);
-            border: 1px solid var(--brand-primary);
-            color: var(--brand-primary);
+            border: 1px solid var(--el-accent);
+            color: var(--el-fg);
             cursor: pointer;
-            border-radius: 2px;
-            font-size: 10px;
+            border-radius: var(--radius-sm);
+            font-size: var(--font-sm);
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 0;
-            opacity: 0.8;
-            transition: all 0.2s;
-        }
-        .ui-element.selected .elem-action-btn {
-            border-color: var(--warning);
-            color: var(--warning);
+            transition: background-color 0.15s;
         }
         .elem-action-btn:hover {
-            background: var(--brand-primary);
+            background: var(--el-accent);
             color: var(--on-brand);
-            opacity: 1;
         }
-        .ui-element.selected .elem-action-btn:hover {
-            background: var(--warning);
+        @media (pointer: coarse) {
+            .elem-action-btn { width: 30px; height: 30px; }
         }
 
-        /* 底部信息区域 */
+        /* ---------- 辅助线图层 ---------- */
+        #guides-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: var(--z-guides);
+        }
+        .snap-line { position: absolute; }
+        .snap-line.vertical {
+            border-left: var(--px) dashed var(--danger);
+            top: 0; bottom: 0; width: 0;
+        }
+        .snap-line.horizontal {
+            border-top: var(--px) dashed var(--danger);
+            left: 0; right: 0; height: 0;
+        }
+        /* 画布中线：青色高亮 */
+        .snap-line.area-center.vertical { border-left-color: var(--accent-cyan); }
+        .snap-line.area-center.horizontal { border-top-color: var(--accent-cyan); }
+
+        /* 测量线与标签（控件间距：警告色；到画布四边：青色） */
+        .measure-item.line { position: absolute; background-color: var(--warning); }
+        .measure-item.line.horizontal { height: var(--px); }
+        .measure-item.line.vertical { width: var(--px); }
+        .measure-item.line.edge { background-color: var(--accent-cyan); }
+        .measure-item.label {
+            position: absolute;
+            background: var(--warning);
+            color: var(--on-brand);
+            font-size: var(--font-sm);
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            transform: translate(-50%, -50%) scale(var(--inv-scale, 1));
+            white-space: nowrap;
+        }
+        .measure-item.label.edge {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--accent-cyan);
+        }
+
+        /* ---------- 底部信息区 ---------- */
         .footer {
             background-color: var(--surface);
             border-top: 1px solid var(--border);
-            padding: 15px 20px;
+            padding: var(--space-md) var(--space-xl);
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: var(--space-sm);
             z-index: 100;
+            max-height: 45dvh;
+            overflow-y: auto;
         }
         .info-row {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: var(--space-sm) var(--space-lg);
             flex-wrap: wrap;
         }
-        .info-label {
-            color: var(--text-secondary);
-            font-size: 14px;
-            white-space: nowrap;
-        }
-        .info-value {
-            font-size: 14px;
-            font-weight: 500;
-            min-width: 40px;
-        }
+        .info-item { display: flex; align-items: center; gap: var(--space-xs); }
+        .info-label { color: var(--text-secondary); white-space: nowrap; }
+        .info-value { font-weight: 500; min-width: 40px; }
         .info-input {
-            width: 80px;
+            width: 84px;
+            min-height: var(--control-h);
             background: var(--bg);
             border: 1px solid var(--border);
             color: var(--text);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 14px;
-            outline: none;
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-base);
         }
-        .info-input:focus {
-            border-color: var(--brand-primary);
-        }
-        .info-input:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        .footer-actions {
-            margin-left: auto;
-            display: flex;
-            gap: 10px;
-        }
+        .info-input:focus { border-color: var(--brand-primary); outline: none; }
+        .info-input[aria-invalid="true"] { border-color: var(--danger); }
+        .info-input:disabled { opacity: 0.6; cursor: not-allowed; }
+        .field-error { color: var(--danger); font-size: var(--font-sm); }
+        .footer-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+        .hint { margin-left: auto; color: var(--text-secondary); font-size: var(--font-sm); }
 
-        /* 模态框 */
+        /* ---------- 模态框 ---------- */
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
+            inset: 0;
+            background: color-mix(in srgb, var(--brand-dark) 55%, transparent);
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 9999;
+            z-index: var(--z-modal);
+            padding: var(--space-md);
         }
-        .modal-overlay.active {
-            display: flex;
-        }
+        .modal-overlay.active { display: flex; }
         .modal-content {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             width: 600px;
-            max-width: 90vw;
+            max-width: 100%;
+            max-height: 90dvh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px color-mix(in srgb, var(--brand-dark) 25%, transparent);
         }
+        .modal-content.small { width: 420px; }
         .modal-header {
-            padding: 15px 20px;
+            padding: var(--space-lg) var(--space-xl);
             border-bottom: 1px solid var(--border);
             font-weight: bold;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .modal-body {
-            padding: 20px;
-            flex: 1;
-        }
+        .modal-body { padding: var(--space-xl); overflow-y: auto; }
         .modal-body textarea {
             width: 100%;
-            height: 300px;
+            height: min(300px, 40dvh);
             background: var(--bg);
             color: var(--text);
             border: 1px solid var(--border);
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             padding: 10px;
-            font-family: monospace;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: var(--font-base);
             resize: none;
-            outline: none;
         }
-        .modal-body textarea:focus {
-            border-color: var(--brand-primary);
-        }
+        .modal-body textarea:focus { border-color: var(--brand-primary); outline: none; }
         .modal-footer {
-            padding: 15px 20px;
+            padding: var(--space-lg) var(--space-xl);
             border-top: 1px solid var(--border);
             display: flex;
             justify-content: flex-end;
-            gap: 10px;
+            gap: var(--space-sm);
         }
-        .error-msg {
-            color: var(--danger);
-            font-size: 13px;
-            margin-top: 8px;
-            display: none;
+        .io-msg { font-size: 13px; margin-top: var(--space-sm); }
+        .io-msg.error { color: var(--danger); }
+        .io-msg.success { color: var(--success); }
+
+        /* ---------- 轻提示 ---------- */
+        .toast {
+            position: fixed;
+            top: var(--space-xl);
+            left: 50%;
+            transform: translate(-50%, -8px);
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--brand-primary);
+            border-radius: var(--radius-sm);
+            padding: var(--space-sm) var(--space-lg);
+            box-shadow: 0 4px 12px color-mix(in srgb, var(--brand-dark) 20%, transparent);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: var(--z-toast);
+            max-width: 90vw;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .toast, .btn, .elem-action-btn { transition: none; }
         }
     </style>
 </head>
 <body>
 
+    <!-- ==================== 结构区 ==================== -->
     <header class="header">
         <div class="header-group">
-            <button class="btn" id="btn-import-modal">导入</button>
-            <button class="btn" id="btn-export-modal">导出</button>
+            <button type="button" class="btn" id="btn-import">导入</button>
+            <button type="button" class="btn" id="btn-export">导出</button>
         </div>
-        <div class="header-title">
-            UI布局工具 <span class="version-badge" id="version-display"></span>
-        </div>
-        <div class="header-group">
-            <button class="btn scheme-btn active" data-scheme="1">方案一</button>
-            <button class="btn scheme-btn" data-scheme="2">方案二</button>
-            <button class="btn scheme-btn" data-scheme="3">方案三</button>
-        </div>
+        <h1 class="header-title">
+            <span id="name"></span>
+            <span class="version-badge" id="version"></span>
+        </h1>
+        <!-- 方案按钮由脚本根据数据块生成 -->
+        <div class="header-group" id="scheme-group" role="group" aria-label="布局方案"></div>
     </header>
 
     <main class="main-container" id="main-container">
-        <div class="canvas" id="canvas">
-            <!-- 控件元素将在此动态渲染 -->
+        <div class="canvas" id="canvas" aria-label="布局画布">
+            <!-- 标签层与辅助线层；控件元素由脚本动态渲染 -->
+            <div id="labels-layer"></div>
+            <div id="guides-layer"></div>
         </div>
     </main>
 
     <footer class="footer">
         <div class="info-row">
-            <span class="info-label">索引:</span>
-            <span class="info-value" id="info-id">-</span>
-            
-            <span class="info-label">名称:</span>
-            <span class="info-value" id="info-name">-</span>
-            
-            <span class="info-label">X:</span>
-            <input type="number" class="info-input" id="info-x" disabled step="1">
-            
-            <span class="info-label">Y:</span>
-            <input type="number" class="info-input" id="info-y" disabled step="1">
-            
-            <span class="info-label">样式:</span>
-            <span class="info-value" id="info-style">-</span>
-            
-            <span class="info-label">尺寸:</span>
-            <span class="info-value" id="info-size">-</span>
+            <span class="info-item"><span class="info-label">索引:</span><span class="info-value" id="info-id">-</span></span>
+            <span class="info-item"><span class="info-label">名称:</span><span class="info-value" id="info-name">-</span></span>
+            <span class="info-item">
+                <label class="info-label" for="info-x">X:</label>
+                <input type="number" class="info-input" id="info-x" disabled step="1" inputmode="numeric" placeholder="X">
+            </span>
+            <span class="info-item">
+                <label class="info-label" for="info-y">Y:</label>
+                <input type="number" class="info-input" id="info-y" disabled step="1" inputmode="numeric" placeholder="Y">
+            </span>
+            <span class="field-error" id="info-error" role="alert" hidden></span>
+            <span class="info-item"><span class="info-label">样式:</span><span class="info-value" id="info-style">-</span></span>
+            <span class="info-item"><span class="info-label">尺寸:</span><span class="info-value" id="info-size">-</span></span>
 
             <div class="footer-actions">
-                <button class="btn" id="btn-switch-style" style="display: none;">切换样式</button>
-                <button class="btn primary" id="btn-send-bottom" disabled>置底</button>
+                <button type="button" class="btn" id="btn-undo" title="撤销 (Ctrl+Z)" disabled>撤销</button>
+                <button type="button" class="btn" id="btn-redo" title="重做 (Ctrl+Y)" disabled>重做</button>
+                <button type="button" class="btn" id="btn-measure-mode" aria-pressed="false" title="开启后，点击另一个控件即可测量与选中控件的间距">测量模式</button>
+                <button type="button" class="btn" id="btn-switch-style" hidden>切换样式</button>
+                <button type="button" class="btn primary" id="btn-send-bottom" disabled>置底</button>
             </div>
         </div>
         <div class="info-row">
-            <!-- 文案简化 -->
-            <span class="info-label">说明:</span>
-            <span class="info-value" id="info-desc">-</span>
-            <span style="margin-left:auto; color:var(--text-secondary); font-size: 12px;">提示: 选中后按方向键微调 (Ctrl/Shift+方向键大幅移动)</span>
+            <span class="info-item"><span class="info-label">说明:</span><span class="info-value" id="info-desc">-</span></span>
+            <span class="hint">提示: 青色虚线为画布中线，青色实线为到画布四边的距离 | Shift+点击（或开启测量模式后点击）另一控件测量间距 | 方向键微调（配合 Shift 步进 10） | Ctrl+Z / Ctrl+Y 撤销/重做 | Esc 取消选中</span>
         </div>
     </footer>
 
-    <!-- 导入导出弹窗 -->
+    <!-- 导入/导出弹窗 -->
     <div class="modal-overlay" id="io-modal">
-        <div class="modal-content">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="io-title">
             <div class="modal-header">
-                <span id="modal-title">导入/导出</span>
-                <button class="btn" style="padding: 2px 8px;" id="btn-close-modal">×</button>
+                <span id="io-title">导入配置</span>
+                <button type="button" class="btn icon" id="btn-io-close" aria-label="关闭">×</button>
             </div>
             <div class="modal-body">
-                <textarea id="io-textarea" placeholder=""></textarea>
-                <div class="error-msg" id="io-error"></div>
+                <textarea id="io-textarea" aria-label="配置内容" spellcheck="false"></textarea>
+                <div class="io-msg" id="io-msg" role="status" hidden></div>
             </div>
             <div class="modal-footer">
-                <button class="btn primary" id="btn-confirm-io">确认</button>
+                <button type="button" class="btn primary" id="btn-io-confirm">确认</button>
             </div>
         </div>
     </div>
 
+    <!-- 危险操作确认弹窗 -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal-content small" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+            <div class="modal-header"><span id="confirm-title">确认操作</span></div>
+            <div class="modal-body"><p id="confirm-message"></p></div>
+            <div class="modal-footer">
+                <button type="button" class="btn" id="btn-confirm-cancel">取消</button>
+                <button type="button" class="btn danger" id="btn-confirm-ok">继续</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 轻提示 -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- ==================== 脚本区（逻辑） ==================== -->
     <script>
-        // 动态维护版本号
-        const APP_VERSION = "1.1.5";
-        document.getElementById('version-display').textContent = 'v' + APP_VERSION;
+    (() => {
+        'use strict';
 
-        // 画布尺寸常量
-        const CANVAS_WIDTH = 1920;
-        const CANVAS_HEIGHT = 1080;
+        /* ---------- 1. 配置与常量 ---------- */
+        const CANVAS = { width: 1920, height: 1080 };
+        CANVAS.centerX = CANVAS.width / 2;
+        CANVAS.centerY = CANVAS.height / 2;
 
-        // --- 核心数据 ---
-        const uiData = {
-            "1": { "name": "对话UI", "size": [[1130, 280]] },
-            "2": { "name": "BOSS血条", "size": [[1150, 130]] },
-            "3": { "name": "目标血条", "size": [[435, 85]] },
-            "4": { "name": "战斗信息", "size": [[256, 256]] },
-            "5": { "name": "计时器", "size": [[222, 46]] },
-            "6": { "name": "耐久度", "size": [[80, 70]] },
-            "7": { "name": "其他技能快捷栏", "size": [[126, 60]] },
-            "8": { "name": "队友信息", "size": [[320, 362]] },
-            "9": { "name": "任务", "size": [[292, 500]] },
-            "10": { "name": "获取信息", "size": [[320, 160]] },
-            "11": { "name": "疲劳值", "size": [[279, 16]] },
-            "12": { "name": "角色增益", "size": [[364, 165]], "desc": "四角1尺寸左上开始顺时针" },
-            "13": { "name": "角色减益", "size": [[364, 110]], "desc": "四角1尺寸左上开始顺时针" },
-            "14": { "name": "被动技能冷却", "size": [[280, 60]], "desc": "样式～但不变" },
-            "17": { "name": "基本菜单", "size": [[504, 41], [504, 41], [42, 492], [42, 492]], "desc": "4样式2尺寸左右上下" },
-            "19": { "name": "商城菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下" },
-            "20": { "name": "职业特殊能量条", "size": [[280, 70]] },
-            "21": { "name": "角色信息", "size": [[410, 140]] },
-            "22": { "name": "经验值", "size": [[1918, 10]] },
-            "23": { "name": "技能能量条", "size": [[270, 8]] },
-            "24": { "name": "迷你地图", "size": [[315, 333]] },
-            "26": { "name": "频道副本名", "size": [[360, 30]] },
-            "27": { "name": "活动菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下" },
-            "28": { "name": "聊天", "size": [[404, 388]] },
-            "29": { "name": "通知条幅", "size": [[550, 70]] },
-            "30": { "name": "快捷栏1", "size": [[360, 70], [180, 120], [90, 220], [45, 420]], "desc": "4样式4尺寸" },
-            "31": { "name": "快捷栏2", "size": [[360, 50], [180, 100], [90, 200], [45, 400]], "desc": "4样式4尺寸" },
-            "32": { "name": "快捷栏3", "size": [[360, 50], [180, 100], [90, 200], [45, 400]], "desc": "4样式4尺寸" },
-            "33": { "name": "其他通知", "size": [[199, 80]] },
-            "34": { "name": "录像", "size": [[42, 43]] },
-            "35": { "name": "HP", "size": [[362, 30], [65, 120]], "fixsize": [[362, 30], [53, 120]], "desc": "2样式2尺寸；修正待确认1高-7，2宽-12" },
-            "36": { "name": "MP", "size": [[366, 25], [81, 116]], "fixsize": [[366, 25], [53, 120]], "desc": "2样式2尺寸；修正待确认1高-7，2宽-29" },
-            "37": { "name": "EX", "size": [[364, 25]] },
-            "38": { "name": "魔核", "size": [[364, 40]] },
-            "44": { "name": "变身", "size": [[42, 42]] },
-            "45": { "name": "强调菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下" },
-            "46": { "name": "伤害统计栏", "size": [[277, 120]], "fixsize": [[277, 190]], "desc": "修正高190"},
-            "47": { "name": "快捷技能预览", "size": [[180, 100]] }
+        const LIMITS = {
+            canvasPadding: 20,      // 画布与容器的留白（px）
+            minScale: 0.1,          // 最小缩放比
+            snapPx: 5,              // 吸附阈值（屏幕像素）
+            stepNormal: 1,          // 方向键步长
+            stepFast: 10,           // 配合 Shift/Ctrl/Cmd 的步长
+            importMaxChars: 200000, // 导入内容最大字符数
+            historyMax: 100,        // 撤销栈最大深度
+            arrowMergeMs: 600,      // 连续方向键微调合并为一步的时间窗口
+            labelMaxLevels: 40,     // 标签错位的最大层数
+            toastMs: 2000
         };
+        const Z_BASE = 100;
+        const STYLE_AUTO = 255;     // 样式 255 表示自动，渲染为样式 0
+        const DATA_BLOCK_ID = 'app-data';
 
-        const defaultSchemes = {
-            1: {"29":[0,429,255,0,1],"19":[1428,961,1,0,1],"45":[1428,856,1,0,1],"33":[1248,519,0,0,1],"35":[384,945,0,0,1],"21":[0,903,255,0,1],"31":[1074,927,0,0,1],"13":[384,657,2,0,1],"47":[1161,751,1,0,1],"11":[13,1044,255,0,1],"23":[817,741,255,0,1],"17":[1404,1020,1,0,1],"37":[384,993,255,0,1],"27":[1428,907,1,0,1],"8":[0,0,255,0,1],"9":[1620,358,255,0,1],"2":[379,31,255,0,1],"3":[741,162,255,0,1],"1":[390,103,255,0,1],"6":[1503,273,255,0,1],"7":[1182,849,255,0,1],"4":[1248,271,255,0,1],"5":[841,0,255,0,1],"28":[0,496,255,0,1],"38":[384,1020,255,0,1],"36":[384,969,0,0,1],"30":[1074,993,0,0,1],"32":[822,960,1,0,1],"46":[1641,259,255,0,1],"44":[1329,859,255,0,1],"20":[813,756,255,0,1],"12":[384,768,3,0,1],"22":[0,1065,255,0,1],"10":[1245,598,255,0,1],"24":[1596,21,255,0,1],"34":[1542,21,255,0,1],"26":[1548,0,255,0,1],"14":[811,870,0,0,1]},
-            2: {"29":[0,432,255,0,1],"19":[1425,966,1,0,1],"45":[1422,822,1,0,1],"33":[126,874,0,0,1],"35":[576,868,1,0,1],"21":[0,906,255,0,1],"31":[925,864,0,0,1],"13":[396,861,2,0,1],"47":[1167,768,1,0,1],"11":[15,1047,255,0,1],"23":[816,678,255,0,1],"17":[1399,1020,1,0,1],"37":[774,777,255,0,1],"27":[1425,906,1,0,1],"8":[0,0,255,0,1],"9":[1620,369,255,0,1],"2":[378,33,255,0,1],"3":[744,165,255,0,1],"1":[390,109,255,0,1],"6":[1511,276,255,0,1],"7":[1218,658,255,0,1],"4":[1249,274,255,0,1],"5":[843,0,255,0,1],"28":[0,478,255,1,1],"38":[774,804,255,0,1],"36":[1344,868,1,0,1],"30":[925,907,0,0,1],"32":[678,876,1,0,1],"46":[1641,261,255,0,1],"44":[1458,939,255,0,1],"20":[813,697,255,0,1],"12":[450,661,2,0,1],"22":[0,1063,255,0,1],"10":[1293,532,255,0,1],"24":[1593,24,255,0,1],"34":[1545,25,255,0,1],"26":[1593,0,255,0,1],"14":[1197,727,0,0,1]},
-            3: {"29":[0,603,255,0,1],"19":[0,184,0,0,1],"45":[1867,564,3,0,1],"33":[1578,117,0,0,1],"35":[330,42,0,0,1],"21":[0,0,255,0,1],"31":[1245,942,1,0,1],"13":[1011,720,2,0,1],"47":[453,834,1,0,1],"11":[855,1047,255,0,1],"23":[840,694,255,0,1],"17":[1872,0,2,0,1],"37":[330,81,255,0,1],"27":[0,135,0,0,1],"8":[0,237,255,0,1],"9":[1575,195,255,0,1],"2":[717,0,255,0,1],"3":[723,126,255,0,1],"1":[420,210,255,0,1],"6":[1380,757,255,0,1],"7":[1141,894,255,0,1],"4":[1311,147,255,0,1],"5":[408,0,255,0,1],"28":[0,675,255,0,1],"38":[330,100,255,0,1],"36":[330,63,0,0,1],"30":[567,942,1,0,1],"32":[811,981,0,0,1],"46":[1641,261,255,0,1],"44":[1323,906,255,0,1],"20":[810,897,255,0,1],"12":[648,729,3,0,1],"22":[0,1066,255,0,1],"10":[429,280,255,0,1],"24":[1554,696,255,0,1],"34":[1494,697,255,0,1],"26":[1506,1032,255,0,1],"14":[1011,831,0,0,1]}
+        /* ---------- 2. 业务数据（启动时从文件末尾的数据块读取） ---------- */
+        let uiData = {};            // 控件定义：{ 索引: { name, size, fixsize?, desc? } }
+        let schemes = {};           // 方案布局：{ 方案号: { 控件索引: [X, Y, 样式, 保留值, 保留值] } }
+        const schemeMeta = {};      // 方案显示信息：{ 方案号: { label } }
+        let defaultScheme = '';
+
+        /* ---------- 3. 状态与 DOM 引用 ---------- */
+        const state = {
+            config: null,          // 当前布局配置
+            activeScheme: null,    // 当前方案；导入后为 null
+            selectedId: null,
+            measuredId: null,
+            measureMode: false,    // 测量模式：点击另一控件即测量（触屏替代 Shift）
+            minZ: Z_BASE,
+            scale: 1,
+            dirty: false,          // 布局是否有未导出的修改
+            drag: null,            // 拖拽中的临时数据
+            ioMode: 'import',
+            copying: false
         };
+        // 撤销/重做：栈中保存配置的 JSON 快照
+        const history = { past: [], future: [], lastArrowId: null, lastArrowAt: 0 };
+        let inputBefore = null;    // X/Y 输入框获得焦点时的快照
 
-        // --- 状态管理 ---
-        let currentConfig = JSON.parse(JSON.stringify(defaultSchemes[1]));
-        let selectedId = null;
-        let currentMinZIndex = 100;
-        let canvasScale = 1;
+        const $ = (id) => document.getElementById(id);
+        const dom = {
+            main: $('main-container'), canvas: $('canvas'), guides: $('guides-layer'), labels: $('labels-layer'),
+            appName: $('name'), appVersion: $('version'), schemeGroup: $('scheme-group'),
+            infoId: $('info-id'), infoName: $('info-name'), infoX: $('info-x'), infoY: $('info-y'),
+            infoStyle: $('info-style'), infoSize: $('info-size'), infoDesc: $('info-desc'), infoError: $('info-error'),
+            btnUndo: $('btn-undo'), btnRedo: $('btn-redo'), btnMeasure: $('btn-measure-mode'),
+            btnSwitchStyle: $('btn-switch-style'), btnSendBottom: $('btn-send-bottom'),
+            btnImport: $('btn-import'), btnExport: $('btn-export'),
+            ioModal: $('io-modal'), ioTitle: $('io-title'), ioText: $('io-textarea'), ioMsg: $('io-msg'),
+            btnIoConfirm: $('btn-io-confirm'), btnIoClose: $('btn-io-close'),
+            confirmModal: $('confirm-modal'), confirmMsg: $('confirm-message'),
+            btnConfirmOk: $('btn-confirm-ok'), btnConfirmCancel: $('btn-confirm-cancel'),
+            toast: $('toast')
+        };
+        const schemeButtons = [];
+        const nodes = new Map();   // 控件索引 -> 控件 DOM 节点
+        const labels = new Map();  // 控件索引 -> { node, w, h, x, y }（标签节点及其尺寸/位置缓存）
+        const snapLines = {};      // 复用的吸附线节点
 
-        // DOM 节点引用
-        const mainContainer = document.getElementById('main-container');
-        const canvas = document.getElementById('canvas');
-        
-        // Info Area
-        const elInfoId = document.getElementById('info-id');
-        const elInfoName = document.getElementById('info-name');
-        const elInfoX = document.getElementById('info-x');
-        const elInfoY = document.getElementById('info-y');
-        const elInfoStyle = document.getElementById('info-style');
-        const elInfoSize = document.getElementById('info-size');
-        const elInfoDesc = document.getElementById('info-desc');
-        const btnSwitchStyle = document.getElementById('btn-switch-style');
-        const btnSendBottom = document.getElementById('btn-send-bottom');
+        /* ---------- 4. 通用工具 ---------- */
+        const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+        const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+        const cloneConfig = (cfg) => JSON.parse(JSON.stringify(cfg));
+        const serialize = () => JSON.stringify(state.config);
+        const isTextField = (el) => !!el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
 
-        // Modals
-        const ioModal = document.getElementById('io-modal');
-        const ioTextarea = document.getElementById('io-textarea');
-        const ioError = document.getElementById('io-error');
-        const modalTitle = document.getElementById('modal-title');
-        const btnConfirmIo = document.getElementById('btn-confirm-io');
-        let currentIoMode = '';
-
-        // --- 画布缩放自适应 ---
-        function resizeCanvas() {
-            const containerW = mainContainer.clientWidth - 40;
-            const containerH = mainContainer.clientHeight - 40;
-            const scaleX = containerW / CANVAS_WIDTH;
-            const scaleY = containerH / CANVAS_HEIGHT;
-            canvasScale = Math.min(scaleX, scaleY);
-            
-            if(canvasScale < 0.1) canvasScale = 0.1;
-            canvas.style.transform = `scale(${canvasScale})`;
-        }
-        window.addEventListener('resize', resizeCanvas);
-
-        // --- 核心功能函数 ---
-        function getAvailableSizes(id) {
-            const data = uiData[id];
-            if (!data) return [];
-            return data.fixsize ? data.fixsize : data.size;
+        let toastTimer = null;
+        function showToast(message, type = 'info') {
+            dom.toast.textContent = message;
+            dom.toast.className = 'toast show ' + type;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => dom.toast.classList.remove('show'), LIMITS.toastMs);
         }
 
-        function getSafeStyleIndex(id, rawStyle) {
-            const sizes = getAvailableSizes(id);
-            if (sizes.length === 0) return 0;
-            if (rawStyle === 255) return 0;
-            if (rawStyle >= sizes.length) return rawStyle % sizes.length;
-            return rawStyle;
+        /* ---------- 5. 元信息（读取 head 中的 meta） ---------- */
+        const readMeta = (key) => {
+            const el = document.querySelector(`meta[name="${key}"]`);
+            return el ? el.content.trim() : '';
+        };
+        function applyMeta() {
+            const name = readMeta('name');
+            document.title = name;
+            dom.appName.textContent = name;
+            dom.appVersion.textContent = 'v' + readMeta('version');
         }
 
-        function renderCanvas() {
-            canvas.innerHTML = '';
-            currentMinZIndex = 100;
-            
-            for (const id in currentConfig) {
-                if (!uiData[id]) continue;
-                // 初始化渲染时也要约束位置，防越界脏数据
-                updateElementPosition(id, currentConfig[id][0], currentConfig[id][1], true);
-                const node = createUIElement(id);
-                canvas.appendChild(node);
+        /* ---------- 6. 数据加载与校验 ---------- */
+        const isSizeList = (list) => Array.isArray(list) && list.length > 0 &&
+            list.every((s) => Array.isArray(s) && s.length === 2 && s.every((n) => Number.isFinite(n) && n > 0));
+
+        function validateComponents(components) {
+            if (components === null || typeof components !== 'object' || Array.isArray(components)) {
+                throw new Error('components 应为对象');
             }
-            if (selectedId && currentConfig[selectedId]) {
-                selectElement(selectedId);
-            } else {
-                clearSelection();
+            const ids = Object.keys(components);
+            if (!ids.length) throw new Error('components 为空');
+            ids.forEach((id) => {
+                const c = components[id];
+                if (!c || typeof c.name !== 'string' || !isSizeList(c.size) || (c.fixsize !== undefined && !isSizeList(c.fixsize))) {
+                    throw new Error(`控件 ${id} 的定义不正确`);
+                }
+                if (c.fixsize !== undefined && c.fixsize.length !== c.size.length) {
+                    throw new Error(`控件 ${id} 的 fixsize 与 size 的样式数量不一致`);
+                }
+            });
+        }
+
+        // 规整控件配置对象；返回 { config, ignored } 或 { error }（导入与内置方案共用）
+        // 条目格式：索引: [x轴, y轴, s样式(0-3，255=自动), m放大(0~7), h显隐(1/0)]；m、h 本工具不使用，原样保留
+        function normalizeConfig(data) {
+            if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+                return { error: '配置应为对象，例如 {"1":[390,103,255,0,1]}。' };
+            }
+            const config = {};
+            let ignored = 0;
+            for (const [id, entry] of Object.entries(data)) {
+                if (!hasOwn(uiData, id)) { ignored++; continue; }
+                if (!Array.isArray(entry) || entry.length < 3) return { error: `控件 ${id} 的格式不正确，应为 [X, Y, 样式, …]。` };
+                const [x, y, style, extraA = 0, extraB = 1] = entry;
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return { error: `控件 ${id} 的坐标必须是数字。` };
+                if (!Number.isInteger(style) || style < 0 || style > STYLE_AUTO) return { error: `控件 ${id} 的样式必须是 0–${STYLE_AUTO} 的整数。` };
+                config[id] = [Math.round(x), Math.round(y), style,
+                    Number.isFinite(extraA) ? extraA : 0, Number.isFinite(extraB) ? extraB : 1];
+            }
+            if (!Object.keys(config).length) return { error: '没有找到可识别的控件数据。' };
+            return { config, ignored };
+        }
+
+        // 读取并校验数据块；每个方案都完整列出全部控件
+        function loadAppData() {
+            const block = $(DATA_BLOCK_ID);
+            if (!block) throw new Error('缺少数据块');
+            const data = JSON.parse(block.textContent);
+
+            validateComponents(data.components);
+            uiData = data.components;
+
+            const rawSchemes = data.schemes;
+            if (!rawSchemes || typeof rawSchemes !== 'object' || !Object.keys(rawSchemes).length) throw new Error('缺少方案数据');
+            Object.entries(rawSchemes).forEach(([key, s]) => {
+                const result = normalizeConfig(s.layout);
+                if (result.error) throw new Error(`方案 ${key}：${result.error}`);
+                schemes[key] = result.config;
+                schemeMeta[key] = { label: String(s.label || key) };
+            });
+            defaultScheme = hasOwn(schemes, data.defaultScheme) ? data.defaultScheme : Object.keys(schemes)[0];
+        }
+
+        function createSchemeButtons() {
+            Object.keys(schemes).forEach((key) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn scheme-btn';
+                btn.dataset.scheme = key;
+                btn.textContent = schemeMeta[key].label;
+                btn.setAttribute('aria-pressed', 'false');
+                btn.addEventListener('click', () => switchScheme(key));
+                dom.schemeGroup.appendChild(btn);
+                schemeButtons.push(btn);
+            });
+        }
+
+        function showFatal(message) {
+            const p = document.createElement('p');
+            p.className = 'fatal';
+            p.textContent = message;
+            dom.main.replaceChildren(p);
+        }
+
+        /* ---------- 7. 弹窗管理（焦点管理 / Esc / Tab 循环） ---------- */
+        const modalStack = [];
+        let confirmResolver = null;
+
+        function openModal(overlay, focusTarget) {
+            modalStack.push({ overlay, opener: document.activeElement });
+            overlay.classList.add('active');
+            if (focusTarget) focusTarget.focus();
+        }
+        function closeModal(overlay) {
+            const idx = modalStack.findIndex((m) => m.overlay === overlay);
+            if (idx < 0) return;
+            const [{ opener }] = modalStack.splice(idx, 1);
+            overlay.classList.remove('active');
+            if (opener && typeof opener.focus === 'function') opener.focus();
+        }
+        const activeModal = () => (modalStack.length ? modalStack[modalStack.length - 1].overlay : null);
+
+        function trapTab(e, overlay) {
+            const items = Array.from(overlay.querySelectorAll('button, textarea, input, [href]'))
+                .filter((el) => !el.disabled && !el.hidden);
+            if (!items.length) return;
+            const first = items[0], last = items[items.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+
+        // 危险操作确认，返回 Promise<boolean>
+        function askConfirm(message, okText = '继续') {
+            return new Promise((resolve) => {
+                dom.confirmMsg.textContent = message;
+                dom.btnConfirmOk.textContent = okText;
+                confirmResolver = resolve;
+                openModal(dom.confirmModal, dom.btnConfirmCancel);
+            });
+        }
+        function resolveConfirm(result) {
+            if (!confirmResolver) return;
+            const resolve = confirmResolver;
+            confirmResolver = null;
+            closeModal(dom.confirmModal);
+            resolve(result);
+        }
+        // 仅当存在未导出的修改时才需要确认
+        function confirmDiscardIfDirty(actionText) {
+            if (!state.dirty) return Promise.resolve(true);
+            return askConfirm(`当前布局有未导出的修改，${actionText}将覆盖这些修改且无法恢复。是否继续？`);
+        }
+
+        /* ---------- 8. 尺寸与位置计算 ---------- */
+        const getSizes = (id) => (uiData[id].fixsize || uiData[id].size);
+
+        function getStyleIndex(id, rawStyle) {
+            const sizes = getSizes(id);
+            if (rawStyle === STYLE_AUTO) return 0;
+            return rawStyle >= sizes.length ? rawStyle % sizes.length : rawStyle;
+        }
+        function getSize(id) {
+            const [w, h] = getSizes(id)[getStyleIndex(id, state.config[id][2])];
+            return { w, h };
+        }
+        function getRect(id) {
+            const [x, y] = state.config[id];
+            const { w, h } = getSize(id);
+            return { l: x, r: x + w, t: y, b: y + h, cx: x + w / 2, cy: y + h / 2 };
+        }
+
+        // 将配置中的位置与尺寸同步到控件节点
+        function syncNodeGeometry(id) {
+            const node = nodes.get(id);
+            if (!node) return;
+            const [x, y] = state.config[id];
+            const { w, h } = getSize(id);
+            node.style.left = x + 'px'; node.style.top = y + 'px';
+            node.style.width = w + 'px'; node.style.height = h + 'px';
+        }
+
+        // 更新控件位置（取整并限制在画布内）；syncInputs=false 时不回写输入框，避免打断输入
+        function moveElement(id, x, y, syncInputs = true) {
+            const { w, h } = getSize(id);
+            const nx = clamp(Math.round(x), 0, Math.max(0, CANVAS.width - w));
+            const ny = clamp(Math.round(y), 0, Math.max(0, CANVAS.height - h));
+            const conf = state.config[id];
+            if (conf[0] !== nx || conf[1] !== ny) {
+                conf[0] = nx; conf[1] = ny;
+                state.dirty = true;
+            }
+            syncNodeGeometry(id);
+            if (syncInputs && id === state.selectedId) {
+                dom.infoX.value = nx; dom.infoY.value = ny;
             }
         }
 
-        function createUIElement(id) {
-            const conf = currentConfig[id];
-            const data = uiData[id];
-            const sizes = getAvailableSizes(id);
-            const styleIdx = getSafeStyleIndex(id, conf[2]);
-            const size = sizes[styleIdx];
+        /* ---------- 9. 撤销 / 重做 ---------- */
+        function updateHistoryButtons() {
+            dom.btnUndo.disabled = history.past.length === 0;
+            dom.btnRedo.disabled = history.future.length === 0;
+        }
+        function resetHistory() {
+            history.past.length = 0;
+            history.future.length = 0;
+            history.lastArrowId = null;
+            inputBefore = null;
+            updateHistoryButtons();
+        }
+        // 记录一次修改（传入修改前的快照）
+        function recordHistory(beforeSnapshot) {
+            history.past.push(beforeSnapshot);
+            if (history.past.length > LIMITS.historyMax) history.past.shift();
+            history.future.length = 0;
+            history.lastArrowId = null;
+            updateHistoryButtons();
+        }
+        // 应用快照：控件集合不变，仅同步位置/样式，保留层级（置底）状态
+        function applySnapshot(snapshot) {
+            state.config = JSON.parse(snapshot);
+            Object.keys(state.config).forEach(syncNodeGeometry);
+            state.dirty = true;
+            if (state.selectedId) updateInfoArea();
+            refreshOverlays();
+        }
+        function undo() {
+            if (state.drag || !history.past.length) return;
+            history.future.push(serialize());
+            applySnapshot(history.past.pop());
+            history.lastArrowId = null;
+            updateHistoryButtons();
+        }
+        function redo() {
+            if (state.drag || !history.future.length) return;
+            history.past.push(serialize());
+            applySnapshot(history.future.pop());
+            history.lastArrowId = null;
+            updateHistoryButtons();
+        }
 
+        /* ---------- 10. 画布缩放 ---------- */
+        function updateScale() {
+            const availW = dom.main.clientWidth - LIMITS.canvasPadding * 2;
+            const availH = dom.main.clientHeight - LIMITS.canvasPadding * 2;
+            if (availW <= 0 || availH <= 0) return;
+            state.scale = Math.max(LIMITS.minScale, Math.min(availW / CANVAS.width, availH / CANVAS.height));
+            dom.canvas.style.transform = `scale(${state.scale})`;
+            dom.canvas.style.setProperty('--inv-scale', String(1 / state.scale));
+            refreshOverlays(); // 标签与测量标注的画布尺寸随缩放变化
+        }
+
+        /* ---------- 11. 画布渲染 ---------- */
+        function createElementNode(id) {
+            const conf = state.config[id];
+            const { w, h } = getSize(id);
             const el = document.createElement('div');
             el.className = 'ui-element';
-            if (id === selectedId) el.classList.add('selected');
             el.dataset.id = id;
-            el.style.left = conf[0] + 'px';
-            el.style.top = conf[1] + 'px';
-            el.style.width = size[0] + 'px';
-            el.style.height = size[1] + 'px';
-            el.style.zIndex = currentMinZIndex;
+            el.tabIndex = 0;
+            el.setAttribute('role', 'group');
+            el.setAttribute('aria-label', `${id}: ${uiData[id].name}`);
+            el.style.cssText = `left:${conf[0]}px;top:${conf[1]}px;width:${w}px;height:${h}px;z-index:${state.minZ}`;
+            return el;
+        }
+        function createLabelNode(id) {
+            const name = uiData[id].name;
+            const node = document.createElement('div');
+            node.className = 'elem-header';
+            node.dataset.id = id;
 
-            // 独立的头部区域（置于上方外侧），包含标签与按钮，彻底解决遮挡问题
-            const header = document.createElement('div');
-            header.className = 'elem-header';
-
-            const label = document.createElement('span');
-            label.className = 'elem-label';
-            label.textContent = `${id}: ${data.name}`;
-            header.appendChild(label);
+            const text = document.createElement('span');
+            text.className = 'elem-label';
+            text.textContent = `${id}: ${name}`;
+            node.appendChild(text);
 
             const actions = document.createElement('div');
             actions.className = 'elem-actions';
+            if (getSizes(id).length > 1) actions.appendChild(createActionButton('style', '🔄', '切换样式', name));
+            actions.appendChild(createActionButton('bottom', '⬇️', '置底', name));
+            node.appendChild(actions);
+            return node;
+        }
+        function createActionButton(action, icon, title, name) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'elem-action-btn';
+            btn.dataset.action = action;
+            btn.title = title;
+            btn.setAttribute('aria-label', `${title}：${name}`);
+            btn.textContent = icon;
+            return btn;
+        }
 
-            if (sizes.length > 1) {
-                const sBtn = document.createElement('button');
-                sBtn.className = 'elem-action-btn';
-                sBtn.title = '切换样式';
-                sBtn.innerHTML = '🔄';
-                sBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    handleSwitchStyle(id);
-                };
-                actions.appendChild(sBtn);
+        function renderCanvas() {
+            nodes.forEach((n) => n.remove());
+            nodes.clear();
+            labels.forEach((l) => l.node.remove());
+            labels.clear();
+            state.minZ = Z_BASE;
+
+            const elemFrag = document.createDocumentFragment();
+            const labelFrag = document.createDocumentFragment();
+            Object.keys(state.config).forEach((id) => {
+                if (!hasOwn(uiData, id)) return;
+                const conf = state.config[id];
+                moveElement(id, conf[0], conf[1], false); // 载入时校正越界坐标
+                const node = createElementNode(id);
+                nodes.set(id, node);
+                elemFrag.appendChild(node);
+
+                const labelNode = createLabelNode(id);
+                labels.set(id, { node: labelNode, w: 0, h: 0, x: null, y: null });
+                labelFrag.appendChild(labelNode);
+            });
+            dom.canvas.appendChild(elemFrag);
+            dom.labels.appendChild(labelFrag);
+
+            // 缓存标签尺寸（未缩放前的布局尺寸），供错位计算使用
+            labels.forEach((lb) => { lb.w = lb.node.offsetWidth; lb.h = lb.node.offsetHeight; });
+            refreshOverlays();
+        }
+
+        // 载入一份完整配置（方案或导入），覆盖当前布局
+        function loadConfig(config, schemeId) {
+            clearSelection();
+            state.config = config;
+            state.activeScheme = schemeId;
+            renderCanvas();
+            state.dirty = false;
+            resetHistory();
+            schemeButtons.forEach((btn) => {
+                const on = btn.dataset.scheme === schemeId;
+                btn.classList.toggle('active', on);
+                btn.setAttribute('aria-pressed', String(on));
+            });
+        }
+
+        /* ---------- 12. 选中与测量 ---------- */
+        // 状态同时标记在控件与其标签上
+        function markSelected(id, on) {
+            const node = nodes.get(id);
+            if (node) {
+                node.classList.toggle('selected', on);
+                if (on) node.setAttribute('aria-current', 'true'); else node.removeAttribute('aria-current');
             }
-
-            const bBtn = document.createElement('button');
-            bBtn.className = 'elem-action-btn';
-            bBtn.title = '置底';
-            bBtn.innerHTML = '⬇️';
-            bBtn.onclick = (e) => {
-                e.stopPropagation();
-                handleSendBottom(id);
-            };
-            actions.appendChild(bBtn);
-
-            header.appendChild(actions);
-            el.appendChild(header);
-
-            return el;
+            const lb = labels.get(id);
+            if (lb) lb.node.classList.toggle('selected', on);
+        }
+        function markMeasured(id, on) {
+            const node = nodes.get(id);
+            if (node) node.classList.toggle('measured', on);
+            const lb = labels.get(id);
+            if (lb) lb.node.classList.toggle('measured', on);
         }
 
         function selectElement(id) {
-            const prev = canvas.querySelector('.ui-element.selected');
-            if (prev) prev.classList.remove('selected');
-
-            selectedId = id;
-            const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
-            if (el) el.classList.add('selected');
-
+            if (state.selectedId) markSelected(state.selectedId, false);
+            state.selectedId = id;
+            markSelected(id, true);
             updateInfoArea();
+            refreshOverlays();
+        }
+        function setMeasuredElement(id) {
+            if (state.measuredId) markMeasured(state.measuredId, false);
+            state.measuredId = id;
+            markMeasured(id, true);
+            refreshOverlays();
+        }
+        function clearMeasurement() {
+            if (state.measuredId) markMeasured(state.measuredId, false);
+            state.measuredId = null;
+            refreshOverlays();
+        }
+        function clearSelection() {
+            if (state.selectedId) markSelected(state.selectedId, false);
+            state.selectedId = null;
+            clearMeasurement();
+
+            dom.infoId.textContent = '-';
+            dom.infoName.textContent = '-';
+            dom.infoX.value = ''; dom.infoY.value = '';
+            dom.infoStyle.textContent = '-';
+            dom.infoSize.textContent = '-';
+            dom.infoDesc.textContent = '-';
+            dom.infoX.disabled = true; dom.infoY.disabled = true;
+            setFieldError('');
+            dom.btnSwitchStyle.hidden = true;
+            dom.btnSendBottom.disabled = true;
         }
 
-        function clearSelection() {
-            selectedId = null;
-            const prev = canvas.querySelector('.ui-element.selected');
-            if (prev) prev.classList.remove('selected');
+        // 统一入口：选中控件；测量意图下点击另一控件则设为测量目标（再次点击取消）
+        // 返回 true 表示可以开始拖拽
+        function pickElement(id, wantMeasure) {
+            if (wantMeasure && state.selectedId && state.selectedId !== id) {
+                if (state.measuredId === id) clearMeasurement(); else setMeasuredElement(id);
+                return false;
+            }
+            if (id !== state.selectedId) {
+                clearMeasurement();
+                selectElement(id);
+            }
+            return true;
+        }
 
-            elInfoId.textContent = '-';
-            elInfoName.textContent = '-';
-            elInfoX.value = '';
-            elInfoY.value = '';
-            elInfoStyle.textContent = '-';
-            elInfoSize.textContent = '-';
-            elInfoDesc.textContent = '-';
-            
-            elInfoX.disabled = true;
-            elInfoY.disabled = true;
-            btnSwitchStyle.style.display = 'none';
-            btnSendBottom.disabled = true;
+        function toggleMeasureMode() {
+            state.measureMode = !state.measureMode;
+            dom.btnMeasure.classList.toggle('active', state.measureMode);
+            dom.btnMeasure.setAttribute('aria-pressed', String(state.measureMode));
+            if (!state.measureMode) return;
+            showToast(state.selectedId ? '测量模式：点击另一个控件测量间距' : '测量模式：请先选中一个控件，再点击另一个控件');
+        }
+
+        /* ---------- 13. 叠加层：标签错位、测量线、到画布四边的距离 ---------- */
+        function removeMeasureItems() {
+            dom.guides.querySelectorAll('.measure-item').forEach((el) => el.remove());
+        }
+
+        function refreshOverlays() {
+            if (!state.config) return;
+            removeMeasureItems();
+            const { selectedId: a, measuredId: b } = state;
+            if (a && state.config[a]) {
+                drawEdgeDistances(a);
+                if (b && a !== b && state.config[b]) drawControlDistance(a, b);
+            }
+            layoutLabels();
+        }
+
+        function drawControlDistance(id1, id2) {
+            const ra = getRect(id1), rb = getRect(id2);
+            const overlapCenter = (min1, max1, min2, max2, fallback) => {
+                const lo = Math.max(min1, min2), hi = Math.min(max1, max2);
+                return lo <= hi ? (lo + hi) / 2 : fallback;
+            };
+            if (ra.r < rb.l) drawMeasureLine(ra.r, overlapCenter(ra.t, ra.b, rb.t, rb.b, ra.cy), rb.l - ra.r, true);
+            else if (rb.r < ra.l) drawMeasureLine(rb.r, overlapCenter(ra.t, ra.b, rb.t, rb.b, ra.cy), ra.l - rb.r, true);
+
+            if (ra.b < rb.t) drawMeasureLine(overlapCenter(ra.l, ra.r, rb.l, rb.r, ra.cx), ra.b, rb.t - ra.b, false);
+            else if (rb.b < ra.t) drawMeasureLine(overlapCenter(ra.l, ra.r, rb.l, rb.r, ra.cx), rb.b, ra.t - rb.b, false);
+        }
+
+        // 选中控件到画布上/下/左/右边缘的距离
+        function drawEdgeDistances(id) {
+            const r = getRect(id);
+            const edges = [
+                [0, r.cy, r.l, true],
+                [r.r, r.cy, CANVAS.width - r.r, true],
+                [r.cx, 0, r.t, false],
+                [r.cx, r.b, CANVAS.height - r.b, false]
+            ];
+            edges.forEach(([x, y, dist, horizontal]) => {
+                if (dist >= 1) drawMeasureLine(x, y, dist, horizontal, 'edge');
+            });
+        }
+
+        function drawMeasureLine(x, y, dist, horizontal, variant = '') {
+            const suffix = variant ? ' ' + variant : '';
+            const line = document.createElement('div');
+            line.className = 'measure-item line ' + (horizontal ? 'horizontal' : 'vertical') + suffix;
+            const label = document.createElement('div');
+            label.className = 'measure-item label' + suffix;
+            label.textContent = Math.round(dist);
+
+            line.style.left = x + 'px'; line.style.top = y + 'px';
+            if (horizontal) {
+                line.style.width = dist + 'px';
+                label.style.left = (x + dist / 2) + 'px'; label.style.top = y + 'px';
+            } else {
+                line.style.height = dist + 'px';
+                label.style.left = x + 'px'; label.style.top = (y + dist / 2) + 'px';
+            }
+            dom.guides.append(line, label);
+        }
+
+        // 标签自动错位：选中/测量目标优先占位；其余标签依次避让已放置的标签
+        // 优先放在控件上方并逐层上移；上方放不下（越出画布顶部）时改放在控件内部自顶向下
+        function layoutLabels() {
+            if (!state.config) return;
+            const inv = 1 / state.scale;
+            const order = [];
+            [state.selectedId, state.measuredId].forEach((id) => { if (id && labels.has(id)) order.push(id); });
+            labels.forEach((_, id) => { if (!order.includes(id)) order.push(id); });
+
+            const placed = [];
+            order.forEach((id) => {
+                const lb = labels.get(id);
+                const w = lb.w * inv, h = lb.h * inv;
+                const [ex, top] = state.config[id];
+                const x = clamp(ex, 0, Math.max(0, CANVAS.width - w));
+                const collides = (y) => placed.some((p) => x < p.x + p.w && p.x < x + w && y < p.y + p.h && p.y < y + h);
+
+                let y = null;
+                for (let k = 0; k < LIMITS.labelMaxLevels; k++) {
+                    const cy = top - h * (k + 1);
+                    if (cy < 0) break;
+                    if (!collides(cy)) { y = cy; break; }
+                }
+                if (y === null) {
+                    for (let k = 0; k < LIMITS.labelMaxLevels; k++) {
+                        const cy = top + h * k;
+                        if (!collides(cy)) { y = cy; break; }
+                    }
+                }
+                if (y === null) y = Math.max(0, top - h);
+
+                placed.push({ x, y, w, h });
+                if (lb.x !== x || lb.y !== y) {
+                    lb.node.style.left = x + 'px';
+                    lb.node.style.top = y + 'px';
+                    lb.x = x; lb.y = y;
+                }
+            });
+        }
+
+        /* ---------- 14. 信息区与控件操作 ---------- */
+        function setFieldError(message) {
+            dom.infoError.textContent = message;
+            dom.infoError.hidden = !message;
+            const invalid = message ? 'true' : 'false';
+            dom.infoX.setAttribute('aria-invalid', invalid);
+            dom.infoY.setAttribute('aria-invalid', invalid);
         }
 
         function updateInfoArea() {
-            if (!selectedId || !currentConfig[selectedId] || !uiData[selectedId]) return;
+            const id = state.selectedId;
+            if (!id || !state.config[id]) return;
+            const conf = state.config[id];
+            const styleIdx = getStyleIndex(id, conf[2]);
+            const { w, h } = getSize(id);
 
-            const conf = currentConfig[selectedId];
-            const data = uiData[selectedId];
-            const sizes = getAvailableSizes(selectedId);
-            const styleIdx = getSafeStyleIndex(selectedId, conf[2]);
-            const size = sizes[styleIdx];
-
-            elInfoId.textContent = selectedId;
-            elInfoName.textContent = data.name;
-            elInfoX.value = conf[0];
-            elInfoY.value = conf[1];
-            elInfoStyle.textContent = (conf[2] === 255) ? `255(渲染${styleIdx})` : conf[2];
-            elInfoSize.textContent = `${size[0]} × ${size[1]}`;
-            elInfoDesc.textContent = data.desc || '无';
-
-            elInfoX.disabled = false;
-            elInfoY.disabled = false;
-            btnSendBottom.disabled = false;
-
-            if (sizes.length > 1) {
-                btnSwitchStyle.style.display = 'inline-block';
-            } else {
-                btnSwitchStyle.style.display = 'none';
-            }
+            dom.infoId.textContent = id;
+            dom.infoName.textContent = uiData[id].name;
+            dom.infoX.value = conf[0]; dom.infoY.value = conf[1];
+            dom.infoX.min = '0'; dom.infoX.max = String(Math.max(0, CANVAS.width - w));
+            dom.infoY.min = '0'; dom.infoY.max = String(Math.max(0, CANVAS.height - h));
+            dom.infoStyle.textContent = conf[2] === STYLE_AUTO ? `${STYLE_AUTO}(渲染${styleIdx})` : conf[2];
+            dom.infoSize.textContent = `${w} × ${h}`;
+            dom.infoDesc.textContent = uiData[id].desc || '无';
+            dom.infoX.disabled = false; dom.infoY.disabled = false;
+            setFieldError('');
+            dom.btnSendBottom.disabled = false;
+            dom.btnSwitchStyle.hidden = getSizes(id).length <= 1;
         }
 
-        function handleSwitchStyle(id) {
-            const sizes = getAvailableSizes(id);
+        function switchStyle(id) {
+            const sizes = getSizes(id);
             if (sizes.length <= 1) return;
-            
-            let curStyle = getSafeStyleIndex(id, currentConfig[id][2]);
-            let nextStyle = (curStyle + 1) % sizes.length;
-            
-            currentConfig[id][2] = nextStyle; 
-            
-            const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
-            if (el) {
-                const newSize = sizes[nextStyle];
-                el.style.width = newSize[0] + 'px';
-                el.style.height = newSize[1] + 'px';
-            }
-            // 切换样式后重新限制边界 (可能新尺寸导致越界)
-            updateElementPosition(id, currentConfig[id][0], currentConfig[id][1]);
-            
-            if (selectedId === id) updateInfoArea();
+            const before = serialize();
+            const conf = state.config[id];
+            conf[2] = (getStyleIndex(id, conf[2]) + 1) % sizes.length;
+            state.dirty = true;
+
+            moveElement(id, conf[0], conf[1]); // 尺寸变化后重新限制在画布内，并同步节点
+            recordHistory(before);
+            if (state.selectedId === id) updateInfoArea();
+            refreshOverlays();
         }
 
-        function handleSendBottom(id) {
-            const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
-            if (el) {
-                currentMinZIndex--;
-                el.style.zIndex = currentMinZIndex;
+        function sendToBottom(id) {
+            const node = nodes.get(id);
+            if (node) node.style.zIndex = String(--state.minZ);
+        }
+
+        // 位置输入框：输入时实时预览；失焦/回车时规范化显示并记录一次历史
+        function parseCoord(text) {
+            if (text.trim() === '') return null;
+            const n = Number(text);
+            return Number.isFinite(n) ? n : null;
+        }
+        function onPositionFocus() {
+            if (inputBefore === null && state.config) inputBefore = serialize();
+        }
+        function onPositionInput() {
+            const id = state.selectedId;
+            if (!id) return;
+            const x = parseCoord(dom.infoX.value), y = parseCoord(dom.infoY.value);
+            if (x === null || y === null) { setFieldError('请输入有效的数字坐标'); return; }
+            setFieldError('');
+            moveElement(id, x, y, false);
+            refreshOverlays();
+        }
+        function syncPositionInputs() {
+            const id = state.selectedId;
+            if (!id || !state.config[id]) return;
+            dom.infoX.value = state.config[id][0];
+            dom.infoY.value = state.config[id][1];
+            setFieldError('');
+        }
+        function onPositionBlur() {
+            syncPositionInputs();
+            if (inputBefore !== null && state.config && serialize() !== inputBefore) recordHistory(inputBefore);
+            inputBefore = null;
+        }
+        function onPositionKeydown(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.target.blur();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (inputBefore !== null && serialize() !== inputBefore) applySnapshot(inputBefore); // 还原本次输入
+                e.target.blur();
             }
         }
 
-        // 统一处理坐标更新并强制限制边界
-        function updateElementPosition(id, newX, newY, skipDomUpdate = false) {
-            const sizes = getAvailableSizes(id);
-            const conf = currentConfig[id];
-            const styleIdx = getSafeStyleIndex(id, conf[2]);
-            const elW = sizes[styleIdx][0];
-            const elH = sizes[styleIdx][1];
-
-            newX = Math.round(newX);
-            newY = Math.round(newY);
-
-            // 画布内限制移动范围，不能超出右下角和左上角
-            newX = Math.max(0, Math.min(newX, CANVAS_WIDTH - elW));
-            newY = Math.max(0, Math.min(newY, CANVAS_HEIGHT - elH));
-            
-            currentConfig[id][0] = newX;
-            currentConfig[id][1] = newY;
-
-            if (!skipDomUpdate) {
-                const el = canvas.querySelector(`.ui-element[data-id="${id}"]`);
-                if (el) {
-                    el.style.left = newX + 'px';
-                    el.style.top = newY + 'px';
+        /* ---------- 15. 对齐吸附 ---------- */
+        function createSnapLines() {
+            ['vertical', 'horizontal'].forEach((dir) => {
+                const line = document.createElement('div');
+                line.className = 'snap-line ' + dir;
+                line.hidden = true;
+                dom.guides.appendChild(line);
+                snapLines[dir] = line;
+            });
+        }
+        function setSnapLine(line, pos, prop, center) {
+            if (pos === null) { line.hidden = true; return; }
+            line.hidden = false;
+            line.style[prop] = pos + 'px';
+            line.classList.toggle('area-center', Math.abs(pos - center) < 0.1);
+        }
+        function renderSnapGuides(posX, posY) {
+            setSnapLine(snapLines.vertical, posX, 'left', CANVAS.centerX);
+            setSnapLine(snapLines.horizontal, posY, 'top', CANVAS.centerY);
+        }
+        // 拖拽开始时缓存对齐线：画布边缘/中线 + 其他控件的边缘/中线
+        function collectSnapLines(excludeId) {
+            const xs = [0, CANVAS.centerX, CANVAS.width];
+            const ys = [0, CANVAS.centerY, CANVAS.height];
+            Object.keys(state.config).forEach((id) => {
+                if (id === excludeId || !hasOwn(uiData, id)) return;
+                const r = getRect(id);
+                xs.push(r.l, r.cx, r.r);
+                ys.push(r.t, r.cy, r.b);
+            });
+            return { xs, ys };
+        }
+        // 在阈值内取距离最近的吸附线
+        function findSnap(points, lines, threshold) {
+            let best = null;
+            for (const p of points) {
+                for (const line of lines) {
+                    const d = Math.abs(line - p);
+                    if (d <= threshold && (best === null || d < best.d)) best = { d, offset: line - p, line };
                 }
-                if (selectedId === id) {
-                    elInfoX.value = newX;
-                    elInfoY.value = newY;
-                }
             }
+            return best;
         }
 
-        function handleManualCoordinateChange() {
-            if (!selectedId) return;
-            const newX = parseInt(elInfoX.value) || 0;
-            const newY = parseInt(elInfoY.value) || 0;
-            updateElementPosition(selectedId, newX, newY);
+        /* ---------- 16. 拖拽与点击 ---------- */
+        function onCanvasPointerDown(e) {
+            if (e.button !== 0 || !e.isPrimary) return;
+            if (e.target.closest('.elem-actions')) return;
+            const target = e.target.closest('.ui-element, .elem-header');
+            if (!target) { clearSelection(); return; }
+
+            const id = target.dataset.id;
+            if (!pickElement(id, e.shiftKey || state.measureMode)) return;
+
+            const node = nodes.get(id);
+            const { w, h } = getSize(id);
+            const lines = collectSnapLines(id);
+            state.drag = {
+                id, node, pointerId: e.pointerId, w, h,
+                before: serialize(),
+                startX: e.clientX, startY: e.clientY,
+                startLeft: state.config[id][0], startTop: state.config[id][1],
+                linesX: lines.xs, linesY: lines.ys
+            };
+            node.setPointerCapture(e.pointerId);
         }
-        
-        elInfoX.addEventListener('input', handleManualCoordinateChange);
-        elInfoY.addEventListener('input', handleManualCoordinateChange);
-        btnSwitchStyle.addEventListener('click', () => { if(selectedId) handleSwitchStyle(selectedId); });
-        btnSendBottom.addEventListener('click', () => { if(selectedId) handleSendBottom(selectedId); });
 
-        // --- 拖拽功能实现 ---
-        let isDragging = false;
-        let dragTarget = null;
-        let startClientX, startClientY;
-        let startLeft, startTop;
+        function onPointerMove(e) {
+            const d = state.drag;
+            if (!d || e.pointerId !== d.pointerId) return;
 
-        canvas.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return; 
-            const el = e.target.closest('.ui-element');
-            if (!el) {
-                clearSelection();
+            let x = d.startLeft + (e.clientX - d.startX) / state.scale;
+            let y = d.startTop + (e.clientY - d.startY) / state.scale;
+
+            const threshold = LIMITS.snapPx / state.scale;
+            const snapX = findSnap([x, x + d.w / 2, x + d.w], d.linesX, threshold);
+            const snapY = findSnap([y, y + d.h / 2, y + d.h], d.linesY, threshold);
+            if (snapX) x += snapX.offset;
+            if (snapY) y += snapY.offset;
+
+            moveElement(d.id, x, y);
+            renderSnapGuides(snapX ? snapX.line : null, snapY ? snapY.line : null);
+            refreshOverlays();
+        }
+
+        function endDrag(e) {
+            const d = state.drag;
+            if (!d || e.pointerId !== d.pointerId) return;
+            if (d.node.hasPointerCapture && d.node.hasPointerCapture(d.pointerId)) {
+                d.node.releasePointerCapture(d.pointerId);
+            }
+            state.drag = null;
+            renderSnapGuides(null, null);
+            if (serialize() !== d.before) recordHistory(d.before); // 位置有变化才记录一次
+        }
+
+        // 事件委托：标签上的“切换样式 / 置底”按钮
+        function onCanvasClick(e) {
+            const btn = e.target.closest('.elem-action-btn');
+            if (!btn) return;
+            const id = btn.closest('[data-id]').dataset.id;
+            if (btn.dataset.action === 'style') switchStyle(id);
+            else if (btn.dataset.action === 'bottom') sendToBottom(id);
+        }
+
+        /* ---------- 17. 键盘 ---------- */
+        function onKeyDown(e) {
+            const modal = activeModal();
+            if (modal) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (modal === dom.confirmModal) resolveConfirm(false); else closeIoModal();
+                } else if (e.key === 'Tab') {
+                    trapTab(e, modal);
+                }
                 return;
             }
-            if (e.target.closest('.elem-actions')) return;
+            if (isTextField(e.target)) return;
 
-            const id = el.dataset.id;
-            selectElement(id);
-
-            isDragging = true;
-            dragTarget = el;
-            
-            startClientX = e.clientX;
-            startClientY = e.clientY;
-            
-            startLeft = currentConfig[id][0];
-            startTop = currentConfig[id][1];
-            
-            el.setPointerCapture(e.pointerId);
-        });
-
-        window.addEventListener('pointermove', (e) => {
-            if (!isDragging || !dragTarget) return;
-            
-            const dx = (e.clientX - startClientX) / canvasScale;
-            const dy = (e.clientY - startClientY) / canvasScale;
-            
-            updateElementPosition(selectedId, startLeft + dx, startTop + dy);
-        });
-
-        window.addEventListener('pointerup', (e) => {
-            if (isDragging && dragTarget) {
-                dragTarget.releasePointerCapture(e.pointerId);
-            }
-            isDragging = false;
-            dragTarget = null;
-        });
-
-        // --- 键盘方向键微调功能（已优化 Ctrl/Meta 大幅移动及拦截滚动） ---
-        window.addEventListener('keydown', (e) => {
-            if (!selectedId) return;
-            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-
-            let step = (e.ctrlKey || e.metaKey || e.shiftKey) ? 10 : 1;
-            let dx = 0, dy = 0;
-
-            switch(e.key) {
-                case 'ArrowUp': dy = -step; break;
-                case 'ArrowDown': dy = step; break;
-                case 'ArrowLeft': dx = -step; break;
-                case 'ArrowRight': dx = step; break;
-                default: return; 
+            // 撤销 / 重做
+            if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+                const key = e.key.toLowerCase();
+                if (key === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+                if (key === 'y') { e.preventDefault(); redo(); return; }
             }
 
-            e.preventDefault(); // 防止页面在按下方向键时滚动
-            const curX = currentConfig[selectedId][0];
-            const curY = currentConfig[selectedId][1];
-            updateElementPosition(selectedId, curX + dx, curY + dy);
-        });
+            if (e.key === 'Escape') { if (state.selectedId) clearSelection(); return; }
 
-        // --- 顶部方案切换 ---
-        document.querySelectorAll('.scheme-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.scheme-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                
-                const schemeId = e.target.dataset.scheme;
-                if (defaultSchemes[schemeId]) {
-                    currentConfig = JSON.parse(JSON.stringify(defaultSchemes[schemeId]));
-                    renderCanvas();
-                }
+            // 焦点在控件上时，Enter/空格 = 选中（Shift 或测量模式 = 测量）
+            const focused = e.target.classList && e.target.classList.contains('ui-element') ? e.target : null;
+            if (focused && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                pickElement(focused.dataset.id, e.shiftKey || state.measureMode);
+                return;
+            }
+
+            // 方向键微调
+            const id = state.selectedId;
+            if (!id) return;
+            const step = (e.ctrlKey || e.metaKey || e.shiftKey) ? LIMITS.stepFast : LIMITS.stepNormal;
+            const delta = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[e.key];
+            if (!delta) return;
+            e.preventDefault();
+
+            const before = serialize();
+            const [x, y] = state.config[id];
+            moveElement(id, x + delta[0], y + delta[1]);
+            if (serialize() !== before) {
+                // 短时间内对同一控件的连续微调合并为一步
+                const now = Date.now();
+                const merge = history.lastArrowId === id && now - history.lastArrowAt < LIMITS.arrowMergeMs;
+                if (!merge) recordHistory(before);
+                history.lastArrowId = id;
+                history.lastArrowAt = now;
+            }
+            refreshOverlays();
+        }
+
+        /* ---------- 18. 方案切换 ---------- */
+        async function switchScheme(schemeId) {
+            if (!hasOwn(schemes, schemeId)) return;
+            const isReset = schemeId === state.activeScheme;
+            if (!(await confirmDiscardIfDirty(isReset ? '重置方案' : '切换方案'))) return;
+            loadConfig(cloneConfig(schemes[schemeId]), schemeId);
+            const label = schemeMeta[schemeId].label;
+            showToast(isReset ? `已重置${label}` : `已切换到${label}`, 'success');
+        }
+
+        /* ---------- 19. 导入 / 导出 ---------- */
+        function showIoMessage(text, type) {
+            dom.ioMsg.textContent = text;
+            dom.ioMsg.className = 'io-msg ' + type;
+            dom.ioMsg.hidden = !text;
+        }
+        function closeIoModal() { closeModal(dom.ioModal); }
+
+        function openImport() {
+            state.ioMode = 'import';
+            dom.ioTitle.textContent = '导入配置';
+            dom.ioText.value = '';
+            dom.ioText.readOnly = false;
+            dom.ioText.placeholder = '请在此粘贴 JSON 配置代码，例如：{"1":[390,103,255,0,1]}';
+            dom.btnIoConfirm.textContent = '确认导入';
+            dom.btnIoConfirm.disabled = false;
+            showIoMessage('', 'error');
+            openModal(dom.ioModal, dom.ioText);
+        }
+        function openExport() {
+            state.ioMode = 'export';
+            dom.ioTitle.textContent = '导出配置';
+            dom.ioText.value = serialize();
+            dom.ioText.readOnly = true;
+            dom.ioText.placeholder = '';
+            dom.btnIoConfirm.textContent = '复制到剪贴板';
+            dom.btnIoConfirm.disabled = false;
+            showIoMessage('当前配置已生成，点击下方按钮复制。', 'success');
+            openModal(dom.ioModal, dom.btnIoConfirm);
+        }
+
+        // 校验导入文本；返回 { config, ignored } 或 { error }
+        function parseImport(text) {
+            const raw = text.trim();
+            if (!raw) return { error: '请先粘贴配置内容。' };
+            if (raw.length > LIMITS.importMaxChars) return { error: '配置内容过大，请确认粘贴的是正确的配置。' };
+            let data;
+            try { data = JSON.parse(raw); }
+            catch (err) { return { error: '不是有效的 JSON，请检查括号、引号和逗号。' }; }
+            return normalizeConfig(data);
+        }
+
+        async function applyImport() {
+            const result = parseImport(dom.ioText.value);
+            if (result.error) { showIoMessage(result.error, 'error'); return; }
+            if (!(await confirmDiscardIfDirty('导入'))) return;
+
+            loadConfig(result.config, null);
+            closeIoModal();
+            const count = Object.keys(result.config).length;
+            showToast(result.ignored ? `导入成功：${count} 个控件，已忽略 ${result.ignored} 个未知项` : `导入成功：${count} 个控件`, 'success');
+        }
+
+        async function copyText(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                try { await navigator.clipboard.writeText(text); return true; } catch (err) { /* 回退到传统方式 */ }
+            }
+            dom.ioText.focus();
+            dom.ioText.select();
+            try { return document.execCommand('copy'); } catch (err) { return false; }
+        }
+        async function copyExport() {
+            if (state.copying) return;
+            state.copying = true;
+            dom.btnIoConfirm.disabled = true;
+            const ok = await copyText(dom.ioText.value);
+            state.copying = false;
+            dom.btnIoConfirm.disabled = false;
+            if (ok) {
+                state.dirty = false;
+                showIoMessage('复制成功！', 'success');
+                showToast('配置已复制到剪贴板', 'success');
+            } else {
+                dom.ioText.select();
+                showIoMessage('复制失败，请手动选中上方文本后复制。', 'error');
+            }
+        }
+
+        /* ---------- 20. 事件绑定与初始化 ---------- */
+        function bindEvents() {
+            dom.canvas.addEventListener('pointerdown', onCanvasPointerDown);
+            dom.canvas.addEventListener('click', onCanvasClick);
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', endDrag);
+            window.addEventListener('pointercancel', endDrag);
+            window.addEventListener('keydown', onKeyDown);
+
+            [dom.infoX, dom.infoY].forEach((input) => {
+                input.addEventListener('focus', onPositionFocus);
+                input.addEventListener('input', onPositionInput);
+                input.addEventListener('blur', onPositionBlur);
+                input.addEventListener('keydown', onPositionKeydown);
             });
-        });
 
-        // --- 导入导出管理 ---
-        const btnImportModal = document.getElementById('btn-import-modal');
-        const btnExportModal = document.getElementById('btn-export-modal');
-        
-        btnImportModal.addEventListener('click', () => {
-            currentIoMode = 'import';
-            modalTitle.textContent = '导入配置';
-            ioTextarea.value = '';
-            ioTextarea.readOnly = false;
-            ioTextarea.placeholder = '请在此粘贴JSON配置代码...';
-            ioError.style.display = 'none';
-            btnConfirmIo.textContent = '确认导入';
-            ioModal.classList.add('active');
-            setTimeout(() => ioTextarea.focus(), 100);
-        });
+            dom.btnUndo.addEventListener('click', undo);
+            dom.btnRedo.addEventListener('click', redo);
+            dom.btnMeasure.addEventListener('click', toggleMeasureMode);
+            dom.btnSwitchStyle.addEventListener('click', () => { if (state.selectedId) switchStyle(state.selectedId); });
+            dom.btnSendBottom.addEventListener('click', () => { if (state.selectedId) sendToBottom(state.selectedId); });
 
-        btnExportModal.addEventListener('click', () => {
-            currentIoMode = 'export';
-            modalTitle.textContent = '导出配置';
-            ioTextarea.value = JSON.stringify(currentConfig);
-            ioTextarea.readOnly = true;
-            ioTextarea.placeholder = '';
-            ioError.style.display = 'block';
-            ioError.style.color = 'var(--success)';
-            ioError.textContent = '当前配置已生成，点击下方按钮复制。';
-            btnConfirmIo.textContent = '复制到剪贴板';
-            ioModal.classList.add('active');
-        });
+            dom.btnImport.addEventListener('click', openImport);
+            dom.btnExport.addEventListener('click', openExport);
+            dom.btnIoClose.addEventListener('click', closeIoModal);
+            dom.ioModal.addEventListener('click', (e) => { if (e.target === dom.ioModal) closeIoModal(); });
+            dom.btnIoConfirm.addEventListener('click', () => { if (state.ioMode === 'import') applyImport(); else copyExport(); });
+            dom.ioText.addEventListener('keydown', (e) => {
+                // Ctrl/Cmd + Enter 快速导入
+                if (state.ioMode === 'import' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); applyImport(); }
+            });
 
-        document.getElementById('btn-close-modal').addEventListener('click', () => {
-            ioModal.classList.remove('active');
-        });
+            dom.btnConfirmOk.addEventListener('click', () => resolveConfirm(true));
+            dom.btnConfirmCancel.addEventListener('click', () => resolveConfirm(false));
+            dom.confirmModal.addEventListener('click', (e) => { if (e.target === dom.confirmModal) resolveConfirm(false); });
 
-        btnConfirmIo.addEventListener('click', () => {
-            if (currentIoMode === 'import') {
-                const raw = ioTextarea.value.trim();
-                if (!raw) {
-                    ioError.style.display = 'block';
-                    ioError.style.color = 'var(--danger)';
-                    ioError.textContent = '导入内容不能为空';
-                    return;
-                }
-                try {
-                    const parsed = JSON.parse(raw);
-                    if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('配置应为键值对对象');
-                    
-                    for (const key in parsed) {
-                        if (!Array.isArray(parsed[key]) || parsed[key].length < 5) {
-                            throw new Error(`节点 [${key}] 数据格式不正确`);
-                        }
-                    }
-                    currentConfig = parsed;
-                    renderCanvas();
-                    document.querySelectorAll('.scheme-btn').forEach(b => b.classList.remove('active'));
-                    ioModal.classList.remove('active');
-                } catch (err) {
-                    ioError.style.display = 'block';
-                    ioError.style.color = 'var(--danger)';
-                    ioError.textContent = '导入失败，格式错误: ' + err.message;
-                }
-            } else if (currentIoMode === 'export') {
-                ioTextarea.select();
-                try {
-                    document.execCommand('copy');
-                    ioError.style.color = 'var(--success)';
-                    ioError.textContent = '复制成功！';
-                } catch (err) {
-                    ioError.style.color = 'var(--danger)';
-                    ioError.textContent = '复制失败，请手动全选复制。';
-                }
+            // 容器尺寸变化（窗口缩放、底部信息区换行等）时重新适配画布
+            if ('ResizeObserver' in window) new ResizeObserver(updateScale).observe(dom.main);
+            else window.addEventListener('resize', updateScale);
+        }
+
+        function init() {
+            applyMeta();
+            try {
+                loadAppData();
+            } catch (err) {
+                console.error('数据块加载失败：', err);
+                showFatal('数据加载失败，请检查文件末尾的数据块（app-data）格式。');
+                return;
             }
-        });
+            createSchemeButtons();
+            createSnapLines();
+            bindEvents();
+            updateScale();
+            loadConfig(cloneConfig(schemes[defaultScheme]), defaultScheme);
+        }
 
-        ioModal.addEventListener('click', (e) => {
-            if (e.target === ioModal) {
-                ioModal.classList.remove('active');
-            }
-        });
+        // 数据块位于文件末尾，需等文档解析完成后再启动
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+    })();
+    </script>
 
-        // --- 初始化启动 ---
-        window.onload = () => {
-            resizeCanvas();
-            renderCanvas();
-        };
-
+    <!-- ==================== 数据区 ====================
+         components：控件基础信息，键为控件索引。
+           name    控件名称
+           size    各样式对应的尺寸 [宽, 高]，数组下标即样式号 s
+           fixsize 修正尺寸（可选，样式数量须与 size 一致）；存在时使用 fixsize，否则使用 size
+           desc    说明（可选）
+         schemes：布局方案，每个方案完整列出全部控件，不做继承或省略。
+           条目格式  "索引": [x轴, y轴, s样式, m放大, h显隐]
+           s 样式 0-3（255 表示自动，按样式 0 渲染）；m 放大 0~7；h 显隐 1/0
+           本工具使用 索引、x、y、s；m、h 不使用但导入导出时原样保留 -->
+    <script type="application/json" id="app-data">
+{
+  "defaultScheme": "1",
+  "components": {
+    "1": {"name": "对话UI", "size": [[1130, 280]]},
+    "2": {"name": "BOSS血条", "size": [[1150, 130]]},
+    "3": {"name": "目标血条", "size": [[435, 85]]},
+    "4": {"name": "战斗信息", "size": [[256, 256]]},
+    "5": {"name": "计时器", "size": [[222, 46]]},
+    "6": {"name": "耐久度", "size": [[80, 70]]},
+    "7": {"name": "其他技能快捷栏", "size": [[126, 60]]},
+    "8": {"name": "队友信息", "size": [[320, 362]]},
+    "9": {"name": "任务", "size": [[292, 500]]},
+    "10": {"name": "获取信息", "size": [[320, 160]]},
+    "11": {"name": "疲劳值", "size": [[279, 16]]},
+    "12": {"name": "角色增益", "size": [[364, 165]], "desc": "四角1尺寸左上开始顺时针"},
+    "13": {"name": "角色减益", "size": [[364, 110]], "desc": "四角1尺寸左上开始顺时针"},
+    "14": {"name": "被动技能冷却", "size": [[280, 60]], "desc": "样式～但不变"},
+    "17": {"name": "基本菜单", "size": [[504, 41], [504, 41], [42, 492], [42, 492]], "desc": "4样式2尺寸左右上下"},
+    "19": {"name": "商城菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下"},
+    "20": {"name": "职业特殊能量条", "size": [[280, 70]]},
+    "21": {"name": "角色信息", "size": [[410, 140]]},
+    "22": {"name": "经验值", "size": [[1918, 10]]},
+    "23": {"name": "技能能量条", "size": [[270, 8]]},
+    "24": {"name": "迷你地图", "size": [[315, 333]]},
+    "26": {"name": "频道副本名", "size": [[360, 30]]},
+    "27": {"name": "活动菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下"},
+    "28": {"name": "聊天", "size": [[404, 388]]},
+    "29": {"name": "通知条幅", "size": [[550, 70]]},
+    "30": {"name": "快捷栏1", "size": [[360, 70], [180, 120], [90, 220], [45, 420]], "desc": "4样式4尺寸"},
+    "31": {"name": "快捷栏2", "size": [[360, 50], [180, 100], [90, 200], [45, 400]], "desc": "4样式4尺寸"},
+    "32": {"name": "快捷栏3", "size": [[360, 50], [180, 100], [90, 200], [45, 400]], "desc": "4样式4尺寸"},
+    "33": {"name": "其他通知", "size": [[199, 80]]},
+    "34": {"name": "录像", "size": [[42, 43]]},
+    "35": {"name": "HP", "size": [[362, 30], [65, 120]], "fixsize": [[362, 30], [53, 120]], "desc": "2样式2尺寸；修正待确认1高-7，2宽-12"},
+    "36": {"name": "MP", "size": [[366, 25], [81, 116]], "fixsize": [[366, 25], [53, 120]], "desc": "2样式2尺寸；修正待确认1高-7，2宽-29"},
+    "37": {"name": "EX", "size": [[364, 25]]},
+    "38": {"name": "魔核", "size": [[364, 40]]},
+    "44": {"name": "变身", "size": [[42, 42]]},
+    "45": {"name": "强调菜单", "size": [[480, 50], [480, 50], [48, 500], [48, 500]], "desc": "4样式2尺寸左右上下"},
+    "46": {"name": "伤害统计栏", "size": [[277, 120]], "fixsize": [[277, 190]], "desc": "修正高190"},
+    "47": {"name": "快捷技能预览", "size": [[180, 100]]}
+  },
+  "schemes": {
+    "1": { "label": "方案一", "layout": {
+      "29": [0, 429, 255, 0, 1],
+      "19": [1428, 961, 1, 0, 1],
+      "45": [1428, 856, 1, 0, 1],
+      "33": [1248, 519, 0, 0, 1],
+      "35": [384, 945, 0, 0, 1],
+      "21": [0, 903, 255, 0, 1],
+      "31": [1074, 927, 0, 0, 1],
+      "13": [384, 657, 2, 0, 1],
+      "47": [1161, 751, 1, 0, 1],
+      "11": [13, 1044, 255, 0, 1],
+      "23": [817, 741, 255, 0, 1],
+      "17": [1404, 1020, 1, 0, 1],
+      "37": [384, 993, 255, 0, 1],
+      "27": [1428, 907, 1, 0, 1],
+      "8": [0, 0, 255, 0, 1],
+      "9": [1620, 358, 255, 0, 1],
+      "2": [379, 31, 255, 0, 1],
+      "3": [741, 162, 255, 0, 1],
+      "1": [390, 103, 255, 0, 1],
+      "6": [1503, 273, 255, 0, 1],
+      "7": [1182, 849, 255, 0, 1],
+      "4": [1248, 271, 255, 0, 1],
+      "5": [841, 0, 255, 0, 1],
+      "28": [0, 496, 255, 0, 1],
+      "38": [384, 1020, 255, 0, 1],
+      "36": [384, 969, 0, 0, 1],
+      "30": [1074, 993, 0, 0, 1],
+      "32": [822, 960, 1, 0, 1],
+      "46": [1641, 259, 255, 0, 1],
+      "44": [1329, 859, 255, 0, 1],
+      "20": [813, 756, 255, 0, 1],
+      "12": [384, 768, 3, 0, 1],
+      "22": [0, 1065, 255, 0, 1],
+      "10": [1245, 598, 255, 0, 1],
+      "24": [1596, 21, 255, 0, 1],
+      "34": [1542, 21, 255, 0, 1],
+      "26": [1548, 0, 255, 0, 1],
+      "14": [811, 870, 0, 0, 1]
+    }},
+    "2": { "label": "方案二", "layout": {
+      "29": [0, 432, 255, 0, 1],
+      "19": [1425, 966, 1, 0, 1],
+      "45": [1422, 822, 1, 0, 1],
+      "33": [126, 874, 0, 0, 1],
+      "35": [576, 868, 1, 0, 1],
+      "21": [0, 906, 255, 0, 1],
+      "31": [925, 864, 0, 0, 1],
+      "13": [396, 861, 2, 0, 1],
+      "47": [1167, 768, 1, 0, 1],
+      "11": [15, 1047, 255, 0, 1],
+      "23": [816, 678, 255, 0, 1],
+      "17": [1399, 1020, 1, 0, 1],
+      "37": [774, 777, 255, 0, 1],
+      "27": [1425, 906, 1, 0, 1],
+      "8": [0, 0, 255, 0, 1],
+      "9": [1620, 369, 255, 0, 1],
+      "2": [378, 33, 255, 0, 1],
+      "3": [744, 165, 255, 0, 1],
+      "1": [390, 109, 255, 0, 1],
+      "6": [1511, 276, 255, 0, 1],
+      "7": [1218, 658, 255, 0, 1],
+      "4": [1249, 274, 255, 0, 1],
+      "5": [843, 0, 255, 0, 1],
+      "28": [0, 478, 255, 1, 1],
+      "38": [774, 804, 255, 0, 1],
+      "36": [1344, 868, 1, 0, 1],
+      "30": [925, 907, 0, 0, 1],
+      "32": [678, 876, 1, 0, 1],
+      "46": [1641, 261, 255, 0, 1],
+      "44": [1458, 939, 255, 0, 1],
+      "20": [813, 697, 255, 0, 1],
+      "12": [450, 661, 2, 0, 1],
+      "22": [0, 1063, 255, 0, 1],
+      "10": [1293, 532, 255, 0, 1],
+      "24": [1593, 24, 255, 0, 1],
+      "34": [1545, 25, 255, 0, 1],
+      "26": [1593, 0, 255, 0, 1],
+      "14": [1197, 727, 0, 0, 1]
+    }},
+    "3": { "label": "方案三", "layout": {
+      "29": [0, 603, 255, 0, 1],
+      "19": [0, 184, 0, 0, 1],
+      "45": [1867, 564, 3, 0, 1],
+      "33": [1578, 117, 0, 0, 1],
+      "35": [330, 42, 0, 0, 1],
+      "21": [0, 0, 255, 0, 1],
+      "31": [1245, 942, 1, 0, 1],
+      "13": [1011, 720, 2, 0, 1],
+      "47": [453, 834, 1, 0, 1],
+      "11": [855, 1047, 255, 0, 1],
+      "23": [840, 694, 255, 0, 1],
+      "17": [1872, 0, 2, 0, 1],
+      "37": [330, 81, 255, 0, 1],
+      "27": [0, 135, 0, 0, 1],
+      "8": [0, 237, 255, 0, 1],
+      "9": [1575, 195, 255, 0, 1],
+      "2": [717, 0, 255, 0, 1],
+      "3": [723, 126, 255, 0, 1],
+      "1": [420, 210, 255, 0, 1],
+      "6": [1380, 757, 255, 0, 1],
+      "7": [1141, 894, 255, 0, 1],
+      "4": [1311, 147, 255, 0, 1],
+      "5": [408, 0, 255, 0, 1],
+      "28": [0, 675, 255, 0, 1],
+      "38": [330, 100, 255, 0, 1],
+      "36": [330, 63, 0, 0, 1],
+      "30": [567, 942, 1, 0, 1],
+      "32": [811, 981, 0, 0, 1],
+      "46": [1641, 261, 255, 0, 1],
+      "44": [1323, 906, 255, 0, 1],
+      "20": [810, 897, 255, 0, 1],
+      "12": [648, 729, 3, 0, 1],
+      "22": [0, 1066, 255, 0, 1],
+      "10": [429, 280, 255, 0, 1],
+      "24": [1554, 696, 255, 0, 1],
+      "34": [1494, 697, 255, 0, 1],
+      "26": [1506, 1032, 255, 0, 1],
+      "14": [1011, 831, 0, 0, 1]
+    }}
+  }
+}
     </script>
 </body>
 </html>
