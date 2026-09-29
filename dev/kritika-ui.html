@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 元数据仅在此处维护；<title> 与页面上的名称、版本号由脚本启动时读取 -->
     <meta name="name" content="KritikaUI">
-    <meta name="version" content="1.3.1">
+    <meta name="version" content="1.3.4">
     <meta name="author" content="Hrimyx">
     <title></title>
 
@@ -82,11 +82,6 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-        }
-
-        :focus-visible {
-            outline: 2px solid var(--brand-primary);
-            outline-offset: 2px;
         }
 
         /* ---------- 按钮 ---------- */
@@ -213,6 +208,7 @@
             touch-action: none;
         }
         .ui-element:active { cursor: grabbing; }
+        .ui-element:focus { outline: none; } /* 拖拽会使控件获得浏览器默认焦点框，此处禁用，避免遮挡边界判断 */
 
         /* 标签层：独立于控件之上，避免被其他控件遮挡；位置由脚本自动错位 */
         #labels-layer {
@@ -233,6 +229,7 @@
             padding: 2px 6px;
             white-space: nowrap;
             z-index: 1;
+            box-shadow: 0 1px 3px color-mix(in srgb, var(--brand-dark) 25%, transparent);
             transform: scale(var(--inv-scale, 1));
             transform-origin: left top;
             pointer-events: auto;
@@ -451,8 +448,8 @@
             <button type="button" class="btn" id="btn-export">导出</button>
         </div>
         <h1 class="header-title">
-            <span id="name"></span>
-            <span class="version-badge" id="version"></span>
+            <span id="app-name"></span>
+            <span class="version-badge" id="app-version"></span>
         </h1>
         <!-- 方案按钮由脚本根据数据块生成 -->
         <div class="header-group" id="scheme-group" role="group" aria-label="布局方案"></div>
@@ -547,7 +544,7 @@
             importMaxChars: 200000, // 导入内容最大字符数
             historyMax: 100,        // 撤销栈最大深度
             arrowMergeMs: 600,      // 连续方向键微调合并为一步的时间窗口
-            labelMaxLevels: 40,     // 标签错位的最大层数
+            labelLocalSteps: 3,     // 标签就近避让的最大尝试次数（保持位移局限在控件附近）
             toastMs: 2000
         };
         const Z_BASE = 100;
@@ -581,7 +578,7 @@
         const $ = (id) => document.getElementById(id);
         const dom = {
             main: $('main-container'), canvas: $('canvas'), guides: $('guides-layer'), labels: $('labels-layer'),
-            appName: $('name'), appVersion: $('version'), schemeGroup: $('scheme-group'),
+            appName: $('app-name'), appVersion: $('app-version'), schemeGroup: $('scheme-group'),
             infoId: $('info-id'), infoName: $('info-name'), infoX: $('info-x'), infoY: $('info-y'),
             infoStyle: $('info-style'), infoSize: $('info-size'), infoDesc: $('info-desc'), infoError: $('info-error'),
             btnUndo: $('btn-undo'), btnRedo: $('btn-redo'), btnMeasure: $('btn-measure-mode'),
@@ -1078,42 +1075,77 @@
             dom.guides.append(line, label);
         }
 
-        // 标签自动错位：选中/测量目标优先占位；其余标签依次避让已放置的标签
-        // 优先放在控件上方并逐层上移；上方放不下（越出画布顶部）时改放在控件内部自顶向下
+        // 标签定位：默认贴在所属控件内部左上角；仅当装不下或与“确实重叠”的相邻控件的标签
+        // 互相遮挡时，才在控件正上方/正下方就近避让，避让幅度限制在控件附近，不做远距离级联位移。
+        // 优先级：选中 > 测量目标 > 其余（按原顺序）。
         function layoutLabels() {
             if (!state.config) return;
             const inv = 1 / state.scale;
-            const order = [];
-            [state.selectedId, state.measuredId].forEach((id) => { if (id && labels.has(id)) order.push(id); });
-            labels.forEach((_, id) => { if (!order.includes(id)) order.push(id); });
+            const inset = 3 * inv;
+            const ids = Object.keys(state.config).filter((id) => labels.has(id));
 
-            const placed = [];
+            const rects = {};
+            ids.forEach((id) => { rects[id] = getRect(id); });
+
+            // 仅记录控件本身几何重叠的“邻居”，避让判断只在邻居之间进行，避免与无关控件比较导致远距离位移
+            const neighbors = {};
+            ids.forEach((id) => { neighbors[id] = []; });
+            for (let i = 0; i < ids.length; i++) {
+                for (let j = i + 1; j < ids.length; j++) {
+                    const a = ids[i], b = ids[j], ra = rects[a], rb = rects[b];
+                    if (ra.l < rb.r && rb.l < ra.r && ra.t < rb.b && rb.t < ra.b) {
+                        neighbors[a].push(b);
+                        neighbors[b].push(a);
+                    }
+                }
+            }
+
+            const order = [];
+            [state.selectedId, state.measuredId].forEach((id) => { if (id && labels.has(id) && !order.includes(id)) order.push(id); });
+            ids.forEach((id) => { if (!order.includes(id)) order.push(id); });
+
+            const placed = new Map();
+            const overlapsPlacedNeighbor = (id, x, y, w, h) => neighbors[id].some((nb) => {
+                const p = placed.get(nb);
+                return p && x < p.x + p.w && p.x < x + w && y < p.y + p.h && p.y < y + h;
+            });
+            const fit = (x, y, w, h) => ({
+                x: clamp(x, 0, Math.max(0, CANVAS.width - w)),
+                y: clamp(y, 0, Math.max(0, CANVAS.height - h))
+            });
+
             order.forEach((id) => {
                 const lb = labels.get(id);
                 const w = lb.w * inv, h = lb.h * inv;
-                const [ex, top] = state.config[id];
-                const x = clamp(ex, 0, Math.max(0, CANVAS.width - w));
-                const collides = (y) => placed.some((p) => x < p.x + p.w && p.x < x + w && y < p.y + p.h && p.y < y + h);
+                const r = rects[id];
+                const fitsInside = w <= (r.r - r.l) - inset * 2 && h <= (r.b - r.t) - inset * 2;
 
-                let y = null;
-                for (let k = 0; k < LIMITS.labelMaxLevels; k++) {
-                    const cy = top - h * (k + 1);
-                    if (cy < 0) break;
-                    if (!collides(cy)) { y = cy; break; }
+                // 候选位置：内嵌左上角（若装得下）> 控件正上方 > 控件正下方
+                const candidates = [];
+                if (fitsInside) candidates.push({ x: r.l + inset, y: r.t + inset });
+                candidates.push({ x: r.l, y: r.t - h });
+                candidates.push({ x: r.l, y: r.b });
+
+                let chosen = null;
+                for (const c of candidates) {
+                    const p = fit(c.x, c.y, w, h);
+                    if (!overlapsPlacedNeighbor(id, p.x, p.y, w, h)) { chosen = p; break; }
                 }
-                if (y === null) {
-                    for (let k = 0; k < LIMITS.labelMaxLevels; k++) {
-                        const cy = top + h * k;
-                        if (!collides(cy)) { y = cy; break; }
+                if (!chosen) {
+                    // 就近微调：在首选候选位置附近小幅下移若干次，位移始终局限在控件本身范围内
+                    const base = candidates[0];
+                    for (let k = 1; k <= LIMITS.labelLocalSteps && !chosen; k++) {
+                        const p = fit(base.x, base.y + h * k, w, h);
+                        if (!overlapsPlacedNeighbor(id, p.x, p.y, w, h)) chosen = p;
                     }
+                    if (!chosen) chosen = fit(base.x, base.y, w, h); // 仍冲突则接受轻微重叠，不再继续远移
                 }
-                if (y === null) y = Math.max(0, top - h);
 
-                placed.push({ x, y, w, h });
-                if (lb.x !== x || lb.y !== y) {
-                    lb.node.style.left = x + 'px';
-                    lb.node.style.top = y + 'px';
-                    lb.x = x; lb.y = y;
+                placed.set(id, { x: chosen.x, y: chosen.y, w, h });
+                if (lb.x !== chosen.x || lb.y !== chosen.y) {
+                    lb.node.style.left = chosen.x + 'px';
+                    lb.node.style.top = chosen.y + 'px';
+                    lb.x = chosen.x; lb.y = chosen.y;
                 }
             });
         }
@@ -1678,8 +1710,8 @@
       "5": [408, 0, 255, 0, 1],
       "28": [0, 675, 255, 0, 1],
       "38": [330, 100, 255, 0, 1],
-      "36": [330, 63, 0, 0, 1],
       "30": [567, 942, 1, 0, 1],
+      "36": [330, 63, 0, 0, 1],
       "32": [811, 981, 0, 0, 1],
       "46": [1641, 261, 255, 0, 1],
       "44": [1323, 906, 255, 0, 1],
