@@ -1,0 +1,2598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="name" content="淮矿培训">
+  <meta name="version" content="1.18.0">
+  <meta name="author" content="Hrimyx">
+  <title>淮矿培训</title>
+  <style>
+    :root {
+      --brand-primary: #1A6AFF;
+      --brand-light: #78A2F8;
+      --brand-dark: #0D3B8C;
+      --on-brand: #FFFFFF;
+      --accent-cyan: #18B8D8;
+      --success: #0B9468;
+      --warning: #C77A08;
+      --danger: #D0445A;
+      --bg: #F7F9FC;
+      --surface: #FFFFFF;
+      --surface-alt: #EBEEF5;
+      --border: #D0D7E5;
+      --text: #1A202C;
+      --text-secondary: #4A5568;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0A0F1A;
+        --surface: #141C2B;
+        --surface-alt: #1F2A3F;
+        --border: #2C3A54;
+        --text: #E2E8F0;
+        --text-secondary: #A0B0C8;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .62; }
+
+    .app-shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .top-fixed-shell {
+      position: sticky;
+      top: 0;
+      z-index: 70;
+      padding: 10px 0 9px;
+      margin-top: -28px;
+      background: color-mix(in srgb, var(--bg) 94%, transparent);
+      backdrop-filter: blur(10px);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 8px;
+    }
+
+    .brand-block { min-width: 0; }
+    .brand-title {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 30px);
+      letter-spacing: -.02em;
+    }
+    .brand-meta {
+      margin-top: 6px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .account-area { display: flex; align-items: center; gap: 9px; }
+    .account-name { color: var(--text); font-size: 14px; font-weight: 650; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      padding: 8px 11px;
+      border-radius: 999px;
+      white-space: nowrap;
+      font-size: 13px;
+      appearance: none;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--warning);
+    }
+    .status-chip.ready .status-dot { background: var(--success); }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(13, 59, 140, .05);
+    }
+
+    .login-panel {
+      max-width: 480px;
+      margin: 60px auto 0;
+      padding: 26px;
+    }
+    .panel-title { margin: 0; font-size: 20px; }
+    .panel-subtitle { margin: 7px 0 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+
+    .form-grid {
+      display: grid;
+      gap: 14px;
+      margin-top: 22px;
+    }
+    .field { display: grid; gap: 7px; }
+    .field label { font-size: 14px; font-weight: 600; }
+    .field input {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 10px;
+      min-height: 44px;
+      padding: 10px 12px;
+      outline: none;
+    }
+    .field input:focus {
+      border-color: var(--brand-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 16%, transparent);
+    }
+    .field-hint { color: var(--text-secondary); font-size: 12px; }
+
+    .primary-button,
+    .secondary-button,
+    .ghost-button {
+      min-height: 42px;
+      border-radius: 10px;
+      padding: 9px 15px;
+      border: 1px solid transparent;
+      transition: background-color .15s ease, border-color .15s ease, transform .05s ease;
+    }
+    .primary-button {
+      background: var(--brand-primary);
+      color: var(--on-brand);
+    }
+    .primary-button:hover { background: var(--brand-dark); }
+    .primary-button:active, .secondary-button:active, .ghost-button:active { transform: translateY(1px); }
+    .secondary-button {
+      background: var(--surface-alt);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .secondary-button:hover { border-color: var(--brand-primary); }
+    .ghost-button {
+      background: transparent;
+      color: var(--brand-primary);
+      border-color: var(--border);
+    }
+    .ghost-button:hover { background: var(--surface-alt); }
+
+    .notice {
+      margin-top: 14px;
+      min-height: 42px;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.55;
+      display: none;
+    }
+    .notice.show { display: block; }
+    .notice.error { background: color-mix(in srgb, var(--danger) 9%, var(--surface)); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--border)); }
+    .notice.success { background: color-mix(in srgb, var(--success) 8%, var(--surface)); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 22%, var(--border)); }
+    .notice.info { background: color-mix(in srgb, var(--brand-primary) 7%, var(--surface)); color: var(--text-secondary); border: 1px solid var(--border); }
+
+    .hidden { display: none !important; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      margin-bottom: 0;
+    }
+    .stat-card { padding: 6px 9px; }
+    .stat-card .stat-label { margin-bottom: 0; }
+    .stat-card .stat-value { gap: 4px; margin-top: 1px; line-height: 1.05; }
+    .stat-card .stat-foot { margin-top: 0; font-size: 11px; line-height: 1.25; }
+    .stat-label-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .icon-button { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text-secondary); cursor:pointer; font-size:17px; line-height:1; }
+    .icon-button:hover { border-color:var(--brand-primary); color:var(--brand-primary); }
+    .icon-button:disabled { opacity:.55; cursor:not-allowed; }
+    .stat-label { color: var(--text-secondary); font-size: 13px; }
+    .stat-value { font-size: clamp(18px, 2.4vw, 22px); font-weight: 760; letter-spacing: -.03em; }
+    .stat-unit { font-size: 11px; color: var(--text-secondary); margin-left: 3px; font-weight: 500; }
+    .stat-foot { margin-top: 5px; color: var(--text-secondary); font-size: 12px; }
+    .integral-value { display: inline-flex; align-items: baseline; gap: 2px; white-space: nowrap; }
+    .integral-usable { font-size: inherit; font-weight: 760; }
+    .integral-total { font-size: .72em; font-weight: 650; color: var(--text-secondary); }
+    .integral-separator { font-size: .82em; color: var(--text-secondary); font-weight: 500; margin: 0 1px; }
+    .integral-usable-unit { font-size: 1em; color: var(--text-secondary); font-weight: 500; }
+    .integral-total-unit { font-size: .72em; color: var(--text-secondary); font-weight: 500; }
+
+    .content-grid {
+      display: grid;
+      gap: 12px;
+      padding-bottom: 406px;
+    }
+    .plan-panel { padding: 16px; }
+    .plan-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .stat-card-link { cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+    .stat-card-link:hover { border-color: color-mix(in srgb, var(--brand-primary) 42%, var(--border)); background: color-mix(in srgb, var(--brand-primary) 3%, var(--surface)); }
+    .stat-card-link:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+    .stat-card-link .icon-button { cursor: pointer; }
+
+    .study-dock {
+      position: fixed;
+      z-index: 80;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      width: min(1180px, calc(100% - 32px));
+      display: grid;
+      grid-template-rows: 230px 158px;
+      gap: 0;
+      pointer-events: none;
+    }
+    .study-dock > .panel { pointer-events: auto; min-height: 0; }
+
+    .section-panel { padding: 20px; }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .section-title { margin: 0; font-size: 17px; }
+    .section-note { margin: 0; color: var(--text-secondary); font-size: 12px; }
+
+    .plan-list, .stage-list, .ware-list { display: grid; gap: 10px; }
+    .empty-state {
+      padding: 24px 12px;
+      text-align: center;
+      color: var(--text-secondary);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    .plan-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .plan-main {
+      width: 100%;
+      border: 0;
+      padding: 14px 15px;
+      display: grid;
+      gap: 5px;
+      text-align: left;
+      background: transparent;
+      color: var(--text);
+    }
+    .plan-main:hover { background: var(--surface-alt); }
+    .plan-title-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .plan-name { font-weight: 700; line-height: 1.45; }
+    .plan-percent { color: var(--brand-primary); font-size: 13px; font-weight: 700; white-space: nowrap; }
+    .progress-track {
+      height: 8px;
+      border-radius: 999px;
+      background: var(--surface-alt);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--brand-primary);
+      width: 0;
+      transition: width .2s ease;
+    }
+    .plan-meta { color: var(--text-secondary); font-size: 12px; }
+    .plan-detail {
+      padding: 0 0 12px;
+      border-top: 1px solid var(--border);
+      display: grid;
+      gap: 12px;
+    }
+    .plan-detail .stage-list {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 0 0 3px;
+      scrollbar-width: thin;
+    }
+
+    .stage-card {
+      flex: 0 0 auto;
+      min-width: 108px;
+      padding: 3px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--surface-alt) 36%, var(--surface));
+    }
+    .stage-card.active {
+      border-color: var(--brand-primary);
+      background: color-mix(in srgb, var(--brand-primary) 8%, var(--surface));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 18%, transparent);
+    }
+    .stage-head {
+      width: 100%;
+      min-height: 34px;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      align-items: center;
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 6px;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+    }
+    .stage-head:hover { background: var(--surface-alt); }
+    .stage-name { font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .stage-process { color: var(--text-secondary); font-size: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .stage-head-main { min-width: 0; display: flex; align-items: center; gap: 4px; }
+    .stage-chevron { color: var(--text-secondary); font-size: 10px; width: 10px; text-align: center; }
+    .course-list { display: grid; gap: 7px; margin-top: 2px; padding: 0 0 4px; }
+    .course-button {
+      position: relative;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--text);
+      text-align: left;
+      padding: 10px 11px;
+    }
+    .course-button:hover { border-color: var(--brand-primary); }
+    .course-button.active {
+      border-color: var(--brand-primary);
+      background: color-mix(in srgb, var(--brand-primary) 15%, var(--surface));
+      box-shadow: inset 5px 0 0 var(--brand-primary), 0 0 0 2px color-mix(in srgb, var(--brand-primary) 24%, transparent);
+      outline: 1px solid color-mix(in srgb, var(--brand-primary) 32%, transparent);
+      outline-offset: 1px;
+    }
+    .course-button.active .course-title::before {
+      content: '✓';
+      display: inline-block;
+      margin-right: 6px;
+      color: var(--brand-primary);
+      font-weight: 800;
+    }
+    .course-button.active .course-title { font-weight: 760; }
+    .course-button.in-progress .course-progress { color: var(--brand-primary); }
+    .course-button.done { background: color-mix(in srgb, var(--success) 8%, var(--surface)); border-color: color-mix(in srgb, var(--success) 28%, var(--border)); }
+    .course-button.done.active {
+      background: color-mix(in srgb, var(--brand-primary) 10%, var(--success) 7%, var(--surface));
+      border-color: var(--brand-primary);
+      box-shadow: inset 4px 0 0 var(--brand-primary), 0 0 0 2px color-mix(in srgb, var(--brand-primary) 18%, transparent);
+    }
+    .course-title { font-size: 13px; line-height: 1.45; }
+    .course-progress { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+
+
+    .study-panel {
+      position: relative;
+      width: 100%;
+      height: 158px;
+      padding: 9px 14px 10px;
+      border-radius: 14px 14px 0 0;
+      box-shadow: 0 -8px 26px rgba(13, 59, 140, .13);
+      overflow: hidden;
+    }
+    .study-console-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+    .study-console-body { margin-top: 7px; }
+    .study-course-line { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+    .study-course-line .study-title, .study-course-line .ware-current-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .study-empty-inline { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+    .study-notice-toast { position: fixed; left: 50%; bottom: 118px; transform: translateX(-50%); width: min(620px, calc(100vw - 32px)); z-index: 90; box-shadow: 0 8px 24px rgba(13, 59, 140, .14); }
+    .ware-panel { height: 230px; overflow: hidden; }
+    .ware-panel-head {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .ware-panel-head .section-title { flex: 0 0 auto; }
+    .ware-course-caption {
+      min-width: 0;
+      margin-left: auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 620;
+      text-align: right;
+    }
+    .ware-list { height: calc(100% - 44px); overflow: auto; padding-right: 3px; }
+    .study-title { margin: 0; font-size: 18px; line-height: 1.45; }
+    .study-hero {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 13px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+    }
+    .ware-current-title { margin-top: 4px; color: var(--text-secondary); font-weight: 650; line-height: 1.35; font-size: 12px; }
+    .study-time-line { display: flex; justify-content: space-between; gap: 10px; margin-top: 11px; color: var(--text-secondary); font-size: 13px; }
+    .study-time-value { color: var(--text); font-weight: 700; white-space: nowrap; }
+    .study-progress-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+    .study-progress-track { flex: 1; min-width: 0; height: 10px; border: 1px solid var(--border); }
+    .study-progress-fill { background: var(--accent-cyan); }
+    .study-progress-percent { min-width: 38px; text-align: right; color: var(--text-secondary); font-size: 12px; font-weight: 650; }
+    .study-actions { margin-top: 11px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .study-actions .primary-button,
+    .study-actions .secondary-button,
+    .study-actions .ghost-button { min-height: 30px; padding: 5px 9px; border-radius: 7px; font-size: 11px; }
+
+    .ware-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: stretch;
+      min-height: 0;
+      border: 1px solid transparent;
+      border-bottom: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 6px 8px;
+    }
+    .ware-item:last-child { border-bottom: 0; }
+    .ware-item.active {
+      border-color: var(--brand-primary);
+      background: color-mix(in srgb, var(--brand-primary) 15%, var(--surface));
+      box-shadow: inset 5px 0 0 var(--brand-primary), 0 0 0 2px color-mix(in srgb, var(--brand-primary) 23%, transparent);
+      outline: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+      outline-offset: 1px;
+    }
+    .ware-item.active .ware-name::before {
+      content: '✓';
+      display: inline-block;
+      margin-right: 6px;
+      color: var(--brand-primary);
+      font-weight: 800;
+    }
+    .ware-item.active .ware-name { font-weight: 760; }
+    .ware-item.done { background: color-mix(in srgb, var(--success) 8%, var(--surface)); border-color: color-mix(in srgb, var(--success) 25%, var(--border)); }
+    .ware-item.done.active {
+      background: color-mix(in srgb, var(--brand-primary) 10%, var(--success) 7%, var(--surface));
+      border-color: var(--brand-primary);
+      box-shadow: inset 4px 0 0 var(--brand-primary), 0 0 0 2px color-mix(in srgb, var(--brand-primary) 16%, transparent);
+    }
+
+    .ware-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.45; align-self: center; }
+    .ware-sub { display: none; }
+    .ware-status {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      align-self: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 2px 5px;
+      font-size: 10px;
+      line-height: 1.2;
+      color: var(--text-secondary);
+    }
+    .badge.active { color: var(--brand-primary); border-color: var(--brand-primary); }
+    .badge.done { color: var(--success); border-color: var(--success); }
+    .ware-duration { color: var(--text-secondary); font-size: 10px; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .study-console-tools { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .switch-control { display: inline-flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 11px; white-space: nowrap; user-select: none; cursor: pointer; }
+    .switch-control input { position: absolute; opacity: 0; pointer-events: none; }
+    .switch-track { width: 34px; height: 20px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); padding: 2px; display: inline-flex; align-items: center; transition: background-color .15s ease, border-color .15s ease; }
+    .switch-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.18); transform: translateX(0); transition: transform .15s ease; }
+    .switch-control input:checked + .switch-track { background: var(--brand-primary); border-color: var(--brand-primary); }
+    .switch-control input:checked + .switch-track .switch-thumb { transform: translateX(14px); }
+    .switch-control input:focus-visible + .switch-track { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+
+    .feature-view { padding: 12px 0 40px; min-height: calc(100vh - 95px); }
+    .feature-view-inner { width: 100%; display: grid; gap: 12px; }
+    .feature-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+    .back-button, .text-button { border: 0; background: transparent; color: var(--brand-primary); padding: 7px 5px; border-radius: 8px; font-size: 13px; }
+    .back-button:hover, .text-button:hover { background: var(--surface-alt); }
+    .feature-title { margin: 0; font-size: 20px; }
+    .feature-subtitle { margin-top: 2px; color: var(--text-secondary); font-size: 12px; }
+    .exchange-summary-grid { display: grid; grid-template-columns: minmax(180px, 1fr); gap: 10px; }
+    .feature-stat { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 12px 14px; display: flex; align-items: baseline; gap: 5px; }
+    .feature-stat span { color: var(--text-secondary); font-size: 12px; }
+    .feature-stat strong { margin-left: auto; font-size: 18px; }
+    .feature-stat small { color: var(--text-secondary); font-size: 10px; }
+    .feature-section { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 13px; }
+    .feature-section-head, .record-column-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .feature-section-head h3, .record-column-head h3 { margin: 0; font-size: 14px; }
+    .exchange-node-list { display: grid; gap: 8px; }
+    .exchange-node { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 10px 11px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+    .exchange-node.selected { border-color: var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 8%, var(--surface)); box-shadow: inset 3px 0 0 var(--brand-primary); }
+    .exchange-node-title { font-size: 13px; font-weight: 680; line-height: 1.4; }
+    .exchange-node-meta { margin-top: 3px; color: var(--text-secondary); font-size: 11px; }
+    .exchange-node-action { min-width: 78px; }
+    .exchange-selected { min-height: 40px; border: 1px dashed var(--border); border-radius: 9px; padding: 10px; color: var(--text-secondary); font-size: 12px; }
+    .exchange-code-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 8px; }
+    .exchange-code-row input { min-height: 38px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 9px; padding: 8px 10px; outline: none; }
+    .exchange-code-row input:focus { border-color: var(--brand-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 13%, transparent); }
+    .exchange-submit-button { width: 100%; margin-top: 8px; }
+    .exchange-history { display: grid; gap: 6px; max-height: 230px; overflow: auto; }
+    .exchange-history-item { padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .exchange-history-title { font-size: 12px; font-weight: 650; }
+    .exchange-history-meta { margin-top: 3px; color: var(--text-secondary); font-size: 10px; }
+    .exchange-history-points { color: var(--success); font-size: 13px; font-weight: 760; }
+    .record-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .record-column { min-width: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 13px; }
+    .record-column-head span { color: var(--text-secondary); font-size: 11px; }
+    .record-list { display: grid; gap: 7px; max-height: 520px; overflow: auto; }
+    .record-item { border: 1px solid var(--border); border-radius: 9px; padding: 9px 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .record-title { font-size: 12px; font-weight: 650; line-height: 1.4; }
+    .record-meta { margin-top: 3px; color: var(--text-secondary); font-size: 10px; line-height: 1.4; }
+    .record-points { font-size: 13px; font-weight: 760; align-self: start; }
+    .record-points.positive { color: var(--success); }
+    .record-points.negative { color: var(--danger); }
+
+    .loader {
+      width: 14px;
+      height: 14px;
+      border: 2px solid color-mix(in srgb, var(--on-brand) 38%, transparent);
+      border-top-color: var(--on-brand);
+      border-radius: 50%;
+      display: inline-block;
+      vertical-align: -2px;
+      animation: spin .7s linear infinite;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .footer {
+      margin-top: 18px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    @media (max-width: 900px) {
+    }
+    @media (max-width: 620px) {
+      .app-shell { width: min(100% - 20px, 1180px); padding-top: 16px; }
+      .top-fixed-shell { margin-top: -16px; padding-top: 8px; padding-bottom: 7px; }
+      .topbar { gap: 8px; margin-bottom: 6px; }
+      .brand-title { font-size: 20px; }
+      .brand-meta { display: none; }
+      .account-area { gap: 6px; }
+      .account-name { max-width: 92px; font-size: 12px; }
+      .status-chip { padding: 6px 8px; font-size: 12px; gap: 5px; }
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .stat-card { padding: 5px 7px; }
+      .stat-label { font-size: 11px; }
+      .stat-value { font-size: 17px; }
+      .stat-unit, .integral-total-unit { font-size: 9px; }
+      .integral-total { font-size: .66em; }
+      .icon-button { width: 26px; height: 26px; font-size: 15px; }
+      .panel { border-radius: 13px; }
+      .login-panel, .section-panel { padding: 16px; }
+      .content-grid { padding-bottom: 355px; }
+      .plan-panel { padding: 12px; }
+      .plan-list { grid-template-columns: 1fr; gap: 10px; }
+      .plan-detail .stage-list { gap: 5px; padding-bottom: 2px; }
+      .stage-card { min-width: 88px; }
+      .stage-head { min-height: 32px; padding: 4px 5px; }
+      .stage-name { font-size: 11px; }
+      .stage-process { font-size: 9px; }
+      .stage-chevron { font-size: 9px; width: 9px; }
+      .study-dock { width: min(100% - 20px, 1180px); grid-template-rows: 185px 155px; gap: 0; }
+      .ware-panel { height: 185px; }
+      .study-panel { height: 155px; padding: 8px 10px 9px; border-radius: 12px 12px 0 0; }
+      .study-console-head { gap: 8px; }
+      .study-console-tools { gap: 7px; }
+      .switch-control { font-size: 10px; gap: 5px; }
+      .switch-track { width: 32px; height: 19px; }
+      .switch-thumb { width: 13px; height: 13px; }
+      .switch-control input:checked + .switch-track .switch-thumb { transform: translateX(13px); }
+      .study-title { font-size: 14px; }
+      .study-empty-inline { font-size: 10px; }
+      .study-console-body { margin-top: 5px; }
+      .study-course-line { gap: 8px; }
+      .study-course-line .study-title { font-size: 13px; }
+      .ware-current-title { font-size: 11px; }
+      .ware-item { min-height: 0; padding: 5px 6px; }
+      .ware-duration { font-size: 9px; }
+      .ware-status { gap: 5px; }
+      .study-time-line { margin-top: 5px; font-size: 11px; }
+      .study-progress-row { margin-top: 5px; }
+      .study-actions { margin-top: 6px; }
+      .study-notice-toast { bottom: 166px; width: min(560px, calc(100vw - 20px)); }
+      .feature-view { padding-top: 8px; }
+      .feature-title { font-size: 18px; }
+      .feature-subtitle { font-size: 11px; }
+      .feature-head { gap: 8px; }
+      .feature-section { padding: 11px; }
+      .exchange-summary-grid, .record-columns { grid-template-columns: 1fr; }
+      .record-list { max-height: 310px; }
+    }
+  
+/* 1.18.0 layout refinements */
+.login-panel .panel-title {
+  text-align: center;
+}
+.plan-detail .stage-list.stage-list-equal {
+  display: grid;
+  grid-template-columns: repeat(var(--stage-count, 3), minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+.plan-detail .stage-list.stage-list-equal .stage-card {
+  min-width: 0;
+  width: 100%;
+  flex: none;
+  box-sizing: border-box;
+}
+.ware-list-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-x: hidden;
+}
+.ware-list-compact .ware-item {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  height: auto;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+.ware-list-compact .ware-name {
+  min-width: 0;
+  max-width: 100%;
+}
+.ware-list-compact .ware-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: max-content;
+}
+.ware-list-compact .ware-duration,
+.ware-list-compact .badge {
+  font-size: 10px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .plan-detail .stage-list.stage-list-equal {
+    gap: 5px;
+  }
+  .plan-detail .stage-list.stage-list-equal .stage-card {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .ware-list-compact {
+    gap: 3px;
+  }
+  .ware-list-compact .ware-item {
+    padding: 5px 6px;
+  }
+  .ware-list-compact .ware-status {
+    gap: 5px;
+  }
+  .ware-list-compact .ware-duration,
+  .ware-list-compact .badge {
+    font-size: 9px;
+  }
+}
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="top-fixed-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <h1 class="brand-title" id="tool-title">淮矿培训</h1>
+          <div class="brand-meta"><span id="tool-version"></span> · Hrimyx</div>
+        </div>
+        <div class="account-area">
+          <span class="account-name" id="user-name-top"></span>
+          <button class="status-chip" id="status-chip" type="button" aria-label="登录状态"><span class="status-dot"></span><span id="status-text">未登录</span></button>
+        </div>
+      </header>
+
+      <section class="summary-grid hidden" id="summary-grid" aria-label="学习统计">
+        <div class="panel stat-card stat-card-link" id="study-stat-card" role="button" tabindex="0" aria-label="打开兑换积分页面">
+          <div class="stat-label stat-label-row"><span id="month-label">本月学习时长</span><button class="icon-button" id="refresh-study-info" type="button" title="刷新学习时长" aria-label="刷新学习时长">↻</button></div>
+          <div class="stat-value"><span id="study-duration">—</span><span class="stat-unit">分钟</span></div>
+        </div>
+        <div class="panel stat-card stat-card-link" id="integral-stat-card" role="button" tabindex="0" aria-label="打开积分获取页面">
+          <div class="stat-label stat-label-row"><span>积分（可用 / 总计）</span><button class="icon-button" id="refresh-integral" type="button" title="刷新积分" aria-label="刷新积分">↻</button></div>
+          <div class="stat-value integral-value"><span class="integral-usable" id="usable-integral">—</span><span class="integral-usable-unit">分</span><span class="integral-separator">/</span><span class="integral-total" id="total-integral">—</span><span class="integral-total-unit">分</span></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel login-panel" id="login-view">
+      <h2 class="panel-title">登录</h2>
+      <form class="form-grid" id="login-form" novalidate>
+        <div class="field">
+          <label for="username">账号</label>
+          <input id="username" name="username" autocomplete="username" required placeholder="请输入账号">
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码">
+        </div>
+        <div class="field">
+          <label for="domain">企业域</label>
+          <input id="domain" name="domain" value="hbky" required placeholder="例如 hbky">
+        </div>
+        <button class="primary-button" id="login-button" type="submit">登录</button>
+      </form>
+      <div class="notice" id="login-notice"></div>
+    </section>
+
+    <main id="dashboard-view" class="hidden">
+      <section class="content-grid">
+        <div class="panel section-panel">
+          <div class="section-head">
+            <div>
+              <h3 class="section-title">学习计划</h3>
+            </div>
+            <button class="icon-button" id="refresh-plans" type="button" title="刷新学习计划" aria-label="刷新学习计划">↻</button>
+          </div>
+          <div class="plan-list" id="plan-list">
+            <div class="empty-state">正在加载学习计划…</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="study-dock" id="study-dock">
+        <section class="panel section-panel ware-panel" id="ware-panel">
+          <div class="section-head ware-panel-head">
+            <h3 class="section-title">课件</h3>
+            <div class="ware-course-caption" id="ware-course-caption">请选择课程</div>
+          </div>
+          <div class="ware-list ware-list-compact" id="ware-list"><div class="empty-state">选择课程后显示课件</div></div>
+        </section>
+
+        <section class="panel study-panel" id="study-panel" aria-live="polite">
+          <div class="study-console-head">
+            <h3 class="section-title">学习控制台</h3>
+            <div class="study-console-tools">
+              <div id="study-empty" class="study-empty-inline">请选择课程课件</div>
+              <label class="switch-control" for="auto-study-toggle" title="按课程课件顺序连续学习，跳过已完成课件">
+                <span>连续学习</span>
+                <input id="auto-study-toggle" type="checkbox" aria-label="连续学习">
+                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <div id="study-content" class="hidden">
+            <div class="study-console-body">
+              <div class="study-course-line">
+                <h4 class="study-title" id="study-course-title">—</h4>
+                <div class="ware-current-title" id="study-ware-title">—</div>
+              </div>
+              <div class="study-time-line"><span>当前学习时长</span><strong class="study-time-value" id="session-time-display">00:00 / 00:00</strong></div>
+              <div class="study-progress-row">
+                <div class="progress-track study-progress-track"><div class="progress-fill study-progress-fill" id="study-progress-fill"></div></div>
+                <span class="study-progress-percent" id="session-progress-text">0%</span>
+              </div>
+              <div class="notice study-notice-toast" id="study-notice"></div>
+              <div class="study-actions">
+                <button class="primary-button" id="start-study-button" type="button" disabled>开始学习</button>
+                <button class="secondary-button" id="pause-study-button" type="button" disabled>暂停</button>
+                <button class="ghost-button" id="sync-study-button" type="button" disabled>同步进度</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <section class="feature-view hidden" id="exchange-view" aria-labelledby="exchange-title">
+      <div class="feature-view-inner">
+        <div class="feature-head">
+          <button class="back-button" id="exchange-back" type="button">‹ 返回</button>
+          <div>
+            <h2 class="feature-title" id="exchange-title">兑换积分</h2>
+            <div class="feature-subtitle">学习时长兑换培训积分</div>
+          </div>
+          <button class="icon-button" id="refresh-exchange" type="button" title="刷新兑换信息" aria-label="刷新兑换信息">↻</button>
+        </div>
+
+        <div class="exchange-summary-grid">
+          <div class="feature-stat exchange-duration-stat"><span>当前学习时长</span><strong id="exchange-duration">—</strong><small>分钟</small></div>
+        </div>
+
+        <div class="feature-section">
+          <div class="feature-section-head"><h3>可兑换项目</h3></div>
+          <div class="exchange-node-list" id="exchange-node-list"><div class="empty-state">正在加载兑换规则…</div></div>
+        </div>
+
+        <div class="feature-section exchange-form-section">
+          <div class="feature-section-head"><h3>确认兑换</h3></div>
+          <div class="exchange-selected" id="exchange-selected">请选择可兑换项目</div>
+          <div class="exchange-code-row">
+            <input id="exchange-sms-code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="请输入短信验证码" aria-label="短信验证码">
+            <button class="secondary-button" id="exchange-send-sms" type="button" disabled>获取验证码</button>
+          </div>
+          <button class="primary-button exchange-submit-button" id="exchange-submit" type="button" disabled>提交兑换</button>
+          <div class="notice" id="exchange-notice"></div>
+        </div>
+
+        <div class="feature-section">
+          <div class="feature-section-head"><h3>兑换记录</h3><button class="text-button" id="refresh-exchange-history" type="button">刷新</button></div>
+          <div class="exchange-history" id="exchange-history"><div class="empty-state">暂无记录</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="feature-view hidden" id="integral-view" aria-labelledby="integral-title">
+      <div class="feature-view-inner">
+        <div class="feature-head">
+          <button class="back-button" id="integral-back" type="button">‹ 返回</button>
+          <div>
+            <h2 class="feature-title" id="integral-title">积分获取</h2>
+            <div class="feature-subtitle">积分获取记录和积分消费记录</div>
+          </div>
+          <button class="icon-button" id="refresh-integral-records" type="button" title="刷新积分记录" aria-label="刷新积分记录">↻</button>
+        </div>
+
+        <div class="record-columns">
+          <section class="record-column">
+            <div class="record-column-head"><h3>积分获取记录</h3><span id="integral-earned-total">—</span></div>
+            <div class="record-list" id="integral-earned-list"><div class="empty-state">正在加载…</div></div>
+          </section>
+          <section class="record-column">
+            <div class="record-column-head"><h3>积分消费记录</h3><span id="integral-spent-total">—</span></div>
+            <div class="record-list" id="integral-spent-list"><div class="empty-state">正在加载…</div></div>
+          </section>
+        </div>
+        <div class="notice" id="integral-notice"></div>
+      </div>
+    </section>
+
+    <div class="footer" id="footer-text">—</div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const TOOL_META = Object.freeze({
+      name: document.querySelector('meta[name="name"]').content,
+      version: document.querySelector('meta[name="version"]').content,
+      author: document.querySelector('meta[name="author"]').content
+    });
+
+    const CONFIG = Object.freeze({
+      API_BASE: 'https://hbcoal-proxy.hrimyx.workers.dev',
+      LOGIN_PATH: '/appLogin/login.action',
+      PLAN_LIST_PATH: '/appRes/getLearnPlanList.action',
+      STAGE_LIST_PATH: '/appRes/getLearnPlanStageList.action',
+      STAGE_COURSES_PATH: '/appRes/getLearnPlanStageCourses.action',
+      COURSE_DETAIL_PATH: '/appRes/getCourseDetail.action',
+      BEFORE_WARE_PATH: '/appRes/beforeLearnWare.action',
+      AFTER_WARE_PATH: '/appRes/afterLearnWareNew.action',
+      STUDY_INFO_PATH: '/appStudyIntegral/getStudyExchangeInfo.action',
+      INTEGRAL_COUNT_PATH: '/appIntegral/getIntegralCount.action',
+      INTEGRAL_LIST_PATH: '/appIntegral/getIntegralList.action',
+      STUDY_EXCHANGE_SEND_SMS_PATH: '/appSms/sendBaseMsg.action',
+      STUDY_EXCHANGE_SUBMIT_PATH: '/appStudyIntegral/submitStudyExchange.action',
+      STUDY_EXCHANGE_DATA_PATH: '/appStudyIntegral/getStudyExchangeData.action',
+      REQUEST_TIMEOUT_MS: 12000,
+      PROGRESS_SYNC_INTERVAL_MS: 10000,
+      BACKGROUND_SYNC_GRACE_MS: 35000,
+      BACKGROUND_SYNC_FAILURE_LIMIT: 3,
+      UI_TICK_INTERVAL_MS: 1000,
+      MEDIA_META_RANGE_BYTES: 1024 * 1024
+    });
+
+    const state = {
+      auth: null,
+      plans: [],
+      selectedPlanId: null,
+      selectedCourse: null,
+      selectedCourseWare: null,
+      mediaDurationCache: new Map(),
+      stageCache: new Map(),
+      courseDetailCache: new Map(),
+      studySession: null,
+      planFingerprint: '',
+      requestLock: new Set(),
+      backgroundReporter: null,
+      sessionSerial: 0,
+      autoStudy: false,
+      exchange: { info: null, selectedNodeKey: null, smsCountdown: 0, smsTimerId: null },
+      integralRecords: { earned: [], spent: [] }
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function setStatus(text, ready = false) {
+      $('status-text').textContent = text;
+      $('status-chip').classList.toggle('ready', ready);
+    }
+
+    function showNotice(element, message, type = 'info') {
+      element.textContent = message || '';
+      element.className = `notice show ${type}`;
+    }
+
+    function hideNotice(element) {
+      element.textContent = '';
+      element.className = 'notice';
+    }
+
+    function setButtonBusy(button, busy, busyText) {
+      if (!button.dataset.normalText) button.dataset.normalText = button.textContent;
+      button.disabled = busy;
+      button.innerHTML = busy ? `<span class="loader" aria-hidden="true"></span>${busyText}` : button.dataset.normalText;
+    }
+
+    function safeNumber(value, fallback = 0) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function formatDateTime(value) {
+      return value ? String(value).replace(/\.0$/, '') : '—';
+    }
+
+    function formatDuration(seconds) {
+      const total = Math.max(0, Math.floor(safeNumber(seconds)));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const secs = total % 60;
+      if (hours > 0) return `${hours}小时${minutes}分`;
+      if (minutes > 0) return `${minutes}分${secs}秒`;
+      return `${secs}秒`;
+    }
+
+    function formatHms(seconds) {
+      const total = Math.max(0, Math.floor(safeNumber(seconds)));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const secs = total % 60;
+      const pad = (value) => String(value).padStart(2, '0');
+      return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
+    }
+
+    function formatClock(ms) {
+      const total = Math.max(0, Math.floor(ms / 1000));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const seconds = total % 60;
+      const pad = (v) => String(v).padStart(2, '0');
+      return hours > 0 ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    function currentMonthLabel() {
+      const now = new Date();
+      return `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月`;
+    }
+
+    function authParams() {
+      if (!state.auth) throw new Error('请先登录');
+      return {
+        uid: state.auth.uid,
+        domain: state.auth.domain,
+        codon: state.auth.codon
+      };
+    }
+
+    function buildQuery(params) {
+      const query = new URLSearchParams();
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+      });
+      return query.toString();
+    }
+
+    async function requestJson({ path, method = 'POST', body = null, query = null, authRequired = true, lockKey = null }) {
+      if (lockKey && state.requestLock.has(lockKey)) throw new Error('操作正在处理中，请勿重复点击');
+      if (lockKey) state.requestLock.add(lockKey);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+
+      try {
+        let url = `${CONFIG.API_BASE}${path}`;
+        const headers = { 'Accept': 'application/json' };
+        const requestInit = { method, headers, signal: controller.signal, credentials: 'omit', cache: 'no-store' };
+
+        if (query && method === 'GET') {
+          const qs = buildQuery(query);
+          if (qs) url += `?${qs}`;
+        }
+
+        if (method !== 'GET') {
+          const mergedBody = authRequired ? { ...authParams(), ...(body || {}) } : (body || {});
+          headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
+          requestInit.body = buildQuery(mergedBody);
+        }
+
+        const response = await fetch(url, requestInit);
+        const text = await response.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error('服务器返回的数据格式无法识别');
+        }
+
+        if (!response.ok) throw new Error('网络请求失败，请稍后重试');
+        if (data && Object.prototype.hasOwnProperty.call(data, 'result') && Number(data.result) !== 1) {
+          throw new Error(data.msg || '接口处理失败');
+        }
+        return data;
+      } catch (error) {
+        if (error?.name === 'AbortError') throw new Error('请求超时，请检查网络后重试');
+        if (error instanceof TypeError) throw new Error('网络连接失败，请检查网络连接。');
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+        if (lockKey) state.requestLock.delete(lockKey);
+      }
+    }
+
+    function isTransientRequestError(error) {
+      const message = String(error?.message || '');
+      return message.includes('网络连接失败') || message.includes('请求超时') || message.includes('网络请求失败');
+    }
+
+    async function waitMs(ms) {
+      await new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function login(username, password, domain) {
+      // HAR 已验证：登录本身是 POST 表单，不携带 uid/codon；认证态由响应顶层字段返回。
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const response = await requestJson({
+            path: CONFIG.LOGIN_PATH,
+            method: 'POST',
+            authRequired: false,
+            body: {
+              userName: username,
+              pwd: password,
+              domain,
+              registrationId: '',
+              type: 1
+            },
+            lockKey: 'login'
+          });
+
+          if (!response || Number(response.result) !== 1 || response.uid === undefined || response.uid === null || !response.codon) {
+            throw new Error(response?.msg || '登录失败');
+          }
+
+          state.auth = {
+            uid: response.uid,
+            codon: response.codon,
+            domain: response.domain || domain,
+            tid: response.tid,
+            name: response.name || response.userName || username,
+            userName: response.userName || username,
+            deptName: response.deptName || ''
+          };
+          return;
+        } catch (error) {
+          if (attempt === 0 && isTransientRequestError(error)) {
+            await waitMs(400);
+            continue;
+          }
+          throw error;
+        }
+      }
+    }
+
+    async function loadSummary() {
+      const [studyInfo, integralCount] = await Promise.all([
+        requestJson({ path: CONFIG.STUDY_INFO_PATH, method: 'POST', lockKey: 'study-info' }),
+        requestJson({ path: CONFIG.INTEGRAL_COUNT_PATH, method: 'POST', lockKey: 'integral-count' })
+      ]);
+
+      const duration = studyInfo?.data?.duration;
+      $('study-duration').textContent = safeNumber(duration).toLocaleString('zh-CN');
+      $('total-integral').textContent = safeNumber(integralCount?.total).toLocaleString('zh-CN');
+      $('usable-integral').textContent = safeNumber(integralCount?.useable).toLocaleString('zh-CN');
+    }
+
+    function clearStudyConsole() {
+      void stopStudySession({ silent: true, syncBeforeStop: false });
+      state.selectedPlanId = null;
+      state.selectedCourse = null;
+      state.selectedCourseWare = null;
+      state.autoStudy = false;
+      $('auto-study-toggle').checked = false;
+      $('study-empty').classList.remove('hidden');
+      $('study-content').classList.add('hidden');
+      $('study-course-title').textContent = '—';
+      $('study-ware-title').textContent = '—';
+      $('ware-course-caption').textContent = '请选择课程';
+      $('session-time-display').textContent = '00:00 / 00:00';
+      $('session-progress-text').textContent = '0%';
+      $('study-progress-fill').style.width = '0%';
+      $('ware-list').innerHTML = '<div class="empty-state">选择课程后显示课件</div>' ;
+      $('start-study-button').disabled = true;
+      $('pause-study-button').disabled = true;
+      $('sync-study-button').disabled = true;
+      hideNotice($('study-notice'));
+    }
+
+    async function loadPlans({ clearConsole = false } = {}) {
+      if (clearConsole) clearStudyConsole();
+      const response = await requestJson({
+        path: CONFIG.PLAN_LIST_PATH,
+        method: 'POST',
+        body: { pageIndex: 1, pageSize: 16, type: 1 },
+        lockKey: 'plans'
+      });
+      const nextPlans = Array.isArray(response?.dataList) ? response.dataList : [];
+      const fingerprint = JSON.stringify(nextPlans.map((plan) => ({ id: plan.id, name: plan.name, studyPercent: plan.studyPercent, courseCount: plan.courseCount, beginTime: plan.beginTime, endTime: plan.endTime })));
+      if (state.planFingerprint && fingerprint !== state.planFingerprint) clearStudyConsole();
+      state.planFingerprint = fingerprint;
+      state.plans = nextPlans;
+      state.stageCache.clear();
+      state.courseDetailCache.clear();
+      renderPlans();
+    }
+
+    function renderPlans() {
+      const container = $('plan-list');
+      container.innerHTML = '';
+
+      if (!state.plans.length) {
+        container.innerHTML = '<div class="empty-state">暂无学习计划</div>';
+        return;
+      }
+
+      state.plans.forEach((plan) => {
+        const card = document.createElement('div');
+        card.className = 'plan-card';
+
+        const mainButton = document.createElement('button');
+        mainButton.type = 'button';
+        mainButton.className = 'plan-main';
+        mainButton.innerHTML = `
+          <div class="plan-title-row">
+            <div class="plan-name"></div>
+            <div class="plan-percent"></div>
+          </div>
+          <div class="plan-meta"></div>
+        `;
+        mainButton.querySelector('.plan-name').textContent = plan.name || '未命名学习计划';
+        mainButton.querySelector('.plan-percent').textContent = `${safeNumber(plan.studyPercent)}%`;
+        mainButton.querySelector('.plan-meta').textContent = `课程 ${safeNumber(plan.courseCount)} 门 · ${formatDateTime(plan.beginTime)} 至 ${formatDateTime(plan.endTime)}`;
+
+        const detail = document.createElement('div');
+        detail.className = 'plan-detail hidden';
+        detail.innerHTML = '<div class="empty-state">正在加载阶段…</div>';
+
+        mainButton.addEventListener('click', async () => {
+          const opening = detail.classList.contains('hidden');
+          closeOtherPlanDetails(card);
+          if (!opening) return;
+          detail.classList.remove('hidden');
+          await loadStages(plan, detail);
+        });
+
+        card.append(mainButton, detail);
+        container.appendChild(card);
+      });
+    }
+
+    function closeOtherPlanDetails(currentCard) {
+      document.querySelectorAll('.plan-detail').forEach((detail) => {
+        const card = detail.parentElement;
+        if (card !== currentCard) detail.classList.add('hidden');
+      });
+    }
+
+    async function loadStages(plan, container) {
+      try {
+        state.selectedPlanId = plan.id;
+        if (state.stageCache.has(plan.id)) {
+          renderStages(state.stageCache.get(plan.id), container);
+          return;
+        }
+
+        const response = await requestJson({
+          path: CONFIG.STAGE_LIST_PATH,
+          method: 'POST',
+          body: { planId: plan.id },
+          lockKey: `stage-${plan.id}`
+        });
+        const stages = Array.isArray(response?.dataList) ? response.dataList : [];
+        state.stageCache.set(plan.id, stages);
+        state.selectedPlanId = plan.id;
+        renderStages(stages, container);
+      } catch (error) {
+        container.innerHTML = '';
+        const notice = document.createElement('div');
+        notice.className = 'notice show error';
+        notice.textContent = error.message;
+        container.appendChild(notice);
+      }
+    }
+
+    function renderStages(stages, container) {
+      container.innerHTML = '';
+      if (!stages.length) {
+        container.innerHTML = '<div class="empty-state">该计划暂无阶段</div>';
+        return;
+      }
+
+      const stageList = document.createElement('div');
+      stageList.className = 'stage-list stage-list-equal';
+      stageList.style.setProperty('--stage-count', String(stages.length));
+      const courseList = document.createElement('div');
+      courseList.className = 'course-list';
+      courseList.innerHTML = '<div class="empty-state">请选择阶段加载课程</div>';
+
+      stages.forEach((stage, stageIndex) => {
+        const stageCard = document.createElement('div');
+        stageCard.className = 'stage-card';
+
+        const stageButton = document.createElement('button');
+        stageButton.type = 'button';
+        stageButton.className = 'stage-head';
+        stageButton.setAttribute('aria-expanded', 'false');
+        stageButton.innerHTML = `
+          <span class="stage-head-main"><span class="stage-chevron" aria-hidden="true">▶</span><span class="stage-name"></span></span>
+          <span class="stage-process">${safeNumber(stage.process)}%</span>
+        `;
+        stageButton.querySelector('.stage-name').textContent = `第${stageIndex + 1}阶段`;
+
+        stageButton.addEventListener('click', async () => {
+          document.querySelectorAll('.stage-card.active').forEach((card) => card.classList.remove('active'));
+          document.querySelectorAll('.stage-head[aria-expanded="true"]').forEach((button) => {
+            button.setAttribute('aria-expanded', 'false');
+            const chevron = button.querySelector('.stage-chevron');
+            if (chevron) chevron.textContent = '▶';
+          });
+          stageCard.classList.add('active');
+          stageButton.setAttribute('aria-expanded', 'true');
+          stageButton.querySelector('.stage-chevron').textContent = '▼';
+          await loadStageCourses(stage, courseList);
+        });
+
+        stageCard.append(stageButton);
+        stageList.appendChild(stageCard);
+      });
+
+      container.append(stageList, courseList);
+    }
+
+    function getCourseLearnStatus(learnProcess) {
+      if (learnProcess === 2) return { label: '已完成', done: true, inProgress: false };
+      if (learnProcess === 1) return { label: '进行中', done: false, inProgress: true };
+      return { label: '未开始', done: false, inProgress: false };
+    }
+
+    async function loadStageCourses(stage, container) {
+      try {
+        const response = await requestJson({
+          path: CONFIG.STAGE_COURSES_PATH,
+          method: 'POST',
+          body: { stageId: stage.id },
+          lockKey: `courses-${stage.id}`
+        });
+        const courses = Array.isArray(response?.dataList) ? response.dataList : [];
+        container.innerHTML = '';
+        if (!courses.length) {
+          container.innerHTML = '<div class="empty-state">该阶段暂无课程</div>';
+          return;
+        }
+
+        courses.forEach((course) => {
+          const button = document.createElement('button');
+          const learnProcess = safeNumber(course.learnProcess, 0);
+          const status = getCourseLearnStatus(learnProcess);
+          button.type = 'button';
+          button.className = 'course-button';
+          if (status.done) button.classList.add('done');
+          if (status.inProgress) button.classList.add('in-progress');
+          button.dataset.courseId = String(course.id);
+          button.dataset.stageId = String(stage.id);
+          button.innerHTML = '<span class="course-title"></span><span class="course-progress"></span>';
+          button.querySelector('.course-title').textContent = course.name || '未命名课程';
+          button.querySelector('.course-progress').textContent = status.label;
+          button.addEventListener('click', () => loadCourseDetail(course, stage));
+          container.appendChild(button);
+        });
+        refreshSelectionHighlights();
+      } catch (error) {
+        container.innerHTML = '';
+        const notice = document.createElement('div');
+        notice.className = 'notice show error';
+        notice.textContent = error.message;
+        container.appendChild(notice);
+      }
+    }
+
+    async function loadCourseDetail(course, stage) {
+      setStatus('加载课程…', true);
+      try {
+        await stopStudySession({ silent: true, syncBeforeStop: true });
+        const cacheKey = `${stage.id}:${course.id}`;
+        let detail = state.courseDetailCache.get(cacheKey);
+        if (!detail) {
+          detail = await requestJson({
+            path: CONFIG.COURSE_DETAIL_PATH,
+            method: 'POST',
+            body: {
+              courseId: course.id,
+              relationId: stage.id,
+              source: 2
+            },
+            lockKey: `course-detail-${course.id}-${stage.id}`
+          });
+          state.courseDetailCache.set(cacheKey, detail);
+        }
+
+        const sections = Array.isArray(detail?.course?.sectionList) ? detail.course.sectionList : [];
+        const wares = [];
+        sections.forEach((section) => {
+          const list = Array.isArray(section.courseWareList) ? section.courseWareList : [];
+          list.forEach((ware) => wares.push({ ...ware, sectionId: ware.sectionId ?? section.SectionId }));
+        });
+
+        state.selectedCourse = { ...course, stageId: stage.id, stageName: stage.name, detail, wares };
+        state.selectedCourseWare = wares[0] || null;
+        await renderStudyPanel(wares);
+        setStatus('已登录', true);
+        hideNotice($('study-notice'));
+      } catch (error) {
+        setStatus('已登录', true);
+        showNotice($('study-notice'), error.message, 'error');
+      }
+    }
+
+    async function renderStudyPanel(wares) {
+      $('study-empty').classList.add('hidden');
+      $('study-content').classList.remove('hidden');
+      const course = state.selectedCourse;
+      $('study-course-title').textContent = course?.detail?.course?.CourseName || course?.name || '—';
+      $('ware-course-caption').textContent = course?.detail?.course?.CourseName || course?.name || '请选择课程';
+      renderWareList(wares);
+      await selectCourseWare(wares[0] || null, false, false);
+    }
+
+    function renderWareList(wares) {
+      const container = $('ware-list');
+      container.innerHTML = '';
+      if (!wares.length) {
+        container.innerHTML = '<div class="empty-state">暂无课件</div>';
+        return;
+      }
+
+      wares.forEach((ware) => {
+        const item = document.createElement('div');
+        item.className = 'ware-item';
+        if (safeNumber(ware.Progress) >= 100) item.classList.add('done');
+        item.dataset.wareId = String(ware.WareId);
+        const main = document.createElement('div');
+        main.innerHTML = '<div class="ware-name"></div>';
+        main.querySelector('.ware-name').textContent = ware.WareName || ware.FileName || '未命名课件';
+
+        const actions = document.createElement('div');
+        actions.className = 'ware-status';
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        const progressPercent = Math.min(100, Math.max(0, safeNumber(ware.Progress)));
+        if (progressPercent >= 100) {
+          badge.classList.add('done');
+          badge.textContent = '已完成';
+        } else {
+          if (progressPercent > 0) badge.classList.add('active');
+          badge.textContent = `${progressPercent}%`;
+        }
+        actions.appendChild(badge);
+        const durationSeconds = safeNumber(ware.total);
+        if (durationSeconds > 0) {
+          const duration = document.createElement('span');
+          duration.className = 'ware-duration';
+          duration.textContent = formatHms(durationSeconds);
+          actions.insertBefore(duration, badge);
+        }
+
+        item.append(main, actions);
+        item.addEventListener('click', () => { void selectCourseWare(ware, true); });
+        item.setAttribute('role', 'button');
+        item.tabIndex = 0;
+        item.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            void selectCourseWare(ware, true);
+          }
+        });
+        container.appendChild(item);
+      });
+      refreshSelectionHighlights();
+    }
+
+    function refreshSelectionHighlights() {
+      document.querySelectorAll('.course-button').forEach((button) => {
+        const active = Boolean(state.selectedCourse) &&
+          button.dataset.courseId === String(state.selectedCourse.id) &&
+          button.dataset.stageId === String(state.selectedCourse.stageId);
+        button.classList.toggle('active', active);
+        if (active && state.selectedCourse?.wares?.length) {
+          const courseProcess = safeNumber(state.selectedCourse.learnProcess, 0);
+          const done = courseProcess === 2 || state.selectedCourse.wares.every((ware) => safeNumber(ware.Progress) >= 100);
+          const inProgress = !done && courseProcess === 1;
+          button.classList.toggle('done', done);
+          button.classList.toggle('in-progress', inProgress);
+          const progressLabel = button.querySelector('.course-progress');
+          if (progressLabel) progressLabel.textContent = done ? '已完成' : (inProgress ? '进行中' : '未开始');
+        }
+      });
+      document.querySelectorAll('.ware-item').forEach((item) => {
+        const active = Boolean(state.selectedCourseWare) && item.dataset.wareId === String(state.selectedCourseWare.WareId);
+        item.classList.toggle('active', active);
+      });
+    }
+
+    async function selectCourseWare(ware, stopCurrent = false, autoStart = false) {
+      if (stopCurrent) await stopStudySession({ silent: true, syncBeforeStop: true });
+      state.selectedCourseWare = ware;
+      refreshSelectionHighlights();
+      if (!ware) {
+        $('study-ware-title').textContent = '—';
+        $('session-time-display').textContent = '00:00 / 00:00';
+        $('session-progress-text').textContent = '0%';
+        $('study-progress-fill').style.width = '0%';
+        return;
+      }
+
+      const totalMs = Math.max(0, safeNumber(ware.total) * 1000);
+      const baseMs = normalizeBaseProgressMs(ware, totalMs);
+      const percent = totalMs > 0 ? Math.min(100, baseMs / totalMs * 100) : 0;
+      $('study-ware-title').textContent = ware.WareName || ware.FileName || '未命名课件';
+      $('session-time-display').textContent = `${formatClock(baseMs)} / ${formatClock(totalMs)}`;
+      $('session-progress-text').textContent = `${Math.round(percent)}%`;
+      $('study-progress-fill').style.width = `${percent}%`;
+      $('start-study-button').disabled = percent >= 100;
+      $('pause-study-button').disabled = true;
+      $('sync-study-button').disabled = true;
+      hideNotice($('study-notice'));
+      if (autoStart && state.autoStudy && !isWareCompleted(ware) && !state.studySession?.active) await startStudySession();
+    }
+
+    function normalizeBaseProgressMs(ware, totalMs) {
+      if (totalMs <= 0) return 0;
+      // HAR 已验证：getCourseDetail 返回的 current 是播放器当前位置（秒），
+      // Progress 是百分比；afterLearnWareNew 则回传毫秒级 progress。优先使用 current，
+      // 避免使用四舍五入后的百分比反推当前位置。
+      const currentSeconds = safeNumber(ware?.current);
+      if (ware?.current !== null && ware?.current !== undefined && currentSeconds > 0) {
+        return Math.min(totalMs, currentSeconds * 1000);
+      }
+      const rawPercent = safeNumber(ware?.Progress);
+      if (rawPercent <= 0) return 0;
+      return Math.min(totalMs, totalMs * Math.min(100, rawPercent) / 100);
+    }
+
+    function readUint32(view, offset) {
+      return offset + 4 <= view.byteLength ? view.getUint32(offset, false) : 0;
+    }
+
+    function readUint64(view, offset) {
+      if (offset + 8 > view.byteLength) return 0;
+      const high = view.getUint32(offset, false);
+      const low = view.getUint32(offset + 4, false);
+      return high * 4294967296 + low;
+    }
+
+    function findMp4Box(bytes, wantedType, start = 0, end = bytes.byteLength) {
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      let offset = start;
+      while (offset + 8 <= end) {
+        let size = readUint32(view, offset);
+        const type = String.fromCharCode(
+          view.getUint8(offset + 4), view.getUint8(offset + 5),
+          view.getUint8(offset + 6), view.getUint8(offset + 7)
+        );
+        let headerSize = 8;
+        if (size === 1) {
+          size = readUint64(view, offset + 8);
+          headerSize = 16;
+        } else if (size === 0) {
+          size = end - offset;
+        }
+        if (!size || size < headerSize || offset + size > end) break;
+        if (type === wantedType) return { offset, size, headerSize };
+        offset += size;
+      }
+      return null;
+    }
+
+    function parseMp4DurationMs(arrayBuffer) {
+      // 读取 MP4 的 moov/mvhd 元数据，不创建 video 元素，也不播放媒体。
+      const bytes = new Uint8Array(arrayBuffer);
+      const moov = findMp4Box(bytes, 'moov');
+      if (!moov) return 0;
+      const moovStart = moov.offset + moov.headerSize;
+      const moovEnd = moov.offset + moov.size;
+      const mvhd = findMp4Box(bytes, 'mvhd', moovStart, moovEnd);
+      if (!mvhd) return 0;
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const payload = mvhd.offset + mvhd.headerSize;
+      if (payload + 20 > moovEnd) return 0;
+      const version = view.getUint8(payload);
+      let timescale;
+      let duration;
+      if (version === 1) {
+        if (payload + 32 > moovEnd) return 0;
+        timescale = readUint32(view, payload + 20);
+        duration = readUint64(view, payload + 24);
+      } else {
+        timescale = readUint32(view, payload + 12);
+        duration = readUint32(view, payload + 16);
+      }
+      if (!timescale || !duration) return 0;
+      return Math.round(duration / timescale * 1000);
+    }
+
+    async function resolveMediaDurationMs(ware) {
+      const path = String(ware?.Path || '').trim();
+      if (!path) return Math.max(0, safeNumber(ware?.total) * 1000);
+      if (state.mediaDurationCache.has(path)) return state.mediaDurationCache.get(path);
+
+      const fallback = Math.max(0, safeNumber(ware?.total) * 1000);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+        const url = `${CONFIG.API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Range: `bytes=0-${CONFIG.MEDIA_META_RANGE_BYTES - 1}`, Accept: 'video/mp4,application/octet-stream' },
+          credentials: 'omit',
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        const contentLength = Number(response.headers.get('content-length') || 0);
+        const isPartial = response.status === 206;
+        if (!response.ok || (!isPartial && contentLength > CONFIG.MEDIA_META_RANGE_BYTES)) {
+          clearTimeout(timeoutId);
+          state.mediaDurationCache.set(path, fallback);
+          return fallback;
+        }
+        const buffer = await response.arrayBuffer();
+        clearTimeout(timeoutId);
+        const durationMs = parseMp4DurationMs(buffer);
+        const resolved = durationMs > 0 ? durationMs : fallback;
+        state.mediaDurationCache.set(path, resolved);
+        return resolved;
+      } catch {
+        state.mediaDurationCache.set(path, fallback);
+        return fallback;
+      }
+    }
+
+    function buildProgressSyncQuery(session, progressMs) {
+      const allprogress = Math.max(0, Math.round(session.totalMs));
+      return {
+        ...authParams(),
+        allprogress,
+        courseId: session.course.id,
+        progress: Math.round(progressMs),
+        relationId: session.course.stageId,
+        relationName: session.course.stageName || '',
+        sectionId: session.ware.sectionId,
+        source: 2,
+        tid: state.auth.tid,
+        uid: state.auth.uid,
+        wareId: session.ware.WareId,
+        wareType: session.ware.Type
+      };
+    }
+
+    function applyStudySyncResult(session, progressMs) {
+      session.lastSyncMs = progressMs;
+      session.lastSyncWallAt = Date.now();
+      const percentNow = session.totalMs > 0 ? Math.min(100, progressMs / session.totalMs * 100) : 0;
+      session.ware.current = String(Math.floor(progressMs / 1000));
+      session.ware.Progress = Math.floor(percentNow);
+      session.ware.currentThisYear = session.ware.current;
+      session.ware.progressThisYear = session.ware.Progress;
+      if (session.course) {
+        const wares = Array.isArray(session.course.wares) ? session.course.wares : [];
+        session.course.learnProcess = wares.length > 0 && wares.every((ware) => isWareCompleted(ware)) ? 2 : 1;
+      }
+      session.elapsedMs = Math.max(0, progressMs - session.baseMs);
+      return session.totalMs > 0 && progressMs >= session.totalMs;
+    }
+
+    function stopBackgroundReporter() {
+      const reporter = state.backgroundReporter;
+      if (!reporter) return;
+      try {
+        reporter.worker?.terminate();
+      } catch {
+        // 浏览器已回收 Worker 时无需额外处理。
+      }
+      if (reporter.url) URL.revokeObjectURL(reporter.url);
+      state.backgroundReporter = null;
+    }
+
+    function createBackgroundReporter(session) {
+      if (!window.Worker || !window.Blob || !window.URL?.createObjectURL) return null;
+
+      const workerSource = `
+        'use strict';
+        let timerId = null;
+        let working = false;
+        let payload = null;
+        let lastSuccessAt = 0;
+        let failures = 0;
+
+        function stop() {
+          if (timerId !== null) clearInterval(timerId);
+          timerId = null;
+          working = false;
+        }
+
+        async function syncNow() {
+          if (!payload || working) return;
+          working = true;
+          const now = Date.now();
+          const progressMs = Math.min(
+            Number(payload.totalMs) || Number.MAX_SAFE_INTEGER,
+            Math.max(0, Number(payload.baseMs) + Math.max(0, now - Number(payload.startedAt)))
+          );
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), Number(payload.timeoutMs) || 12000);
+          try {
+            const url = new URL(payload.url);
+            url.searchParams.set('progress', String(Math.round(progressMs)));
+            const response = await fetch(url.toString(), {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              signal: controller.signal,
+              credentials: 'omit',
+              cache: 'no-store'
+            });
+            const text = await response.text();
+            let data = {};
+            try { data = text ? JSON.parse(text) : {}; } catch { throw new Error('服务器返回的数据格式无法识别'); }
+            if (!response.ok) throw new Error('网络请求失败，请稍后重试');
+            if (data && Object.prototype.hasOwnProperty.call(data, 'result') && Number(data.result) !== 1) {
+              throw new Error(data.msg || '接口处理失败');
+            }
+            failures = 0;
+            lastSuccessAt = Date.now();
+            self.postMessage({ type: 'success', sessionId: payload.sessionId, progressMs, response: data, at: lastSuccessAt });
+            if ((Number(payload.totalMs) || 0) > 0 && progressMs >= Number(payload.totalMs)) {
+              self.postMessage({ type: 'complete', sessionId: payload.sessionId, progressMs });
+              stop();
+            }
+          } catch (error) {
+            failures += 1;
+            self.postMessage({ type: 'failure', sessionId: payload.sessionId, failures, message: error?.message || '后台进度同步失败', at: Date.now() });
+            if (failures >= Number(payload.failureLimit) || Date.now() - lastSuccessAt >= Number(payload.graceMs)) {
+              self.postMessage({ type: 'pause', sessionId: payload.sessionId, failures });
+              stop();
+            }
+          } finally {
+            clearTimeout(timeoutId);
+            working = false;
+          }
+        }
+
+        self.onmessage = (event) => {
+          const message = event.data || {};
+          if (message.type === 'start') {
+            stop();
+            payload = message.payload;
+            lastSuccessAt = Date.now();
+            failures = 0;
+            void syncNow();
+            timerId = setInterval(syncNow, Number(payload.intervalMs) || 10000);
+          } else if (message.type === 'stop') {
+            stop();
+          }
+        };
+      `;
+      const blob = new Blob([workerSource], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const worker = new Worker(url);
+      return { worker, url };
+    }
+
+    function startBackgroundReporter(session) {
+      stopBackgroundReporter();
+      const reporter = createBackgroundReporter(session);
+      if (!reporter) return false;
+
+      const query = buildProgressSyncQuery(session, getSessionProgressMs(session));
+      const workerUrl = `${CONFIG.API_BASE}${CONFIG.AFTER_WARE_PATH}?${buildQuery(query)}`;
+      state.backgroundReporter = { ...reporter, sessionId: session.id };
+      reporter.worker.onmessage = (event) => handleBackgroundReporterMessage(event.data || {});
+      reporter.worker.onerror = () => {
+        const current = state.studySession;
+        if (current?.id === session.id && current.active) {
+          void pauseStudySession('后台进度上报通道异常，已自动暂停学习，避免课件进度与服务器记录不一致。', { syncAndRefresh: false });
+        }
+      };
+      reporter.worker.postMessage({
+        type: 'start',
+        payload: {
+          sessionId: session.id,
+          url: workerUrl,
+          startedAt: session.startedAt,
+          baseMs: session.baseMs,
+          totalMs: session.totalMs,
+          intervalMs: CONFIG.PROGRESS_SYNC_INTERVAL_MS,
+          timeoutMs: CONFIG.REQUEST_TIMEOUT_MS,
+          failureLimit: CONFIG.BACKGROUND_SYNC_FAILURE_LIMIT,
+          graceMs: CONFIG.BACKGROUND_SYNC_GRACE_MS
+        }
+      });
+      return true;
+    }
+
+    function handleBackgroundReporterMessage(message) {
+      const session = state.studySession;
+      if (!session || !session.active || message.sessionId !== session.id) return;
+
+      if (message.type === 'success') {
+        session.backgroundFailures = 0;
+        session.lastSyncWallAt = Number(message.at) || Date.now();
+        const progressMs = Math.max(session.lastSyncMs, Math.min(session.totalMs || Number.MAX_SAFE_INTEGER, safeNumber(message.progressMs)));
+        const completedNow = applyStudySyncResult(session, progressMs);
+        if (completedNow) {
+          session.completed = true;
+          session.active = false;
+          clearInterval(session.timerId);
+          session.timerId = null;
+          stopBackgroundReporter();
+          if (state.selectedCourse?.wares) {
+            const currentWare = state.selectedCourse.wares.find((ware) => String(ware.WareId) === String(session.ware.WareId));
+            if (currentWare) {
+              currentWare.Progress = 100;
+              currentWare.current = String(Math.floor(progressMs / 1000));
+              currentWare.currentThisYear = currentWare.current;
+              currentWare.progressThisYear = 100;
+            }
+            renderWareList(state.selectedCourse.wares);
+          }
+          refreshSelectionHighlights();
+          hideNotice($('study-notice'));
+          $('pause-study-button').disabled = true;
+          $('start-study-button').disabled = true;
+          $('start-study-button').textContent = '已完成';
+          void loadSummary().then(() => advanceAutoStudy(session));
+        } else {
+          updateStudyUi();
+        }
+      } else if (message.type === 'failure') {
+        session.backgroundFailures = safeNumber(message.failures, session.backgroundFailures + 1);
+      } else if (message.type === 'pause') {
+        void pauseStudySession('后台连续无法确认课件进度已上报，已自动暂停学习，防止本地计时与服务器记录不一致。', { syncAndRefresh: false });
+      } else if (message.type === 'complete') {
+        // success 消息会负责完成态的 UI 与数据更新。
+      }
+    }
+
+    async function startStudySession() {
+      const course = state.selectedCourse;
+      const ware = state.selectedCourseWare;
+      if (!course || !ware) {
+        showNotice($('study-notice'), '请先选择一个课程课件。', 'error');
+        return;
+      }
+
+      const pausedSession = state.studySession;
+      if (pausedSession && !pausedSession.active && !pausedSession.completed &&
+          pausedSession.course?.id === course.id && pausedSession.ware?.WareId === ware.WareId) {
+        pausedSession.startedAt = Date.now();
+        pausedSession.active = true;
+        pausedSession.lastSyncWallAt = Date.now();
+        pausedSession.backgroundFailures = 0;
+        pausedSession.timerId = setInterval(updateStudyUi, CONFIG.UI_TICK_INTERVAL_MS);
+        $('pause-study-button').disabled = false;
+        $('sync-study-button').disabled = false;
+        $('start-study-button').disabled = true;
+        $('start-study-button').textContent = '继续学习';
+        updateStudyUi();
+        return;
+      }
+      if (state.studySession?.active) return;
+
+      const button = $('start-study-button');
+      setButtonBusy(button, true, '建立学习记录…');
+      hideNotice($('study-notice'));
+
+      try {
+        const totalMs = await resolveMediaDurationMs(ware);
+        const response = await requestJson({
+          path: CONFIG.BEFORE_WARE_PATH,
+          method: 'POST',
+          body: {
+            courseId: course.id,
+            relationId: course.stageId,
+            relationName: course.stageName || '',
+            sectionId: ware.sectionId,
+            source: 2,
+            tid: state.auth.tid,
+            wareId: ware.WareId,
+            wareType: ware.Type
+          },
+          lockKey: `before-ware-${course.id}-${ware.WareId}`
+        });
+
+        const baseMs = normalizeBaseProgressMs(ware, totalMs);
+        state.studySession = {
+          id: ++state.sessionSerial,
+          active: true,
+          course,
+          ware,
+          totalMs,
+          baseMs,
+          startedAt: Date.now(),
+          lastSyncMs: baseMs,
+          lastSyncWallAt: Date.now(),
+          backgroundFailures: 0,
+          recordId: response?.recordId,
+          wareRecordId: response?.wareRecordId,
+          timerId: null,
+          syncing: false,
+          completed: false
+        };
+        if (safeNumber(course.learnProcess, 0) === 0) course.learnProcess = 1;
+        state.studySession.timerId = setInterval(updateStudyUi, CONFIG.UI_TICK_INTERVAL_MS);
+        updateStudyUi();
+        $('pause-study-button').disabled = false;
+        $('sync-study-button').disabled = false;
+        button.textContent = '继续学习';
+        button.disabled = true;
+        hideNotice($('study-notice'));
+      } catch (error) {
+        showNotice($('study-notice'), error.message, 'error');
+      } finally {
+        if (!state.studySession?.active) setButtonBusy(button, false, '开始学习');
+        else if (button.dataset.normalText) button.innerHTML = button.dataset.normalText;
+      }
+    }
+
+    async function pauseStudySession(message = '已暂停学习计时，当前进度已同步。', options = {}) {
+      const session = state.studySession;
+      if (!session?.active || session.syncing) return;
+      const { syncAndRefresh = true } = options;
+      const currentProgressMs = getSessionProgressMs(session);
+      session.elapsedMs = Math.max(0, currentProgressMs - session.baseMs);
+      clearInterval(session.timerId);
+      session.timerId = null;
+      session.active = false;
+      stopBackgroundReporter();
+      updateStudyUi();
+      $('pause-study-button').disabled = true;
+      $('sync-study-button').disabled = true;
+      $('start-study-button').disabled = session.completed;
+      $('start-study-button').textContent = session.completed ? '已完成' : '继续学习';
+      if (syncAndRefresh && state.studySession === session) {
+        await syncStudyProgress(false, true);
+      }
+      if (message && state.studySession === session && !session.completed) {
+        hideNotice($('study-notice'));
+      }
+      if (state.studySession === session) $('sync-study-button').disabled = false;
+    }
+
+    async function stopStudySession({ silent = false, syncBeforeStop = false } = {}) {
+      const session = state.studySession;
+      if (!session) return;
+      stopBackgroundReporter();
+      if (session.active) {
+        session.elapsedMs = Math.max(0, getSessionProgressMs(session) - session.baseMs);
+      }
+      clearInterval(session.timerId);
+      session.timerId = null;
+      session.active = false;
+      if (syncBeforeStop && !session.syncing) await syncStudyProgress(false, false, false);
+      if (state.studySession !== session) return;
+      state.studySession = null;
+      $('pause-study-button').disabled = true;
+      $('sync-study-button').disabled = true;
+      $('start-study-button').disabled = false;
+      $('start-study-button').textContent = '开始学习';
+      if (!silent) hideNotice($('study-notice'));
+    }
+
+    function getSessionProgressMs(session) {
+      if (!session) return 0;
+      const liveElapsed = session.active ? Math.max(0, Date.now() - session.startedAt) : (session.elapsedMs || 0);
+      return Math.min(session.totalMs || Number.MAX_SAFE_INTEGER, session.baseMs + liveElapsed);
+    }
+
+    function updateStudyUi() {
+      const session = state.studySession;
+      if (!session) return;
+      const progressMs = getSessionProgressMs(session);
+      const elapsedFromBase = Math.max(0, progressMs - session.baseMs);
+      const percent = session.totalMs > 0 ? Math.min(100, progressMs / session.totalMs * 100) : 0;
+      session.elapsedMs = elapsedFromBase;
+      $('session-time-display').textContent = `${formatClock(progressMs)} / ${formatClock(session.totalMs)}`;
+      $('session-progress-text').textContent = `${Math.floor(percent)}%`;
+      $('study-progress-fill').style.width = `${percent}%`;
+
+      if (session.active && !document.hidden && progressMs - session.lastSyncMs >= CONFIG.PROGRESS_SYNC_INTERVAL_MS && !session.syncing) {
+        void syncStudyProgress(false);
+      }
+
+      if (percent >= 100 && session.active && !session.syncing) {
+        void syncStudyProgress(true, true);
+      }
+    }
+
+    async function syncStudyProgress(finalSync, refreshSummary = false, allowAutoAdvance = true) {
+      const session = state.studySession;
+      if (!session || session.syncing) return;
+      session.syncing = true;
+      $('sync-study-button').disabled = true;
+
+      try {
+        const progressMs = getSessionProgressMs(session);
+        // HAR 已验证：allprogress 是媒体实际总时长（毫秒），progress 是当前播放位置（毫秒）。
+        // 二者不能用课件对象里的 total 字段或 Math.max() 随意替代。
+        const response = await requestJson({
+          path: CONFIG.AFTER_WARE_PATH,
+          method: 'GET',
+          authRequired: false,
+          query: buildProgressSyncQuery(session, progressMs),
+          lockKey: 'after-ware'
+        });
+
+        if (response && Number(response.result) !== 1) throw new Error(response.msg || '进度同步失败');
+        const completedNow = applyStudySyncResult(session, progressMs);
+        session.completed = completedNow;
+        if (completedNow) {
+          session.active = false;
+          clearInterval(session.timerId);
+          session.timerId = null;
+          if (state.selectedCourse?.wares) {
+            const currentWare = state.selectedCourse.wares.find((ware) => String(ware.WareId) === String(session.ware.WareId));
+            if (currentWare) { currentWare.Progress = 100; currentWare.current = String(Math.floor(progressMs / 1000)); }
+            renderWareList(state.selectedCourse.wares);
+          }
+          refreshSelectionHighlights();
+          hideNotice($('study-notice'));
+          $('pause-study-button').disabled = true;
+          $('start-study-button').disabled = true;
+          $('start-study-button').textContent = '已完成';
+        } else {
+          hideNotice($('study-notice'));
+        }
+
+        // 只有暂停、手动同步或课件结束时才刷新学习时长与积分；周期进度上报不重复请求这两个接口。
+        if (refreshSummary) await loadSummary();
+        if (allowAutoAdvance && completedNow && state.studySession === session) {
+          await advanceAutoStudy(session);
+        }
+      } catch (error) {
+        showNotice($('study-notice'), error.message, 'error');
+      } finally {
+        session.syncing = false;
+        if (state.studySession === session) $('sync-study-button').disabled = false;
+      }
+    }
+
+    async function resumeAfterVisibility() {
+      const session = state.studySession;
+      if (!session || session.completed) return;
+
+      if (document.hidden && session.active) {
+        const started = startBackgroundReporter(session);
+        if (!started) {
+          if (!session.syncing) {
+            await syncStudyProgress(false);
+          }
+          if (state.studySession === session && session.active && !session.completed) {
+            void pauseStudySession('当前浏览器无法可靠维持后台课件进度上报，已自动暂停学习。', { syncAndRefresh: false });
+          }
+        }
+        return;
+      }
+
+      if (!document.hidden && session.active) {
+        stopBackgroundReporter();
+        const silentWindowExceeded = Date.now() - safeNumber(session.lastSyncWallAt, Date.now()) > CONFIG.BACKGROUND_SYNC_GRACE_MS;
+        if (silentWindowExceeded) {
+          void pauseStudySession('后台期间未能持续确认课件进度已上报，已自动暂停学习，请重新继续。', { syncAndRefresh: false });
+          return;
+        }
+        updateStudyUi();
+        if (!session.syncing) void syncStudyProgress(false);
+      }
+      if (!document.hidden) refreshSelectionHighlights();
+    }
+
+    async function refreshStudyInfo() {
+      if (!state.auth) return;
+      const button = $('refresh-study-info');
+      setButtonBusy(button, true, '');
+      try {
+        const response = await requestJson({ path: CONFIG.STUDY_INFO_PATH, method: 'POST', lockKey: 'study-info' });
+        $('study-duration').textContent = safeNumber(response?.data?.duration).toLocaleString('zh-CN');
+      } catch (error) {
+        showNotice($('study-notice'), error.message, 'error');
+      } finally {
+        setButtonBusy(button, false, '');
+        button.innerHTML = '↻';
+      }
+    }
+
+    async function refreshIntegral() {
+      if (!state.auth) return;
+      const button = $('refresh-integral');
+      setButtonBusy(button, true, '');
+      try {
+        const response = await requestJson({ path: CONFIG.INTEGRAL_COUNT_PATH, method: 'POST', lockKey: 'integral-count' });
+        $('total-integral').textContent = safeNumber(response?.total).toLocaleString('zh-CN');
+        $('usable-integral').textContent = safeNumber(response?.useable).toLocaleString('zh-CN');
+      } catch (error) {
+        showNotice($('study-notice'), error.message, 'error');
+      } finally {
+        setButtonBusy(button, false, '');
+        button.innerHTML = '↻';
+      }
+    }
+
+    async function refreshPlans() {
+      if (!state.auth) return;
+      const button = $('refresh-plans');
+      setButtonBusy(button, true, '');
+      try {
+        await loadPlans({ clearConsole: true });
+      } catch (error) {
+        showNotice($('study-notice'), error.message, 'error');
+      } finally {
+        setButtonBusy(button, false, '');
+        button.innerHTML = '↻';
+      }
+    }
+
+    function isWareCompleted(ware) {
+      return safeNumber(ware?.Progress, 0) >= 100;
+    }
+
+    function getFirstIncompleteWare(wares) {
+      return (wares || []).find((ware) => !isWareCompleted(ware)) || null;
+    }
+
+    function getNextIncompleteWare(wares, currentWare) {
+      if (!Array.isArray(wares) || !wares.length) return null;
+      const currentIndex = wares.findIndex((ware) => String(ware.WareId) === String(currentWare?.WareId));
+      if (currentIndex < 0) return getFirstIncompleteWare(wares);
+      return wares.slice(currentIndex + 1).find((ware) => !isWareCompleted(ware)) || null;
+    }
+
+    async function advanceAutoStudy(currentSession) {
+      if (!state.autoStudy || state.selectedCourse !== currentSession.course) return;
+      const nextWare = getNextIncompleteWare(currentSession.course.wares, currentSession.ware);
+      if (!nextWare) {
+        state.selectedCourse.learnProcess = 2;
+        refreshSelectionHighlights();
+        showNotice($('study-notice'), '该课程课件已全部完成。', 'success');
+        return;
+      }
+      if (state.studySession === currentSession) {
+        await stopStudySession({ silent: true, syncBeforeStop: false });
+      }
+      await selectCourseWare(nextWare, false, false);
+      if (state.autoStudy && !isWareCompleted(nextWare)) await startStudySession();
+    }
+
+    function clearSmsCountdown() {
+      if (state.exchange.smsTimerId) clearInterval(state.exchange.smsTimerId);
+      state.exchange.smsTimerId = null;
+      state.exchange.smsCountdown = 0;
+      $('exchange-send-sms').textContent = '获取验证码';
+    }
+
+    function stopExchangeViewTimers() {
+      clearSmsCountdown();
+    }
+
+    function getExchangeNodeDescription(node) {
+      return node?.descr || node?.DESCR || `${safeNumber(node?.metaTime)} 分钟兑换 ${safeNumber(node?.metaIntegral)} 积分`;
+    }
+
+    function getExchangeNodeKey(node) {
+      return node?.nodeKey || node?.metaKey || node?.METAKEY || '';
+    }
+
+    function canSelectExchangeNode(node) {
+      return safeNumber(node?.canExchange, 0) === 1 && safeNumber(node?.isExchange, 0) !== 1;
+    }
+
+    async function loadExchangeView({ silent = false } = {}) {
+      if (!state.auth) return;
+      try {
+        const [info, history] = await Promise.all([
+          requestJson({ path: CONFIG.STUDY_INFO_PATH, method: 'POST', lockKey: 'exchange-info' }),
+          requestJson({ path: CONFIG.STUDY_EXCHANGE_DATA_PATH, method: 'POST', body: { page: 1, pageSize: 10 }, lockKey: 'exchange-history' })
+        ]);
+        state.exchange.info = info?.data || null;
+        const nodes = Array.isArray(state.exchange.info?.node) ? state.exchange.info.node : [];
+        const selectedStillValid = nodes.some((node) => getExchangeNodeKey(node) === state.exchange.selectedNodeKey && canSelectExchangeNode(node));
+        if (!selectedStillValid) state.exchange.selectedNodeKey = null;
+        $('exchange-duration').textContent = safeNumber(state.exchange.info?.duration).toLocaleString('zh-CN');
+        renderExchangeNodes(nodes);
+        renderExchangeHistory(Array.isArray(history?.data) ? history.data : []);
+        if (!silent) hideNotice($('exchange-notice'));
+      } catch (error) {
+        if (!silent) showNotice($('exchange-notice'), error.message, 'error');
+        else showNotice($('exchange-notice'), error.message, 'error');
+      }
+    }
+
+    function renderExchangeNodes(nodes) {
+      const container = $('exchange-node-list');
+      container.innerHTML = '';
+      if (!nodes.length) {
+        container.innerHTML = '<div class="empty-state">暂无可兑换项目</div>';
+        $('exchange-send-sms').disabled = true;
+        $('exchange-submit').disabled = true;
+        $('exchange-selected').textContent = '暂无可兑换项目';
+        return;
+      }
+      nodes.forEach((node) => {
+        const key = getExchangeNodeKey(node);
+        const selectable = canSelectExchangeNode(node);
+        const item = document.createElement('div');
+        item.className = 'exchange-node';
+        if (key && key === state.exchange.selectedNodeKey) item.classList.add('selected');
+        const main = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'exchange-node-title';
+        title.textContent = getExchangeNodeDescription(node);
+        const meta = document.createElement('div');
+        meta.className = 'exchange-node-meta';
+        const statusText = safeNumber(node?.isExchange, 0) === 1 ? '已兑换' : (safeNumber(node?.canExchange, 0) === 1 ? '可兑换' : '暂不可兑换');
+        meta.textContent = `${safeNumber(node?.metaTime)} 分钟 · ${safeNumber(node?.metaIntegral)} 分 · ${statusText}`;
+        main.append(title, meta);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = selectable ? 'secondary-button exchange-node-action' : 'ghost-button exchange-node-action';
+        button.textContent = key && key === state.exchange.selectedNodeKey ? '已选择' : (statusText === '已兑换' ? '已兑换' : (selectable ? '选择' : '不可用'));
+        button.disabled = !selectable;
+        button.addEventListener('click', () => selectExchangeNode(node));
+        item.append(main, button);
+        container.appendChild(item);
+      });
+      updateExchangeForm();
+    }
+
+    function selectExchangeNode(node) {
+      state.exchange.selectedNodeKey = getExchangeNodeKey(node);
+      renderExchangeNodes(Array.isArray(state.exchange.info?.node) ? state.exchange.info.node : []);
+      hideNotice($('exchange-notice'));
+    }
+
+    function getSelectedExchangeNode() {
+      const nodes = Array.isArray(state.exchange.info?.node) ? state.exchange.info.node : [];
+      return nodes.find((node) => getExchangeNodeKey(node) === state.exchange.selectedNodeKey && canSelectExchangeNode(node)) || null;
+    }
+
+    function updateExchangeForm() {
+      const node = getSelectedExchangeNode();
+      $('exchange-selected').textContent = node ? `${getExchangeNodeDescription(node)} · 将兑换 ${safeNumber(node.metaIntegral)} 分` : '请选择可兑换项目';
+      $('exchange-send-sms').disabled = !node || state.exchange.smsCountdown > 0;
+      $('exchange-submit').disabled = !node || !String($('exchange-sms-code').value).trim();
+    }
+
+    async function sendExchangeSms() {
+      const node = getSelectedExchangeNode();
+      if (!node || state.exchange.smsCountdown > 0) return;
+      const button = $('exchange-send-sms');
+      setButtonBusy(button, true, '发送中…');
+      try {
+        const response = await requestJson({
+          path: CONFIG.STUDY_EXCHANGE_SEND_SMS_PATH,
+          method: 'POST',
+          body: { type: 1 },
+          lockKey: 'exchange-sms'
+        });
+        if (response && Number(response.result) !== 1) throw new Error(response.msg || '验证码发送失败');
+        state.exchange.smsCountdown = 60;
+        button.textContent = '60秒后重试';
+        state.exchange.smsTimerId = setInterval(() => {
+          state.exchange.smsCountdown -= 1;
+          if (state.exchange.smsCountdown <= 0) {
+            clearSmsCountdown();
+            updateExchangeForm();
+            return;
+          }
+          button.textContent = `${state.exchange.smsCountdown}秒后重试`;
+        }, 1000);
+        showNotice($('exchange-notice'), response.msg || '短信验证码已发送。', 'success');
+      } catch (error) {
+        showNotice($('exchange-notice'), error.message, 'error');
+        setButtonBusy(button, false, '获取验证码');
+      } finally {
+        if (state.exchange.smsCountdown > 0) button.disabled = true;
+        else setButtonBusy(button, false, '获取验证码');
+      }
+    }
+
+    async function submitStudyExchange() {
+      const node = getSelectedExchangeNode();
+      const smsCode = String($('exchange-sms-code').value || '').trim();
+      if (!node) {
+        showNotice($('exchange-notice'), '请选择可兑换项目。', 'error');
+        return;
+      }
+      if (!smsCode) {
+        showNotice($('exchange-notice'), '请输入短信验证码。', 'error');
+        $('exchange-sms-code').focus();
+        return;
+      }
+      const button = $('exchange-submit');
+      setButtonBusy(button, true, '兑换中…');
+      try {
+        const response = await requestJson({
+          path: CONFIG.STUDY_EXCHANGE_SUBMIT_PATH,
+          method: 'POST',
+          body: { smsCode, nodeKey: getExchangeNodeKey(node) },
+          lockKey: 'exchange-submit'
+        });
+        if (response && Number(response.result) !== 1) throw new Error(response.msg || '兑换失败');
+        $('exchange-sms-code').value = '';
+        clearSmsCountdown();
+        showNotice($('exchange-notice'), response.msg || '兑换成功。', 'success');
+        await loadExchangeView({ silent: true });
+        await loadSummary();
+      } catch (error) {
+        showNotice($('exchange-notice'), error.message, 'error');
+      } finally {
+        updateExchangeForm();
+        setButtonBusy(button, false, '提交兑换');
+        updateExchangeForm();
+      }
+    }
+
+    function renderExchangeHistory(records) {
+      const container = $('exchange-history');
+      container.innerHTML = '';
+      if (!records.length) {
+        container.innerHTML = '<div class="empty-state">暂无兑换记录</div>';
+        return;
+      }
+      records.forEach((record) => {
+        const item = document.createElement('div');
+        item.className = 'exchange-history-item';
+        const main = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'exchange-history-title';
+        title.textContent = `${safeNumber(record.studyLength)} 分钟兑换 ${safeNumber(record.exchangeIntegral)} 分`;
+        const meta = document.createElement('div');
+        meta.className = 'exchange-history-meta';
+        meta.textContent = `${formatDateTime(record.createTime)} · ${record.transMsg || record.transState || '—'}`;
+        main.append(title, meta);
+        const points = document.createElement('div');
+        points.className = 'exchange-history-points';
+        points.textContent = `+${safeNumber(record.exchangeIntegral)}`;
+        item.append(main, points);
+        container.appendChild(item);
+      });
+    }
+
+    function getIntegralDelta(record) {
+      const desc = String(record?.integralDesc ?? '').trim();
+      const descMatch = desc.match(/[+-]?\s*\d+(?:\.\d+)?/);
+      if (descMatch) {
+        const normalized = descMatch[0].replace(/\s+/g, '');
+        const parsed = Number(normalized);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      return safeNumber(record?.integral, 0);
+    }
+
+    function integralRecordKey(record) {
+      return String(record?.recordId ?? `${record?.getTime || ''}-${record?.actionCode || ''}-${record?.integralDesc || record?.integral || ''}-${record?.actionName || ''}`);
+    }
+
+    function classifyIntegralRecords(earnedRecords, spentRecords) {
+      const earnedSource = Array.isArray(earnedRecords) ? earnedRecords : [];
+      const spentSource = Array.isArray(spentRecords) ? spentRecords : [];
+      const spentKeys = new Set(spentSource.map(integralRecordKey));
+      const earned = [];
+      const spent = [];
+      const earnedKeys = new Set();
+      const spentFallback = [];
+
+      spentSource.forEach((record) => {
+        const key = integralRecordKey(record);
+        if (spentKeys.has(key) && !spentFallback.some((item) => integralRecordKey(item) === key)) spentFallback.push(record);
+      });
+
+      // scoreType=1 在后端用于筛选另一类流水；即使 integral 本身为正数，也应按该列表归入消费。
+      spentFallback.forEach((record) => {
+        const key = integralRecordKey(record);
+        if (!spent.find((item) => integralRecordKey(item) === key)) spent.push(record);
+      });
+
+      earnedSource.forEach((record) => {
+        const key = integralRecordKey(record);
+        if (spentKeys.has(key)) return;
+        const delta = getIntegralDelta(record);
+        if (delta >= 0 && !earnedKeys.has(key)) {
+          earned.push(record);
+          earnedKeys.add(key);
+        } else if (delta < 0 && !spent.find((item) => integralRecordKey(item) === key)) {
+          spent.push(record);
+        }
+      });
+
+      return { earned, spent };
+    }
+
+    async function loadIntegralRecords({ silent = false } = {}) {
+      if (!state.auth) return;
+      try {
+        const [scoreZero, scoreOne] = await Promise.all([
+          requestJson({ path: CONFIG.INTEGRAL_LIST_PATH, method: 'POST', body: { scoreType: 0, page: 1, pageSize: 16 }, lockKey: 'integral-list-0' }),
+          requestJson({ path: CONFIG.INTEGRAL_LIST_PATH, method: 'POST', body: { scoreType: 1, page: 1, pageSize: 16 }, lockKey: 'integral-list-1' })
+        ]);
+        state.integralRecords = classifyIntegralRecords(scoreZero?.data, scoreOne?.data);
+        renderIntegralRecords();
+        if (!silent) hideNotice($('integral-notice'));
+      } catch (error) {
+        showNotice($('integral-notice'), error.message, 'error');
+      }
+    }
+
+    function renderIntegralRecords() {
+      const render = (container, records, totalElement, negative = false) => {
+        container.innerHTML = '';
+        const total = records.reduce((sum, record) => sum + Math.abs(safeNumber(record?.integral, 0)), 0);
+        $(totalElement).textContent = `${total.toLocaleString('zh-CN')} 分`;
+        if (!records.length) {
+          container.innerHTML = '<div class="empty-state">暂无记录</div>';
+          return;
+        }
+        records.forEach((record) => {
+          const item = document.createElement('div');
+          item.className = 'record-item';
+          const main = document.createElement('div');
+          const title = document.createElement('div');
+          title.className = 'record-title';
+          title.textContent = record?.actionName || record?.inteCategroy || '积分记录';
+          const meta = document.createElement('div');
+          meta.className = 'record-meta';
+          meta.textContent = `${formatDateTime(record?.getTime)} · ${record?.inteCategroy || '—'}`;
+          main.append(title, meta);
+          const points = document.createElement('div');
+          points.className = `record-points ${negative ? 'negative' : 'positive'}`;
+          const delta = getIntegralDelta(record);
+          const displayAmount = negative ? -Math.abs(delta) : delta;
+          points.textContent = `${displayAmount > 0 ? '+' : ''}${displayAmount}`;
+          item.append(main, points);
+          container.appendChild(item);
+        });
+      };
+      render($('integral-earned-list'), state.integralRecords.earned, 'integral-earned-total', false);
+      render($('integral-spent-list'), state.integralRecords.spent, 'integral-spent-total', true);
+    }
+
+    function openFeatureView(viewId) {
+      if (!state.auth) {
+        $('dashboard-view').classList.add('hidden');
+        $('exchange-view').classList.add('hidden');
+        $('integral-view').classList.add('hidden');
+        $('login-view').classList.remove('hidden');
+        $('summary-grid').classList.add('hidden');
+        stopExchangeViewTimers();
+        return;
+      }
+      $('login-view').classList.add('hidden');
+      $('dashboard-view').classList.toggle('hidden', viewId !== 'dashboard-view');
+      $('exchange-view').classList.toggle('hidden', viewId !== 'exchange-view');
+      $('integral-view').classList.toggle('hidden', viewId !== 'integral-view');
+      $('summary-grid').classList.remove('hidden');
+      if (viewId !== 'exchange-view') stopExchangeViewTimers();
+    }
+
+    function renderAuthState() {
+      const loggedIn = Boolean(state.auth);
+      $('login-view').classList.toggle('hidden', loggedIn);
+      $('dashboard-view').classList.toggle('hidden', !loggedIn);
+      $('summary-grid').classList.toggle('hidden', !loggedIn);
+      $('exchange-view').classList.add('hidden');
+      $('integral-view').classList.add('hidden');
+      if (!loggedIn) stopExchangeViewTimers();
+      $('user-name-top').textContent = loggedIn ? state.auth.name : '';
+      setStatus(loggedIn ? '已登录 · 点击退出' : '未登录', loggedIn);
+      $('status-chip').title = loggedIn ? '点击退出登录' : '当前未登录';
+    }
+
+    function logout() {
+      void stopStudySession({ silent: true });
+      state.auth = null;
+      state.plans = [];
+      state.selectedPlanId = null;
+      state.selectedCourse = null;
+      state.selectedCourseWare = null;
+      state.autoStudy = false;
+      $('auto-study-toggle').checked = false;
+      state.stageCache.clear();
+      state.courseDetailCache.clear();
+      state.exchange.selectedNodeKey = null;
+      stopExchangeViewTimers();
+      openFeatureView('dashboard-view');
+      $('plan-list').innerHTML = '<div class="empty-state">登录后加载学习计划</div>';
+      $('study-empty').classList.remove('hidden');
+      $('study-content').classList.add('hidden');
+      $('username').value = '';
+      $('password').value = '';
+      renderAuthState();
+      hideNotice($('login-notice'));
+      hideNotice($('study-notice'));
+    }
+
+    async function runWithTransientRetry(operation) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (!isTransientRequestError(error)) throw error;
+        await waitMs(350);
+        return operation();
+      }
+    }
+
+    async function onLoginSubmit(event) {
+      event.preventDefault();
+      const username = $('username').value.trim();
+      const password = $('password').value;
+      const domain = $('domain').value.trim();
+      hideNotice($('login-notice'));
+
+      if (!username) {
+        showNotice($('login-notice'), '请输入账号。', 'error');
+        $('username').focus();
+        return;
+      }
+      if (!password) {
+        showNotice($('login-notice'), '请输入密码。', 'error');
+        $('password').focus();
+        return;
+      }
+      if (!domain) {
+        showNotice($('login-notice'), '请输入企业域。', 'error');
+        $('domain').focus();
+        return;
+      }
+
+      setButtonBusy($('login-button'), true, '登录中…');
+      try {
+        await login(username, password, domain);
+        renderAuthState();
+        $('month-label').textContent = `${currentMonthLabel()}学习时长`;
+
+        const failures = [];
+        try {
+          await runWithTransientRetry(loadSummary);
+        } catch (error) {
+          failures.push(`学习时长/积分：${error.message}`);
+        }
+        try {
+          await runWithTransientRetry(loadPlans);
+        } catch (error) {
+          failures.push(`学习计划：${error.message}`);
+        }
+
+        if (failures.length) {
+          showNotice($('login-notice'), `登录成功，但部分学习数据暂未加载。${failures.join('；')} 可使用各区域刷新按钮重试。`, 'info');
+        } else {
+          showNotice($('login-notice'), '登录成功，学习数据已加载。', 'success');
+        }
+      } catch (error) {
+        state.auth = null;
+        renderAuthState();
+        showNotice($('login-notice'), error.message, 'error');
+      } finally {
+        setButtonBusy($('login-button'), false, '登录');
+      }
+    }
+
+    function init() {
+      $('tool-title').textContent = TOOL_META.name;
+      $('tool-version').textContent = `v${TOOL_META.version}`;
+      document.title = TOOL_META.name;
+      $('footer-text').textContent = `${TOOL_META.name} · v${TOOL_META.version} · ${TOOL_META.author}`;
+      $('month-label').textContent = `${currentMonthLabel()}学习时长`;
+
+      $('login-form').addEventListener('submit', onLoginSubmit);
+      $('status-chip').addEventListener('click', () => {
+        if (state.auth) {
+          if (window.confirm('确定退出登录吗？')) logout();
+        }
+      });
+      $('refresh-study-info').addEventListener('click', (event) => { event.stopPropagation(); void refreshStudyInfo(); });
+      $('refresh-integral').addEventListener('click', (event) => { event.stopPropagation(); void refreshIntegral(); });
+      $('refresh-plans').addEventListener('click', refreshPlans);
+      $('study-stat-card').addEventListener('click', (event) => {
+        if (event.target.closest('.icon-button')) return;
+        openFeatureView('exchange-view');
+        void loadExchangeView();
+      });
+      $('study-stat-card').addEventListener('keydown', (event) => {
+        if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('.icon-button')) {
+          event.preventDefault();
+          openFeatureView('exchange-view');
+          void loadExchangeView();
+        }
+      });
+      $('integral-stat-card').addEventListener('click', (event) => {
+        if (event.target.closest('.icon-button')) return;
+        openFeatureView('integral-view');
+        void loadIntegralRecords();
+      });
+      $('integral-stat-card').addEventListener('keydown', (event) => {
+        if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('.icon-button')) {
+          event.preventDefault();
+          openFeatureView('integral-view');
+          void loadIntegralRecords();
+        }
+      });
+      $('exchange-back').addEventListener('click', () => openFeatureView('dashboard-view'));
+      $('integral-back').addEventListener('click', () => openFeatureView('dashboard-view'));
+      $('refresh-exchange').addEventListener('click', () => void loadExchangeView());
+      $('refresh-exchange-history').addEventListener('click', () => void loadExchangeView({ silent: true }));
+      $('exchange-send-sms').addEventListener('click', () => void sendExchangeSms());
+      $('exchange-submit').addEventListener('click', () => void submitStudyExchange());
+      $('exchange-sms-code').addEventListener('input', updateExchangeForm);
+      $('refresh-integral-records').addEventListener('click', () => void loadIntegralRecords());
+      $('auto-study-toggle').addEventListener('change', () => {
+        state.autoStudy = $('auto-study-toggle').checked;
+      });
+      $('start-study-button').addEventListener('click', startStudySession);
+      $('pause-study-button').addEventListener('click', pauseStudySession);
+      $('sync-study-button').addEventListener('click', () => void syncStudyProgress(false, true));
+      document.addEventListener('visibilitychange', () => { void resumeAfterVisibility(); });
+
+      renderAuthState();
+    }
+
+    init();
+  </script>
+</body>
+</html>
