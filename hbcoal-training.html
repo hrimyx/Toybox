@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="name" content="淮矿培训">
-  <meta name="version" content="1.18.0">
+  <meta name="version" content="1.21.0">
   <meta name="author" content="Hrimyx">
   <title>淮矿培训</title>
   <style>
@@ -915,9 +915,12 @@
       STUDY_EXCHANGE_SUBMIT_PATH: '/appStudyIntegral/submitStudyExchange.action',
       STUDY_EXCHANGE_DATA_PATH: '/appStudyIntegral/getStudyExchangeData.action',
       REQUEST_TIMEOUT_MS: 12000,
-      PROGRESS_SYNC_INTERVAL_MS: 10000,
-      BACKGROUND_SYNC_GRACE_MS: 35000,
+      PROGRESS_FIRST_SYNC_DELAY_MS: 60000,
+      PROGRESS_SYNC_INTERVAL_MS: 300000,
+      BACKGROUND_SYNC_RETRY_DELAY_MS: 15000,
+      BACKGROUND_SYNC_STALE_SYNC_MS: 90000,
       BACKGROUND_SYNC_FAILURE_LIMIT: 3,
+      AUTO_STUDY_MAX_DURATION_MS: 60 * 60 * 1000,
       UI_TICK_INTERVAL_MS: 1000,
       MEDIA_META_RANGE_BYTES: 1024 * 1024
     });
@@ -937,6 +940,10 @@
       backgroundReporter: null,
       sessionSerial: 0,
       autoStudy: false,
+      autoStudyStartedAt: 0,
+      autoStudyDeadlineAt: 0,
+      selectedStage: null,
+      stageCourses: [],
       exchange: { info: null, selectedNodeKey: null, smsCountdown: 0, smsTimerId: null },
       integralRecords: { earned: [], spent: [] }
     };
@@ -1139,6 +1146,9 @@
       state.selectedCourse = null;
       state.selectedCourseWare = null;
       state.autoStudy = false;
+      clearAutoStudyWindow();
+      state.selectedStage = null;
+      state.stageCourses = [];
       $('auto-study-toggle').checked = false;
       $('study-empty').classList.remove('hidden');
       $('study-content').classList.add('hidden');
@@ -1314,6 +1324,8 @@
           lockKey: `courses-${stage.id}`
         });
         const courses = Array.isArray(response?.dataList) ? response.dataList : [];
+        state.selectedStage = stage;
+        state.stageCourses = courses;
         container.innerHTML = '';
         if (!courses.length) {
           container.innerHTML = '<div class="empty-state">该阶段暂无课程</div>';
@@ -1658,15 +1670,36 @@
       const workerSource = `
         'use strict';
         let timerId = null;
+        let completionTimerId = null;
         let working = false;
         let payload = null;
         let lastSuccessAt = 0;
         let failures = 0;
 
         function stop() {
-          if (timerId !== null) clearInterval(timerId);
+          if (timerId !== null) clearTimeout(timerId);
+          if (completionTimerId !== null) clearTimeout(completionTimerId);
           timerId = null;
+          completionTimerId = null;
           working = false;
+        }
+
+        function scheduleNext(delayMs) {
+          if (timerId !== null) clearTimeout(timerId);
+          timerId = setTimeout(() => void syncNow(), Math.max(0, Number(delayMs) || 0));
+        }
+
+        function scheduleCompletion(payload) {
+          if (completionTimerId !== null) clearTimeout(completionTimerId);
+          const totalMs = Number(payload.totalMs) || 0;
+          if (totalMs <= 0) return;
+          const progressMs = Math.max(0, Number(payload.baseMs) || 0) + Math.max(0, Date.now() - (Number(payload.startedAt) || Date.now()));
+          const remainingMs = totalMs - progressMs;
+          if (remainingMs <= 0) {
+            completionTimerId = setTimeout(() => void syncNow(), 0);
+            return;
+          }
+          completionTimerId = setTimeout(() => void syncNow(), remainingMs);
         }
 
         async function syncNow() {
@@ -1702,13 +1735,18 @@
             if ((Number(payload.totalMs) || 0) > 0 && progressMs >= Number(payload.totalMs)) {
               self.postMessage({ type: 'complete', sessionId: payload.sessionId, progressMs });
               stop();
+            } else {
+              scheduleNext(Number(payload.intervalMs) || 300000);
             }
           } catch (error) {
             failures += 1;
             self.postMessage({ type: 'failure', sessionId: payload.sessionId, failures, message: error?.message || '后台进度同步失败', at: Date.now() });
-            if (failures >= Number(payload.failureLimit) || Date.now() - lastSuccessAt >= Number(payload.graceMs)) {
-              self.postMessage({ type: 'pause', sessionId: payload.sessionId, failures });
-              stop();
+            if (failures < Number(payload.failureLimit || 3)) {
+              scheduleNext(Number(payload.retryDelayMs) || 15000);
+            } else {
+              // 临时网络波动不应中断连续学习：达到失败阈值后恢复到原生 5 分钟周期继续尝试。
+              failures = 0;
+              scheduleNext(Number(payload.intervalMs) || 300000);
             }
           } finally {
             clearTimeout(timeoutId);
@@ -1721,19 +1759,24 @@
           if (message.type === 'start') {
             stop();
             payload = message.payload;
-            lastSuccessAt = Date.now();
+            lastSuccessAt = Number(payload.lastSuccessAt) || Date.now();
             failures = 0;
-            void syncNow();
-            timerId = setInterval(syncNow, Number(payload.intervalMs) || 10000);
+            const nextSyncAt = Number(payload.nextSyncAt) || (Date.now() + Number(payload.firstDelayMs || 60000));
+            scheduleNext(nextSyncAt - Date.now());
+            scheduleCompletion(payload);
           } else if (message.type === 'stop') {
             stop();
           }
         };
       `;
-      const blob = new Blob([workerSource], { type: 'application/javascript' });
-      const url = URL.createObjectURL(blob);
-      const worker = new Worker(url);
-      return { worker, url };
+      try {
+        const blob = new Blob([workerSource], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const worker = new Worker(url);
+        return { worker, url };
+      } catch {
+        return null;
+      }
     }
 
     function startBackgroundReporter(session) {
@@ -1747,9 +1790,11 @@
       reporter.worker.onmessage = (event) => handleBackgroundReporterMessage(event.data || {});
       reporter.worker.onerror = () => {
         const current = state.studySession;
-        if (current?.id === session.id && current.active) {
-          void pauseStudySession('后台进度上报通道异常，已自动暂停学习，避免课件进度与服务器记录不一致。', { syncAndRefresh: false });
-        }
+        if (current?.id !== session.id || !current.active) return;
+        // Worker 不可用时自动降级到主线程周期上报，不中断学习与连续学习链。
+        stopBackgroundReporter();
+        showNotice($('study-notice'), '后台上报通道不可用，已切换兼容模式继续学习。', 'warning');
+        void syncStudyProgress(false, false, true);
       };
       reporter.worker.postMessage({
         type: 'start',
@@ -1759,10 +1804,13 @@
           startedAt: session.startedAt,
           baseMs: session.baseMs,
           totalMs: session.totalMs,
+          nextSyncAt: session.nextSyncAt,
+          firstDelayMs: CONFIG.PROGRESS_FIRST_SYNC_DELAY_MS,
           intervalMs: CONFIG.PROGRESS_SYNC_INTERVAL_MS,
+          retryDelayMs: CONFIG.BACKGROUND_SYNC_RETRY_DELAY_MS,
           timeoutMs: CONFIG.REQUEST_TIMEOUT_MS,
           failureLimit: CONFIG.BACKGROUND_SYNC_FAILURE_LIMIT,
-          graceMs: CONFIG.BACKGROUND_SYNC_GRACE_MS
+          lastSuccessAt: session.lastSyncWallAt
         }
       });
       return true;
@@ -1775,6 +1823,7 @@
       if (message.type === 'success') {
         session.backgroundFailures = 0;
         session.lastSyncWallAt = Number(message.at) || Date.now();
+        session.nextSyncAt = session.lastSyncWallAt + CONFIG.PROGRESS_SYNC_INTERVAL_MS;
         const progressMs = Math.max(session.lastSyncMs, Math.min(session.totalMs || Number.MAX_SAFE_INTEGER, safeNumber(message.progressMs)));
         const completedNow = applyStudySyncResult(session, progressMs);
         if (completedNow) {
@@ -1813,6 +1862,7 @@
 
     async function startStudySession() {
       const course = state.selectedCourse;
+      if (state.autoStudy) ensureAutoStudyWindow();
       const ware = state.selectedCourseWare;
       if (!course || !ware) {
         showNotice($('study-notice'), '请先选择一个课程课件。', 'error');
@@ -1825,8 +1875,10 @@
         pausedSession.startedAt = Date.now();
         pausedSession.active = true;
         pausedSession.lastSyncWallAt = Date.now();
+        pausedSession.nextSyncAt = Date.now() + CONFIG.PROGRESS_FIRST_SYNC_DELAY_MS;
         pausedSession.backgroundFailures = 0;
         pausedSession.timerId = setInterval(updateStudyUi, CONFIG.UI_TICK_INTERVAL_MS);
+        startBackgroundReporter(pausedSession);
         $('pause-study-button').disabled = false;
         $('sync-study-button').disabled = false;
         $('start-study-button').disabled = true;
@@ -1869,6 +1921,7 @@
           startedAt: Date.now(),
           lastSyncMs: baseMs,
           lastSyncWallAt: Date.now(),
+          nextSyncAt: Date.now() + CONFIG.PROGRESS_FIRST_SYNC_DELAY_MS,
           backgroundFailures: 0,
           recordId: response?.recordId,
           wareRecordId: response?.wareRecordId,
@@ -1877,6 +1930,7 @@
           completed: false
         };
         if (safeNumber(course.learnProcess, 0) === 0) course.learnProcess = 1;
+        startBackgroundReporter(state.studySession);
         state.studySession.timerId = setInterval(updateStudyUi, CONFIG.UI_TICK_INTERVAL_MS);
         updateStudyUi();
         $('pause-study-button').disabled = false;
@@ -1897,7 +1951,10 @@
       if (!session?.active || session.syncing) return;
       const { syncAndRefresh = true } = options;
       const currentProgressMs = getSessionProgressMs(session);
-      session.elapsedMs = Math.max(0, currentProgressMs - session.baseMs);
+      session.baseMs = Math.min(session.totalMs || Number.MAX_SAFE_INTEGER, currentProgressMs);
+      session.elapsedMs = 0;
+      session.startedAt = Date.now();
+      session.lastSyncMs = Math.max(session.lastSyncMs, session.baseMs);
       clearInterval(session.timerId);
       session.timerId = null;
       session.active = false;
@@ -1953,7 +2010,7 @@
       $('session-progress-text').textContent = `${Math.floor(percent)}%`;
       $('study-progress-fill').style.width = `${percent}%`;
 
-      if (session.active && !document.hidden && progressMs - session.lastSyncMs >= CONFIG.PROGRESS_SYNC_INTERVAL_MS && !session.syncing) {
+      if (session.active && !state.backgroundReporter && Date.now() >= safeNumber(session.nextSyncAt) && !session.syncing) {
         void syncStudyProgress(false);
       }
 
@@ -1965,13 +2022,15 @@
     async function syncStudyProgress(finalSync, refreshSummary = false, allowAutoAdvance = true) {
       const session = state.studySession;
       if (!session || session.syncing) return;
+
+      const hadBackgroundReporter = state.backgroundReporter?.sessionId === session.id;
+      if (hadBackgroundReporter) stopBackgroundReporter();
       session.syncing = true;
       $('sync-study-button').disabled = true;
 
       try {
         const progressMs = getSessionProgressMs(session);
         // HAR 已验证：allprogress 是媒体实际总时长（毫秒），progress 是当前播放位置（毫秒）。
-        // 二者不能用课件对象里的 total 字段或 Math.max() 随意替代。
         const response = await requestJson({
           path: CONFIG.AFTER_WARE_PATH,
           method: 'GET',
@@ -1982,6 +2041,7 @@
 
         if (response && Number(response.result) !== 1) throw new Error(response.msg || '进度同步失败');
         const completedNow = applyStudySyncResult(session, progressMs);
+        session.nextSyncAt = Date.now() + CONFIG.PROGRESS_SYNC_INTERVAL_MS;
         session.completed = completedNow;
         if (completedNow) {
           session.active = false;
@@ -1989,7 +2049,12 @@
           session.timerId = null;
           if (state.selectedCourse?.wares) {
             const currentWare = state.selectedCourse.wares.find((ware) => String(ware.WareId) === String(session.ware.WareId));
-            if (currentWare) { currentWare.Progress = 100; currentWare.current = String(Math.floor(progressMs / 1000)); }
+            if (currentWare) {
+              currentWare.Progress = 100;
+              currentWare.current = String(Math.floor(progressMs / 1000));
+              currentWare.currentThisYear = currentWare.current;
+              currentWare.progressThisYear = 100;
+            }
             renderWareList(state.selectedCourse.wares);
           }
           refreshSelectionHighlights();
@@ -2001,7 +2066,6 @@
           hideNotice($('study-notice'));
         }
 
-        // 只有暂停、手动同步或课件结束时才刷新学习时长与积分；周期进度上报不重复请求这两个接口。
         if (refreshSummary) await loadSummary();
         if (allowAutoAdvance && completedNow && state.studySession === session) {
           await advanceAutoStudy(session);
@@ -2010,38 +2074,32 @@
         showNotice($('study-notice'), error.message, 'error');
       } finally {
         session.syncing = false;
-        if (state.studySession === session) $('sync-study-button').disabled = false;
+        if (state.studySession === session) {
+          $('sync-study-button').disabled = false;
+          if (session.active && !session.completed && hadBackgroundReporter) startBackgroundReporter(session);
+        }
       }
     }
 
     async function resumeAfterVisibility() {
       const session = state.studySession;
-      if (!session || session.completed) return;
+      if (!session || session.completed || !session.active) return;
 
-      if (document.hidden && session.active) {
-        const started = startBackgroundReporter(session);
-        if (!started) {
-          if (!session.syncing) {
-            await syncStudyProgress(false);
-          }
-          if (state.studySession === session && session.active && !session.completed) {
-            void pauseStudySession('当前浏览器无法可靠维持后台课件进度上报，已自动暂停学习。', { syncAndRefresh: false });
-          }
-        }
-        return;
+      // 后台上报器贯穿整个学习会话，不因前后台切换被销毁；切回前台时仅做一次追赶校正。
+      if (!state.backgroundReporter || state.backgroundReporter.sessionId !== session.id) {
+        startBackgroundReporter(session);
       }
 
-      if (!document.hidden && session.active) {
-        stopBackgroundReporter();
-        const silentWindowExceeded = Date.now() - safeNumber(session.lastSyncWallAt, Date.now()) > CONFIG.BACKGROUND_SYNC_GRACE_MS;
-        if (silentWindowExceeded) {
-          void pauseStudySession('后台期间未能持续确认课件进度已上报，已自动暂停学习，请重新继续。', { syncAndRefresh: false });
-          return;
+      if (!document.hidden) {
+        const stale = Date.now() - safeNumber(session.lastSyncWallAt, Date.now()) >= CONFIG.BACKGROUND_SYNC_STALE_SYNC_MS;
+        const reachedEnd = getSessionProgressMs(session) >= session.totalMs;
+        if (stale || reachedEnd) {
+          void syncStudyProgress(reachedEnd, true);
+        } else {
+          updateStudyUi();
         }
-        updateStudyUi();
-        if (!session.syncing) void syncStudyProgress(false);
+        refreshSelectionHighlights();
       }
-      if (!document.hidden) refreshSelectionHighlights();
     }
 
     async function refreshStudyInfo() {
@@ -2104,20 +2162,104 @@
       return wares.slice(currentIndex + 1).find((ware) => !isWareCompleted(ware)) || null;
     }
 
+    function ensureAutoStudyWindow(reset = false) {
+      if (!state.autoStudy) return false;
+      const now = Date.now();
+      if (reset || !state.autoStudyStartedAt || !state.autoStudyDeadlineAt || now >= state.autoStudyDeadlineAt) {
+        state.autoStudyStartedAt = now;
+        state.autoStudyDeadlineAt = now + CONFIG.AUTO_STUDY_MAX_DURATION_MS;
+      }
+      return true;
+    }
+
+    function clearAutoStudyWindow() {
+      state.autoStudyStartedAt = 0;
+      state.autoStudyDeadlineAt = 0;
+    }
+
+    function autoStudyTimeExceeded() {
+      return Boolean(state.autoStudyDeadlineAt) && Date.now() >= state.autoStudyDeadlineAt;
+    }
+
+    async function findNextIncompleteCourse(currentCourse) {
+      const courses = Array.isArray(state.stageCourses) ? state.stageCourses : [];
+      const currentIndex = courses.findIndex((course) => String(course.id) === String(currentCourse?.id));
+      if (currentIndex < 0) return null;
+
+      for (const course of courses.slice(currentIndex + 1)) {
+        if (safeNumber(course.learnProcess, 0) === 2) continue;
+        let detail = state.courseDetailCache.get(`${state.selectedStage?.id}:${course.id}`);
+        if (!detail) {
+          detail = await requestJson({
+            path: CONFIG.COURSE_DETAIL_PATH,
+            method: 'POST',
+            body: { courseId: course.id, relationId: state.selectedStage.id, source: 2 },
+            lockKey: `course-detail-${course.id}-${state.selectedStage.id}`
+          });
+          state.courseDetailCache.set(`${state.selectedStage.id}:${course.id}`, detail);
+        }
+        const sections = Array.isArray(detail?.course?.sectionList) ? detail.course.sectionList : [];
+        const wares = [];
+        sections.forEach((section) => {
+          const list = Array.isArray(section.courseWareList) ? section.courseWareList : [];
+          list.forEach((ware) => wares.push({ ...ware, sectionId: ware.sectionId ?? section.SectionId }));
+        });
+        if (wares.some((ware) => !isWareCompleted(ware))) return course;
+        course.learnProcess = 2;
+      }
+      return null;
+    }
+
     async function advanceAutoStudy(currentSession) {
       if (!state.autoStudy || state.selectedCourse !== currentSession.course) return;
-      const nextWare = getNextIncompleteWare(currentSession.course.wares, currentSession.ware);
-      if (!nextWare) {
-        state.selectedCourse.learnProcess = 2;
-        refreshSelectionHighlights();
-        showNotice($('study-notice'), '该课程课件已全部完成。', 'success');
+
+      // 连续学习达到 1 小时后，不中断当前课件；只在当前课件完成后停止，不再开启下一课件。
+      if (autoStudyTimeExceeded()) {
+        state.autoStudy = false;
+        $('auto-study-toggle').checked = false;
+        clearAutoStudyWindow();
+        showNotice($('study-notice'), '已连续学习满 1 小时，当前课件已完成，连续学习停止。', 'success');
         return;
       }
-      if (state.studySession === currentSession) {
-        await stopStudySession({ silent: true, syncBeforeStop: false });
+
+      const nextWare = getNextIncompleteWare(currentSession.course.wares, currentSession.ware);
+      if (nextWare) {
+        if (state.studySession === currentSession) {
+          await stopStudySession({ silent: true, syncBeforeStop: false });
+        }
+        await selectCourseWare(nextWare, false, false);
+        if (state.autoStudy && !isWareCompleted(nextWare)) await startStudySession();
+        return;
       }
-      await selectCourseWare(nextWare, false, false);
-      if (state.autoStudy && !isWareCompleted(nextWare)) await startStudySession();
+
+      currentSession.course.learnProcess = 2;
+      refreshSelectionHighlights();
+
+      if (autoStudyTimeExceeded()) {
+        state.autoStudy = false;
+        $('auto-study-toggle').checked = false;
+        clearAutoStudyWindow();
+        showNotice($('study-notice'), '已连续学习满 1 小时，当前课件完成后停止连续学习。', 'success');
+        return;
+      }
+
+      const nextCourse = await findNextIncompleteCourse(currentSession.course);
+      if (!nextCourse) {
+        state.autoStudy = false;
+        $('auto-study-toggle').checked = false;
+        clearAutoStudyWindow();
+        showNotice($('study-notice'), '当前阶段已无未完成课程，连续学习已停止。', 'success');
+        return;
+      }
+
+      await loadCourseDetail(nextCourse, state.selectedStage);
+      if (state.autoStudy && state.selectedCourse?.wares?.length) {
+        const firstIncomplete = getFirstIncompleteWare(state.selectedCourse.wares);
+        if (firstIncomplete) {
+          await selectCourseWare(firstIncomplete, false, false);
+          if (state.autoStudy) await startStudySession();
+        }
+      }
     }
 
     function clearSmsCountdown() {
@@ -2452,6 +2594,9 @@
       state.selectedCourse = null;
       state.selectedCourseWare = null;
       state.autoStudy = false;
+      clearAutoStudyWindow();
+      state.selectedStage = null;
+      state.stageCourses = [];
       $('auto-study-toggle').checked = false;
       state.stageCache.clear();
       state.courseDetailCache.clear();
@@ -2583,6 +2728,12 @@
       $('refresh-integral-records').addEventListener('click', () => void loadIntegralRecords());
       $('auto-study-toggle').addEventListener('change', () => {
         state.autoStudy = $('auto-study-toggle').checked;
+        if (state.autoStudy) {
+          if (state.studySession?.active) ensureAutoStudyWindow(true);
+          else clearAutoStudyWindow();
+        } else {
+          clearAutoStudyWindow();
+        }
       });
       $('start-study-button').addEventListener('click', startStudySession);
       $('pause-study-button').addEventListener('click', pauseStudySession);
