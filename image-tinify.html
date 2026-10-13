@@ -7,12 +7,12 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <!-- 应用元信息 -->
-    <meta name="app-name" content="图片压缩" />
-    <meta name="app-version" content="2.5.5" />
-    <meta name="app-author" content="Hrimyx" />
+    <meta name="name" content="图片压缩" />
+    <meta name="version" content="2.5.5" />
+    <meta name="author" content="Hrimyx" />
     <title></title>
     <script>
-      document.title = document.querySelector('meta[name="app-name"]').content;
+      document.title = document.querySelector('meta[name="name"]').content;
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -1001,9 +1001,9 @@
       "use strict";
 
       const AppMeta = {
-        name: document.querySelector('meta[name="app-name"]').content,
-        version: document.querySelector('meta[name="app-version"]').content,
-        author: document.querySelector('meta[name="app-author"]').content,
+        name: document.querySelector('meta[name="name"]').content,
+        version: document.querySelector('meta[name="version"]').content,
+        author: document.querySelector('meta[name="author"]').content,
       };
 
       const PROXY_URL = "https://tinify-proxy.hrimyx.workers.dev";

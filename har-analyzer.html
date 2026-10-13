@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <!-- 应用元信息：名称/版本号/作者只在此处维护一份，其他地方均从这里引用 -->
-    <meta name="app-name" content="HAR本地分析器">
-    <meta name="app-version" content="1.4.4">
-    <meta name="app-author" content="Hrimyx">
+    <meta name="name" content="HAR本地分析器">
+    <meta name="version" content="1.4.4">
+    <meta name="author" content="Hrimyx">
     <title></title>
     <script>
         (function () {
             const m = n => document.querySelector(`meta[name="${n}"]`).content;
-            document.title = `${m('app-name')} v${m('app-version')} by ${m('app-author')}`;
+            document.title = `${m('name')} v${m('version')} by ${m('author')}`;
         })();
     </script>
     <style>
@@ -324,9 +324,9 @@
 
     <script>
         const AppMeta = {
-            name: document.querySelector('meta[name="app-name"]').content,
-            version: document.querySelector('meta[name="app-version"]').content,
-            author: document.querySelector('meta[name="app-author"]').content
+            name: document.querySelector('meta[name="name"]').content,
+            version: document.querySelector('meta[name="version"]').content,
+            author: document.querySelector('meta[name="author"]').content
         };
         (function renderBrand() {
             document.getElementById('brand-name-large').textContent = AppMeta.name;
