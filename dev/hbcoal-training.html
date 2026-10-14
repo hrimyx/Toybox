@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="name" content="淮矿培训">
-  <meta name="version" content="3.0.23">
+  <meta name="name" content="模拟培训">
+  <meta name="version" content="3.0.41">
   <meta name="author" content="Hrimyx">
-  <title>淮矿培训</title>
+  <title>模拟培训</title>
   <style>
     :root {
       --brand-primary: #1A6AFF;
@@ -113,6 +113,11 @@
     .stack { display: grid; gap: 14px; }
     .row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
     .row-head h3 { margin: 0; font-size: 15px; }
+    /* 二级页面顶栏：返回按钮最左、标题居中（右侧用空位平衡） */
+    .page-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .page-head h3 { margin: 0; font-size: 15px; text-align: center; }
+    .page-head .text-button { justify-self: start; white-space: nowrap; }
+    .page-head::after { content: ""; }
     .primary-button, .secondary-button, .ghost-button, .text-button {
       border-radius: 12px; border: 1px solid transparent; font-size: 15px;
       min-height: var(--tap); padding: 10px 18px;
@@ -165,6 +170,19 @@
     .session { border-color: var(--accent-cyan); display: grid; gap: 10px; }
     .session-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .session-top #session-course { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* 直接学完（速）：圆形文字按钮，绝对定位贴在面板左上角（各 1px），不占布局流、不推动任何元素；
+       色彩调暗一半；仅待学习时可用；点击弹窗二次确认 */
+    #btn-speed {
+      position: absolute; left: 1px; top: 1px; z-index: 1;
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1.5px solid color-mix(in srgb, var(--brand-primary) 50%, transparent);
+      color: color-mix(in srgb, var(--brand-primary) 50%, transparent);
+      background: var(--surface); font-size: 13px; font-weight: 700; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      touch-action: manipulation;
+    }
+    #btn-speed:disabled { opacity: .3; cursor: default; }
     #session-course { font-size: 16px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* 课件切换时的轻柔过渡 */
     #session-panel .session-top, #session-panel .session-ware, #session-panel .session-progress-row {
@@ -179,18 +197,18 @@
     .pbar { height: 10px; border-radius: 999px; background: var(--surface-alt); overflow: hidden; }
     .pbar > div { height: 100%; border-radius: inherit; background: var(--accent-cyan); width: 0; transition: width .3s ease; }
     .pbar.brand > div { background: var(--brand-primary); }
-    .switch { position: relative; width: 46px; height: 27px; flex: 0 0 auto; }
+    .switch { position: relative; width: 40px; height: 23px; flex: 0 0 auto; }
     .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
     .switch .track {
       position: absolute; inset: 0; border-radius: 999px;
       background: var(--surface-alt); border: 1px solid var(--border); transition: background-color .15s;
     }
     .switch .thumb {
-      position: absolute; top: 3px; left: 3px; width: 19px; height: 19px; border-radius: 50%;
+      position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%;
       background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s;
     }
     .switch input:checked + .track { background: var(--brand-primary); border-color: var(--brand-primary); }
-    .switch input:checked + .track .thumb { transform: translateX(19px); }
+    .switch input:checked + .track .thumb { transform: translateX(17px); }
     .plan { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
     #plan-list { display: grid; gap: 10px; }
     .plan-head {
@@ -234,6 +252,8 @@
     .ware-row .ware-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
     .ware-row.done { opacity: .7; }
     .ware-row.done .ware-name { text-decoration: line-through; }
+    .ware-row.selected { border-color: var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 8%, var(--surface)); }
+    .ware-row.selected .ware-name { color: var(--brand-primary); font-weight: 700; }
     .ware-meta { flex: 0 0 auto; font-size: 11.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .ware-meta.hot { color: var(--brand-primary); font-weight: 700; }
     #tier-list { display: grid; gap: 10px; }
@@ -295,6 +315,17 @@
       background: var(--surface); color: var(--text); padding: 10px 14px; outline: none; font-size: 15px;
     }
     .field input:focus { border-color: var(--brand-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 14%, transparent); }
+    .field input[readonly] { background: var(--surface-alt); color: var(--text-secondary); cursor: default; }
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 46px; }
+    .eye-button {
+      position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+      width: 38px; height: 38px; border: 0; border-radius: 10px; padding: 0;
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .eye-button:hover { color: var(--text); background: var(--surface-alt); }
+    .eye-button svg { width: 20px; height: 20px; }
     .remember-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--text-secondary); user-select: none; cursor: pointer; }
     .remember-row input { width: 18px; height: 18px; accent-color: var(--brand-primary); }
     .notice { border-radius: 12px; padding: 11px 13px; font-size: 13px; line-height: 1.55; display: none; }
@@ -364,11 +395,12 @@
     .session-progress-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .session-pbar { flex: 1; min-width: 0; }
     .session-time-text { font-size: 12px; white-space: nowrap; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-    .session-actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; }
+    .session-actions { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: center; }
+    #session-panel .session-toggles { justify-self: end; display: flex; align-items: center; gap: 14px; }
     #session-panel .primary-button, #session-panel .ghost-button {
-      font-size: 13px; min-height: 36px; padding: 6px 14px; border-radius: 10px;
+      font-size: 13px; min-height: 34px; padding: 6px 10px; border-radius: 10px;
     }
-    .lianxue {
+    .toggle-label {
       display: flex; align-items: center; gap: 6px; font-size: 13px;
       color: var(--text-secondary); cursor: pointer; white-space: nowrap;
     }
@@ -412,7 +444,7 @@
     @media (max-width: 560px) {
       .app-shell { width: calc(100% - 20px); padding-top: 12px; }
       .brand h1 { font-size: 18px; }
-      .brand span { display: none; }
+      .brand span { font-size: 11px; }
       #user-name-top { max-width: 84px; font-size: 12px; }
       .hero-big { font-size: 32px; }
       .panel { padding: 15px; }
@@ -428,7 +460,7 @@
   <div class="app-shell">
     <header class="app-header">
       <div class="brand">
-        <h1 id="tool-title">淮矿培训</h1>
+        <h1 id="tool-title">模拟培训</h1>
         <span id="tool-version"></span>
       </div>
       <div class="account-area">
@@ -440,7 +472,7 @@
 
     <section class="panel login-card" id="login-view">
       <h2>登录</h2>
-      <p class="muted">使用淮矿培训账号登录</p>
+      <p class="muted">使用模拟培训账号登录</p>
       <form class="form-grid" id="login-form" novalidate>
         <div class="field">
           <label for="username">账号</label>
@@ -448,11 +480,17 @@
         </div>
         <div class="field">
           <label for="password">密码</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码">
+          <div class="password-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码">
+            <button class="eye-button" id="toggle-password" type="button" aria-label="显示密码" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>
+            </button>
+          </div>
         </div>
         <div class="field">
           <label for="domain">企业域</label>
-          <input id="domain" name="domain" value="hbky" required placeholder="例如 hbky">
+          <input id="domain" name="domain" value="hbky" readonly required title="企业域固定，不可更改">
         </div>
         <label class="remember-row" for="remember-me"><input type="checkbox" id="remember-me"> 记住账号（仅保存账号与企业域）</label>
         <button class="primary-button block" id="login-button" type="submit">登录</button>
@@ -474,11 +512,11 @@
               <span class="hero-label">积分(可用/总计)</span>
               <span class="hero-big num"><span id="hero-integral">—</span><small class="hero-total">/<span id="hero-integral-total">—</span></small></span>
             </button>
-            <div class="hero-card hero-goal">
+            <button class="hero-card hero-goal" id="hero-goal-card" type="button" aria-label="进入兑换积分">
               <span class="goal-head"><span class="hero-label">兑换目标</span><span class="goal-text" id="hero-goal-text">正在加载兑换目标…</span></span>
               <span class="goal-bar"><span id="hero-goal-fill"></span></span>
               <span class="hero-daily" id="hero-daily">本设备今日已上报 — 分钟</span>
-            </div>
+            </button>
           </div>
         </section>
 
@@ -513,7 +551,7 @@
 
     <section id="exchange-view" class="hidden">
       <div class="stack">
-        <div class="row-head"><h3>兑换积分</h3><button class="text-button" id="exchange-back" type="button">‹ 返回学习</button></div>
+        <div class="page-head"><button class="text-button" id="exchange-back" type="button">‹ 返回学习</button><h3>兑换积分</h3></div>
         <div class="panel hero-lite">
           <div><div class="muted" style="font-size:13px">当前学习时长</div><strong class="num"><span id="exchange-duration">—</span> <small style="font-size:13px;font-weight:500">分钟</small></strong></div>
           <button class="icon-button" id="refresh-exchange" type="button" title="刷新" aria-label="刷新兑换信息">↻</button>
@@ -544,7 +582,7 @@
 
     <section id="integral-view" class="hidden">
       <div class="stack">
-        <div class="row-head"><h3>积分记录</h3><button class="text-button" id="integral-back" type="button">‹ 返回学习</button></div>
+        <div class="page-head"><button class="text-button" id="integral-back" type="button">‹ 返回学习</button><h3>积分记录</h3></div>
         <div class="tabs small" id="integral-tabs" role="tablist" aria-label="积分记录分类">
           <button type="button" data-tab="earned" class="active" role="tab" aria-selected="true">获取记录</button>
           <button type="button" data-tab="spent" role="tab" aria-selected="false">消费记录</button>
@@ -571,7 +609,7 @@
 
     /* ================= 配置 ================= */
     const CONFIG = Object.freeze({
-      API_BASE: 'https://cors-proxy.hrimyx.workers.dev/hbcoal-training',
+      API_BASE: 'https://hbcoal-cors-proxy.hrimyx.workers.dev/hbcoal-training',
       LOGIN_PATH: '/appLogin/login.action',
       PLAN_LIST_PATH: '/appRes/getLearnPlanList.action',
       STAGE_LIST_PATH: '/appRes/getLearnPlanStageList.action',
@@ -592,10 +630,8 @@
       PROGRESS_FIRST_SYNC_DELAY_MS: 60000,
       PROGRESS_SYNC_INTERVAL_MS: 300000,
       BACKGROUND_SYNC_RETRY_DELAY_MS: 15000,
-      BACKGROUND_SYNC_STALE_SYNC_MS: 90000,
       BACKGROUND_SYNC_FAILURE_LIMIT: 3,
-      AUTO_STUDY_MAX_DURATION_MS: 60 * 60 * 1000,
-      AUTO_STUDY_MAX_WARES: 5, // 自动连学最多连续学习的课件数
+      AUTO_STUDY_MAX_WARES: 5, // 自动连学最多连续学习的课件数（按课件数，不按时间）
       UI_TICK_INTERVAL_MS: 1000,
       MEDIA_META_RANGE_BYTES: 1024 * 1024,
       LS_REMEMBER: 'hbcoal.remember.v3',
@@ -633,11 +669,13 @@
       pendingStudy: null, // 已选中、待手动开始的课件 { detail, ware }
       startingSession: false,
       backgroundReporter: null,
+      fallbackTimerId: null, // Worker 不可用时的降级单次定时器
+      keepalive: false, // 保活模式开关：仅表示"启用"，音频在开始学习时启动、学完/结束时关闭
+      keepaliveAudio: null,
+      speedBusy: false, // 直接学完（速）执行中
       requestLock: new Set(),
       autoStudy: false,
       autoStudyCount: 0, // 当前连学链已学习的课件数（含手动开始的第 1 个），上限 5
-      autoStudyStartedAt: 0,
-      autoStudyDeadlineAt: 0,
       tiers: [],
       studyDuration: 0,
       serverUseable: 0,
@@ -881,7 +919,7 @@
       $('exchange-view').classList.add('hidden');
       $('integral-view').classList.add('hidden');
       $('session-float').classList.toggle('hidden', !loggedIn);
-      if (loggedIn) setFloatMode('ball');
+      if (loggedIn) { resetFloatPosition(); setFloatMode('ball'); }
       state.currentView = 'study-view';
       $('user-name-top').textContent = loggedIn ? state.auth.name : '';
       setStatus(loggedIn ? '已登录 · 点击退出' : '未登录', loggedIn);
@@ -927,11 +965,6 @@
       saveDaily();
       renderDaily();
     }
-    // 每 5 分钟 1 分，按每日上限封顶（默认 5，活动期可能翻倍，见 CONFIG.DAILY_POINT_CAP）
-    function dailyEstPoints() {
-      ensureDailyDate();
-      return Math.min(Math.floor(state.daily.minutes / 5), CONFIG.DAILY_POINT_CAP);
-    }
     function renderHero() {
       $('hero-duration').textContent = Math.round(safeNumber(state.studyDuration)).toLocaleString('zh-CN');
       $('hero-integral').textContent = safeNumber(state.serverUseable).toLocaleString('zh-CN');
@@ -942,7 +975,7 @@
     function renderDaily() {
       ensureDailyDate();
       const mins = Math.floor(state.daily.minutes);
-      $('hero-daily').textContent = `本设备今日已上报 ${mins} 分钟 · 预计今日可得 ${dailyEstPoints()} 积分（每日上限 ${CONFIG.DAILY_POINT_CAP}）`;
+      $('hero-daily').textContent = `本设备今日已上报 ${mins} 分钟`;
     }
     async function loadSummary() {
       const [studyInfo, integralCount] = await Promise.all([
@@ -971,8 +1004,9 @@
       const need = safeNumber(tier.metaTime);
       const got = safeNumber(tier.metaIntegral);
       const have = safeNumber(state.studyDuration);
-      if (have >= need) {
-        $('hero-goal-text').textContent = `已达标：${need} 分钟可兑换 ${got} 积分，去兑换吧`;
+      const allMet = state.tiers.length > 0 && state.tiers.every((n) => safeNumber(n?.metaTime) <= have);
+      if (allMet) {
+        $('hero-goal-text').textContent = '全部档位均已达标';
         $('hero-goal-fill').style.width = '100%';
       } else {
         const rest = Math.max(0, Math.ceil(need - have));
@@ -1220,7 +1254,7 @@
           <span class="ware-name">${esc(ware?.WareName ?? ware?.wareName ?? '未命名课件')}</span>
           <span class="ware-meta${p > 0 && p < 100 ? ' hot' : ''}">${p >= 100 ? '已完成' : (p > 0 ? `${p}%` : formatHms(ware?.total ?? ware?.Total))}</span>`;
         btn.addEventListener('click', () => {
-          void selectWare(detail, ware, module);
+          void selectWare(detail, ware, module, btn);
         });
         waresWrap.appendChild(btn);
       });
@@ -1583,22 +1617,94 @@
       stopBackgroundReporter();
       if (session.background) return;
       state.backgroundReporter = createBackgroundReporter();
-      if (!state.backgroundReporter) return;
-      state.backgroundReporter.postMessage({ type: 'start', syncAt: session.nextSyncAt });
+      if (state.backgroundReporter) {
+        state.backgroundReporter.postMessage({ type: 'start', syncAt: session.nextSyncAt });
+      } else {
+        // Worker 不可用（如旧 webview）：降级为页面单次定时器，语义与 Worker 一致
+        armFallbackReporter(session.nextSyncAt);
+      }
       session.background = true;
     }
     function stopBackgroundReporter() {
       try { state.backgroundReporter?.postMessage({ type: 'stop' }); } catch { /* 忽略 */ }
       try { state.backgroundReporter?.terminate(); } catch { /* 忽略 */ }
       state.backgroundReporter = null;
+      clearFallbackReporter();
       if (state.studySession) state.studySession.background = false;
+    }
+    // 统一重排后台上报：Worker 优先，否则降级定时器（单次、可覆盖，不堆积）
+    function rescheduleBackgroundReporter(syncAt) {
+      if (state.backgroundReporter) {
+        try { state.backgroundReporter.postMessage({ type: 'reschedule', syncAt }); } catch { /* 忽略 */ }
+      } else if (state.studySession?.background) {
+        armFallbackReporter(syncAt);
+      }
+    }
+    function armFallbackReporter(syncAt) {
+      clearFallbackReporter();
+      state.fallbackTimerId = setTimeout(() => {
+        state.fallbackTimerId = null;
+        void handleBackgroundReporterMessage({ type: 'sync-due', at: Date.now() });
+      }, Math.max(0, syncAt - Date.now()));
+    }
+    function clearFallbackReporter() {
+      if (state.fallbackTimerId) { clearTimeout(state.fallbackTimerId); state.fallbackTimerId = null; }
+    }
+    // 后台保活：静音音频循环。浏览器把"正在播放音频"的页面视为活跃，不节流定时器、
+    // 不冻结页面（桌面切后台、移动端后台/息屏大概率有效；iOS 锁屏会显示媒体控件）。
+    // 开关只代表"启用此模式"，音频起停规则：
+    // - 未开始/暂停/已结束时操作开关：仅记录模式，不启动音频
+    // - 点击开始/继续：按模式决定是否启动音频
+    // - 学习中操作开关：立即启动或关闭音频
+    // - 暂停/结束/外部点击切换课件：如音频在启动中则关闭（模式保持）
+    // - 连学切下一个课件：按模式判定，启用则中转不断
+    // 代价：阻止深度睡眠、持续耗电，需用户手势启动。
+    function setKeepalive(on) {
+      if (on) {
+        if (!window.AudioContext && !window.webkitAudioContext) {
+          $('keepalive-toggle').checked = false;
+          state.keepalive = false;
+          showSessionNotice('当前浏览器不支持后台保活', 'error');
+          return;
+        }
+        state.keepalive = true;
+        // 学习进行中（非暂停）才立即启动音频；未开始/暂停/已结束只记录模式
+        if (state.studySession?.active && !state.studySession.paused) startKeepaliveAudio();
+      } else {
+        state.keepalive = false;
+        stopKeepaliveAudio();
+      }
+    }
+    function startKeepaliveAudio() {
+      if (state.keepaliveAudio) return true; // 已在运行
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        const ctx = new AC();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0; // 静音，只为保活
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        if (ctx.state === 'suspended') void ctx.resume(); // 手势链路可唤醒
+        state.keepaliveAudio = { ctx, osc };
+        return true;
+      } catch { return false; }
+    }
+    function stopKeepaliveAudio() {
+      const k = state.keepaliveAudio;
+      state.keepaliveAudio = null;
+      if (!k) return;
+      try { k.osc.stop(); } catch { /* 忽略 */ }
+      try { void k.ctx.close(); } catch { /* 忽略 */ }
     }
     async function handleBackgroundReporterMessage(message) {
       const session = state.studySession;
       if (!message || message.type !== 'sync-due' || !session?.active || session.background === false) return;
       if (session.syncing) {
         session.nextSyncAt = Date.now() + CONFIG.BACKGROUND_SYNC_RETRY_DELAY_MS;
-        state.backgroundReporter?.postMessage({ type: 'reschedule', syncAt: session.nextSyncAt });
+        rescheduleBackgroundReporter(session.nextSyncAt);
         return;
       }
       await syncSessionProgress(session, { fromBackground: true });
@@ -1622,7 +1728,7 @@
         const prevReportedMs = Math.max(session.lastSyncMs || 0, session.baseMs || 0);
         applyStudySyncResult(session, progressMs);
         recordDailyReport(progressMs - prevReportedMs);
-        state.backgroundReporter?.postMessage({ type: 'reschedule', syncAt: session.nextSyncAt });
+        rescheduleBackgroundReporter(session.nextSyncAt);
         updateSessionUi();
         refreshWareRow(session);
         void loadSummary().catch(() => {});
@@ -1632,12 +1738,25 @@
         if (state.studySession?.serial !== serial) return;
         session.backgroundFailures = (session.backgroundFailures || 0) + 1;
         session.nextSyncAt = Date.now() + CONFIG.BACKGROUND_SYNC_RETRY_DELAY_MS;
-        state.backgroundReporter?.postMessage({ type: 'reschedule', syncAt: session.nextSyncAt });
+        rescheduleBackgroundReporter(session.nextSyncAt);
         if (!fromBackground || session.backgroundFailures >= CONFIG.BACKGROUND_SYNC_FAILURE_LIMIT) {
           showSessionNotice(error.message || '进度同步失败', 'error');
         }
       } finally {
         if (state.studySession?.serial === serial) session.syncing = false;
+      }
+    }
+
+    // 回到前台对账：后台可能冻结/节流了上报，若同步已逾期则立即补一次（仅一次，syncing 守卫防并发，
+    // 不会把积压的请求一股脑全发）；未逾期则确认 worker/降级定时器仍在排期；最后检查连学安全截止
+    async function reconcileAfterVisible() {
+      const session = state.studySession;
+      updateSessionUi();
+      if (!session?.active || session.syncing || session.paused) return;
+      if (Date.now() >= session.nextSyncAt) {
+        await syncSessionProgress(session); // 内部重排下一次上报
+      } else {
+        rescheduleBackgroundReporter(session.nextSyncAt); // 幂等，防 worker 在后台被冻结后失约
       }
     }
 
@@ -1657,21 +1776,35 @@
       const btn = $('btn-start');
       btn.textContent = '开始';
       btn.disabled = true;
+      $('btn-end').disabled = true;
       setPanelStateClass('st-ready');
       hideNotice($('session-notice'));
+      refreshSpeedButton();
     }
     // 待开始面板：显示选中的课程/课件，进度条归零
-    function showPendingPanel(detail, ware) {
+    async function showPendingPanel(detail, ware) {
       $('session-course').textContent = detail?.courseName || detail?.course?.CourseName || '—';
       $('session-ware').textContent = ware?.WareName ?? ware?.wareName ?? '—';
       $('session-progress-fill').style.width = '0%';
-      const totalSeconds = safeNumber(ware?.total ?? ware?.Total);
-      $('session-time-text').textContent = totalSeconds > 0 ? `00:00 / ${formatHms(totalSeconds)}` : '00:00 / --:--';
+      $('session-time-text').textContent = '00:00 / --:--';
       const btn = $('btn-start');
       btn.textContent = '开始';
       btn.disabled = false;
+      $('btn-end').disabled = false; // 待学习时结束=取消该课件，可点
       setPanelStateClass('st-ready');
       hideNotice($('session-notice'));
+      refreshSpeedButton();
+      // 异步解析真实时长与已学进度（与开始学习用同一套逻辑），解析完再填上
+      try {
+        const totalMs = await resolveMediaDurationMs(ware);
+        if (state.pendingStudy?.ware !== ware) return; // 已切换到其他课件，丢弃过期结果
+        if (totalMs > 0) {
+          const totalSec = Math.round(totalMs / 1000);
+          const baseSec = Math.round(normalizeBaseProgressMs(ware, totalMs) / 1000);
+          $('session-progress-fill').style.width = `${totalSec > 0 ? Math.min(100, (baseSec / totalSec) * 100) : 0}%`;
+          $('session-time-text').textContent = `${formatHms(baseSec)} / ${formatHms(totalSec)}`;
+        }
+      } catch { /* 解析失败则保持 --:-- */ }
     }
     function setPanelStateClass(cls) {
       const panel = $('session-panel');
@@ -1679,6 +1812,14 @@
       panel.classList.add(cls);
     }
     /* ============ 全局单例浮动学习控制台：ball（悬浮球）/ panel（完整）/ mini（小型学习台） ============ */
+    // 每次登录后悬浮球回到右下角默认位置（清除拖动残留的内联定位）
+    function resetFloatPosition() {
+      for (const id of ['session-ball', 'session-mini', 'session-panel']) {
+        const el = $(id);
+        if (!el) continue;
+        el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = '';
+      }
+    }
     function setFloatMode(mode) {
       state.floatMode = mode;
       $('session-ball').classList.toggle('hidden', mode !== 'ball');
@@ -1693,121 +1834,245 @@
       el.style.right = 'auto';
       el.style.bottom = 'auto';
     }
-    // 面板锚定到指定矩形：右下角对齐到该矩形右下、上方 12px，钳制在视口内
-    function anchorPanelToRect(r) {
+    // 边缘感知锚点：取矩形离视口最近的边（悬空时用，平局按左>右>上>下）
+    function nearestEdge(r) {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const cands = [
+        { edge: 'left', dist: r.left },
+        { edge: 'right', dist: vw - r.right },
+        { edge: 'top', dist: r.top },
+        { edge: 'bottom', dist: vh - r.bottom },
+      ];
+      let best = cands[0];
+      for (const c of cands) if (c.dist < best.dist) best = c;
+      return best.edge;
+    }
+    // 贴边判定阈值：球/面板默认边距与拖动吸附边距均为 12px，24px 足以覆盖吸附位
+    const EDGE_NEAR = 24;
+    // 边缘信息：每条边的精确距离、是否贴近；每轴选一条边（贴近者优先按距离，平局取 right/bottom）
+    function edgeInfo(r) {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const dist = { left: r.left, right: vw - r.right, top: r.top, bottom: vh - r.bottom };
+      const near = {
+        left: dist.left <= EDGE_NEAR, right: dist.right <= EDGE_NEAR,
+        top: dist.top <= EDGE_NEAR, bottom: dist.bottom <= EDGE_NEAR,
+      };
+      const pick = (a, b) => {
+        if (near[a] !== near[b]) return near[a] ? a : b;
+        return dist[b] <= dist[a] ? b : a;
+      };
+      return { dist, near, hx: pick('left', 'right'), vy: pick('top', 'bottom') };
+    }
+    // 面板展开锚定：角落（含横跨整宽/整高）→ 面板贴进该角；单边 → 面板贴该边、居中于来源。
+    // 返回面板生长原点。调用前隐藏测量，调用后恢复显示
+    function anchorPanelToSource(r) {
       const panel = $('session-panel');
       panel.style.visibility = 'hidden';
       panel.classList.remove('hidden');
       const pw = panel.offsetWidth, ph = panel.offsetHeight;
       const vw = window.innerWidth, vh = window.innerHeight;
-      const left = Math.min(Math.max(r.right - pw, 12), Math.max(12, vw - pw - 12));
-      const top = Math.min(Math.max(r.top - ph - 12, 12), Math.max(12, vh - ph - 12));
+      const rr = { left: r.left, top: r.top, right: r.left + r.width, bottom: r.top + r.height };
+      const scx = (rr.left + rr.right) / 2, scy = (rr.top + rr.bottom) / 2;
+      const info = edgeInfo(rr);
+      let left, top, origin;
+      if (info.near[info.hx] && info.near[info.vy]) {
+        left = info.hx === 'right' ? vw - pw - 12 : 12;
+        top = info.vy === 'bottom' ? vh - ph - 12 : 12;
+        origin = `${info.hx} ${info.vy}`;
+      } else if (info.near[info.hx]) {
+        left = info.hx === 'right' ? vw - pw - 12 : 12;
+        top = scy - ph / 2;
+        origin = `${info.hx} center`;
+      } else if (info.near[info.vy]) {
+        left = scx - pw / 2;
+        top = info.vy === 'bottom' ? vh - ph - 12 : 12;
+        origin = `center ${info.vy}`;
+      } else {
+        const edge = nearestEdge(rr);
+        if (edge === 'left') { left = 12; top = scy - ph / 2; origin = 'left center'; }
+        else if (edge === 'right') { left = vw - pw - 12; top = scy - ph / 2; origin = 'right center'; }
+        else if (edge === 'top') { left = scx - pw / 2; top = 12; origin = 'center top'; }
+        else { left = scx - pw / 2; top = vh - ph - 12; origin = 'center bottom'; }
+      }
+      left = Math.min(Math.max(Math.round(left), 12), Math.max(12, vw - pw - 12));
+      top = Math.min(Math.max(Math.round(top), 12), Math.max(12, vh - ph - 12));
       placeElAt(panel, left, top);
       panel.style.visibility = '';
+      return origin;
     }
-    // 吸附到最近的左/右/下边缘
+    // 面板收起锚点：角落 → 小形态回到该角；单边 → 贴该边（左右边纵向居中，上下边横向居中）。
+    // 返回目标位置与面板收缩原点（与展开互为逆运算，往返零漂移）
+    function collapseAnchor(p, w, h) {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const cx = (p.left + p.right) / 2, cy = (p.top + p.bottom) / 2;
+      const info = edgeInfo(p);
+      let x, y, origin;
+      if (info.near[info.hx] && info.near[info.vy]) {
+        x = info.hx === 'right' ? p.right - w : p.left;
+        y = info.vy === 'bottom' ? p.bottom - h : p.top;
+        origin = `${info.hx} ${info.vy}`;
+      } else if (info.near[info.hx]) {
+        x = info.hx === 'right' ? p.right - w : p.left;
+        y = cy - h / 2;
+        origin = `${info.hx} center`;
+      } else if (info.near[info.vy]) {
+        x = cx - w / 2;
+        y = info.vy === 'bottom' ? p.bottom - h : p.top;
+        origin = `center ${info.vy}`;
+      } else {
+        const edge = nearestEdge(p);
+        if (edge === 'left') { x = p.left; y = cy - h / 2; origin = 'left center'; }
+        else if (edge === 'right') { x = p.right - w; y = cy - h / 2; origin = 'right center'; }
+        else if (edge === 'top') { x = cx - w / 2; y = p.top; origin = 'center top'; }
+        else { x = cx - w / 2; y = p.bottom - h; origin = 'center bottom'; }
+      }
+      x = Math.min(Math.max(Math.round(x), 0), Math.max(0, vw - w));
+      y = Math.min(Math.max(Math.round(y), 0), Math.max(0, vh - h));
+      return { x, y, origin };
+    }
+    // 吸附到最近的左/右/下边缘；另一轴如被拖到 0 边距也一并拉回 12px 安全区
     function snapToEdge(el) {
       const r = el.getBoundingClientRect();
       if (r.width <= 0) return;
       const vw = window.innerWidth, vh = window.innerHeight;
+      const M = 12;
       const dLeft = r.left, dRight = vw - r.right, dBottom = vh - r.bottom;
       const m = Math.min(dLeft, dRight, dBottom);
+      let x = r.left, y = r.top;
+      if (m === dBottom) y = vh - r.height - M;
+      else if (m === dLeft) x = M;
+      else x = vw - r.width - M;
+      x = Math.min(Math.max(x, M), Math.max(M, vw - r.width - M));
+      y = Math.min(Math.max(y, M), Math.max(M, vh - r.height - M));
       el.style.transition = 'left .18s ease, top .18s ease';
-      requestAnimationFrame(() => {
-        if (m === dBottom) el.style.top = `${Math.max(12, vh - r.height - 12)}px`;
-        else if (m === dLeft) el.style.left = '12px';
-        else el.style.left = `${Math.max(12, vw - r.width - 12)}px`;
-      });
+      requestAnimationFrame(() => { placeElAt(el, x, y); });
       setTimeout(() => { el.style.transition = ''; }, 220);
     }
-    // 面板从中心放大展开；调用前已由 anchorPanelToRect 定位并显示
-    function animatePanelFromRect() {
+    // 面板从右下角（与来源共享的锚点）淡入放大；调用前已由 anchorPanelToRect 定位并显示
+    // 面板从来源最近的边生长出来；调用前已由 anchorPanelToSource 定位，origin 为其返回的生长原点
+    function animatePanelExpand(origin) {
       const panel = $('session-panel');
       state.floatMode = 'panel';
       $('session-ball').classList.add('hidden');
       $('session-mini').classList.add('hidden');
-      panel.style.transformOrigin = 'center';
-      panel.style.setProperty('--pscale', '.25');
+      panel.style.transformOrigin = origin || 'right bottom';
+      panel.style.setProperty('--pscale', '.3');
       panel.style.opacity = '0';
       void panel.offsetWidth; // 强制回流，使起始态生效
-      panel.style.transition = 'transform .3s cubic-bezier(.2,.9,.3,1.15), opacity .22s ease';
+      panel.style.transition = 'transform .2s ease-out, opacity .16s ease-out';
       panel.style.setProperty('--pscale', '1');
       panel.style.opacity = '1';
-      setTimeout(() => { panel.style.transition = ''; }, 330);
+      setTimeout(() => { panel.style.transition = ''; }, 240);
     }
     function expandPanelFromBall() {
       const r = $('session-ball').getBoundingClientRect();
       if (!state.pendingStudy && !state.studySession?.active) resetPanelIdle();
-      anchorPanelToRect(r.width > 0 ? r : { right: window.innerWidth - 12, top: window.innerHeight - 68 });
-      animatePanelFromRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const src = r.width > 0
+        ? r
+        : { left: vw - 68, top: vh - 68, width: 56, height: 56 }; // 球缺席时按右下默认位
+      animatePanelExpand(anchorPanelToSource(src));
     }
     function expandPanelFromMini() {
       const r = $('session-mini').getBoundingClientRect();
-      anchorPanelToRect(r);
-      animatePanelFromRect();
+      animatePanelExpand(anchorPanelToSource(r));
     }
-    // 面板从中心缩小收起为悬浮球
-    function collapsePanelToBall() {
+    // 面板收起：向锚点边淡出缩小，目标形态在该边淡入，形成"变形"感
+    function animatePanelCollapse(target, origin) {
       const panel = $('session-panel');
-      panel.style.transformOrigin = 'center';
-      panel.style.transition = 'transform .24s ease-in, opacity .18s ease';
-      panel.style.setProperty('--pscale', '.25');
+      const showEl = target === 'mini' ? $('session-mini') : $('session-ball');
+      state.floatMode = target;
+      showEl.classList.remove('hidden');
+      panel.style.transformOrigin = origin || 'right bottom';
+      panel.style.transition = 'transform .18s ease-in, opacity .15s ease-in';
+      panel.style.setProperty('--pscale', '.3');
       panel.style.opacity = '0';
+      showEl.style.transition = 'none';
+      showEl.style.opacity = '0';
+      void showEl.offsetWidth;
+      showEl.style.transition = 'opacity .15s ease-out';
+      showEl.style.opacity = '1';
       setTimeout(() => {
+        panel.classList.add('hidden');
         panel.style.transition = '';
         panel.style.setProperty('--pscale', '1');
         panel.style.opacity = '';
-        setFloatMode('ball');
-      }, 250);
+        showEl.style.transition = '';
+        showEl.style.opacity = '';
+        if (target === 'mini') refreshMiniMarquee();
+      }, 210);
+    }
+    // 面板 → 悬浮球：悬浮球放到面板最近的边（左右边贴边且纵向居中，上下边贴边且横向居中），不再吸附跳走
+    function collapsePanelToBall() {
+      const pb = panelLayoutBox();
+      const ball = $('session-ball');
+      let origin = 'right bottom';
+      if (pb) {
+        const a = collapseAnchor(pb, ball.offsetWidth || 56, ball.offsetHeight || 56);
+        placeElAt(ball, a.x, a.y);
+        origin = a.origin;
+      }
+      animatePanelCollapse('ball', origin);
     }
     function collapseToBallAnimated() {
       if (state.floatMode === 'panel') collapsePanelToBall();
-      else {
-        // 从迷你台回来：悬浮球出现在迷你台当前位置，不从旧位置突然出现
-        if (state.floatMode === 'mini') {
-          const r = $('session-mini').getBoundingClientRect();
-          if (r.width > 0) placeElAt($('session-ball'), r.left, r.top);
+      else if (state.floatMode === 'mini') {
+        // 从迷你台回来：悬浮球出现在迷你台右下角（共享锚点），不从旧位置突然出现，也不再吸附跳走
+        const r = $('session-mini').getBoundingClientRect();
+        if (r.width > 0) {
+          const vw = window.innerWidth, vh = window.innerHeight;
+          const ball = $('session-ball');
+          const bs = ball.offsetWidth || 56;
+          const bh = ball.offsetHeight || 56;
+          const x = Math.min(Math.max(r.right - bs, 0), vw - bs);
+          const y = Math.min(Math.max(r.bottom - bh, 0), vh - bh);
+          placeElAt(ball, x, y);
         }
         setFloatMode('ball');
-        snapToEdge($('session-ball'));
       }
     }
-    // 面板布局盒：展开/收起的缩放动画只改变视觉大小，不改变布局尺寸；
-    // 用 offset 尺寸把视觉矩形还原为布局盒，保证在动画中途切换也不量错位置
+    // 面板布局盒：读取时面板通常处于正常尺寸（缩放动画开始前调用）；
+    // 若在动画中途读取，用当前 transform-origin 把视觉矩形还原为布局盒，保证量不错位置
     function panelLayoutBox() {
       const panel = $('session-panel');
       const ow = panel.offsetWidth, oh = panel.offsetHeight;
       if (!ow || !oh) return null;
       const r = panel.getBoundingClientRect();
       if (r.width <= 0) return null;
-      const left = r.left + (r.width - ow) / 2; // transform-origin:center，视觉盒以布局盒为中心缩放
-      const top = r.top + (r.height - oh) / 2;
+      const [ox, oy] = (panel.style.transformOrigin || 'center').split(' ');
+      let left, top;
+      if (ox === 'left') left = r.left;
+      else if (ox === 'right') left = r.right - ow;
+      else left = r.left + (r.width - ow) / 2;
+      if (oy === 'top') top = r.top;
+      else if (oy === 'bottom') top = r.bottom - oh;
+      else top = r.top + (r.height - oh) / 2;
       return { left, top, right: left + ow, bottom: top + oh, width: ow, height: oh };
     }
     // 面板 → 迷你台：迷你台放在面板正下方、右对齐，与展开锚定互为逆运算。
     // 关键：display:none 时 offsetWidth 为 0，必须先让迷你台以 visibility 隐藏的方式参与布局再测量，
     // 否则用 200px 猜测宽度会导致迷你台错位、再展开时面板每轮漂移（桌面端每轮约 (200-实宽)px）。
     // 此处不再吸附边缘——吸附会破坏逆运算、往返必然移位；拖动迷你台松手时仍会吸附。
+    // 面板 → 迷你台：迷你台放到面板最近的边（规则同 collapseAnchor）；refreshMiniMarquee
+    // （长标题跑马灯复制文本）会改变迷你台宽度，所以刷新前后各按同一锚点定位一次
     function minimizeToMini() {
       const pb = panelLayoutBox();
       const mini = $('session-mini');
       mini.style.visibility = 'hidden';
       mini.classList.remove('hidden');
-      // 迷你台放在面板正下方、右对齐；setFloatMode 内会触发 refreshMiniMarquee，
-      // 长标题时跑马灯会复制文本导致迷你台变宽，所以显示前后各定位一次，保证最终右对齐
+      let origin = 'right bottom';
       const placeMini = () => {
-        if (!pb) return;
-        const vw = window.innerWidth, vh = window.innerHeight;
-        const mw = mini.offsetWidth || 200;
-        const mh = mini.offsetHeight || 60;
-        const x = Math.min(Math.max(pb.right - mw, 12), Math.max(12, vw - mw));
-        const y = Math.min(Math.max(pb.bottom + 12, 12), Math.max(12, vh - mh));
-        placeElAt(mini, x, y);
+        if (!pb) return null;
+        const a = collapseAnchor(pb, mini.offsetWidth || 240, mini.offsetHeight || 60);
+        placeElAt(mini, a.x, a.y);
+        return a.origin;
       };
-      placeMini();
+      origin = placeMini() || origin;
       mini.style.visibility = '';
-      setFloatMode('mini');
-      placeMini(); // marquee 可能改变了迷你台宽度，按最终尺寸重新右对齐（同一次任务内完成，无闪烁）
+      state.floatMode = 'mini';
+      refreshMiniMarquee();
+      origin = placeMini() || origin; // marquee 可能改变了迷你台宽度，按最终尺寸重新定位（同一次任务内完成，无闪烁）
+      animatePanelCollapse('mini', origin);
     }
     // 悬浮球 / 小型学习台 / 控制面板拖动：移动超过阈值视为拖动，松手后自动吸附左/右/下边缘
     // 注意：不能用 setPointerCapture（会把 pointerup 重定向到容器，导致子按钮收不到 click）
@@ -1850,7 +2115,20 @@
       }, true);
     }
     // 点击课件只选中、不自动开始：悬浮球展开为完整控制台，等待手动点击开始
-    async function selectWare(detail, ware, module = 'plan') {
+    // 标记当前选中的课件行（点击或连学切换时高亮，取消/结束时清除）
+    function markSelectedWareRow(ware, rowEl = null) {
+      document.querySelectorAll('.ware-row.selected').forEach((el) => el.classList.remove('selected'));
+      let el = rowEl;
+      if (!el) {
+        const wid = String(ware?.WareId ?? ware?.wareId ?? '');
+        if (wid) el = document.querySelector(`.ware-row[data-ware-id="${CSS.escape(wid)}"]`);
+      }
+      el?.classList.add('selected');
+    }
+    function clearSelectedWareRow() {
+      document.querySelectorAll('.ware-row.selected').forEach((el) => el.classList.remove('selected'));
+    }
+    async function selectWare(detail, ware, module = 'plan', rowEl = null) {
       if (!detail?.course) return;
       // 外部 H5：课程级 source==1，或课件级 Type!=3（APK：Type==3 走视频，其他走 H5）
       if (isH5Course(detail.course) || isH5Ware(ware)) {
@@ -1859,6 +2137,7 @@
       }
       if (state.studySession?.active) await stopSession({ silent: true, syncBeforeStop: true });
       state.pendingStudy = { detail, ware };
+      markSelectedWareRow(ware, rowEl);
       if (state.floatMode === 'panel') {
         // 面板已显示时切换课件：内容轻柔淡入淡出
         const panel = $('session-panel');
@@ -1875,8 +2154,90 @@
     }
     function cancelSelection() {
       state.pendingStudy = null;
+      clearSelectedWareRow();
       hideNotice($('session-notice'));
+      refreshSpeedButton();
       collapseToBallAnimated();
+    }
+    // 直接学完（速）：仅"已选中待学、且未在学习中"时可用。
+    // 点击后弹窗二次确认（风险操作：直接写入完成进度，服务器不保证有效），确认后执行：
+    // beforeLearnWare + afterLearnWareNew(progress=allprogress)。反馈走全局 toast，不动控制台布局。
+    function refreshSpeedButton() {
+      const btn = $('btn-speed');
+      if (!btn) return;
+      btn.disabled = !(!!state.pendingStudy && !state.studySession?.active && !state.speedBusy && !!state.auth);
+    }
+    function onSpeedButtonClick() {
+      const btn = $('btn-speed');
+      if (!btn || btn.disabled || state.speedBusy) return;
+      if (!window.confirm('风险操作：直接写入该课件的完成进度，服务器不保证有效。\n确定要直接学完当前课件吗？')) return;
+      void speedCompleteWare();
+    }
+    async function speedCompleteWare() {
+      const pending = state.pendingStudy;
+      if (!pending || state.studySession?.active || !state.auth) return;
+      const { detail, ware } = pending;
+      const wareId = String(ware?.WareId ?? ware?.wareId ?? '');
+      state.speedBusy = true;
+      refreshSpeedButton();
+      try {
+        const totalMs = await resolveMediaDurationMs(ware);
+        if (!totalMs || totalMs <= 0) throw new Error('无法获取课件时长，请稍后重试');
+        const course = detail.course || {};
+        beginReporting(); // 直接写入：边框七彩跑马灯，按请求实际起止显示
+        try {
+          await runWithTransientRetry(() => requestJson({
+            path: CONFIG.BEFORE_WARE_PATH, method: 'POST',
+            body: {
+              courseId: course?.CourseId ?? course?.courseId ?? '',
+              sectionId: ware?.sectionId ?? '',
+              wareId: ware?.WareId ?? ware?.wareId ?? '',
+              wareType: ware?.Type ?? ware?.type ?? '',
+              source: detail.source ?? 2,
+              relationId: detail.relationId ?? '',
+              relationName: detail.relationName || (course?.CourseName ?? course?.courseName ?? ''),
+              tid: state.auth.tid
+            },
+            lockKey: `begin-speed-${wareId || 'x'}`
+          }));
+          const query = buildProgressSyncQuery({
+            course, ware,
+            relationId: detail.relationId ?? '',
+            relationName: detail.relationName || '',
+            source: detail.source ?? 2,
+            totalMs
+          }, totalMs);
+          await runWithTransientRetry(() => requestJson({
+            path: CONFIG.AFTER_WARE_PATH, method: 'GET', query, authRequired: false,
+            lockKey: `sync-speed-${wareId || 'x'}`
+          }));
+        } finally {
+          endReporting();
+        }
+        ware.Progress = 100; ware.progress = 100; // 本地标记完成
+        markWareRowComplete(ware);
+        state.pendingStudy = null;
+        clearSelectedWareRow();
+        resetPanelIdle();
+        showToast('已直接写入完成进度（服务器不保证有效）');
+        void loadSummary().catch(() => {});
+        void loadMineCourses().catch(() => {}); // 刷新我的学习列表（学习中/已完成会变动）
+      } catch (error) {
+        showToast(error.message || '写入失败');
+      } finally {
+        state.speedBusy = false;
+        refreshSpeedButton();
+      }
+    }
+    function markWareRowComplete(ware) {
+      const id = String(ware?.WareId ?? ware?.wareId ?? '');
+      if (!id) return;
+      document.querySelectorAll(`.ware-row[data-ware-id="${CSS.escape(id)}"]`).forEach((row) => {
+        row.classList.add('done');
+        row.classList.remove('selected');
+        const meta = row.querySelector('.ware-meta');
+        if (meta) { meta.textContent = '已完成'; meta.classList.remove('hot'); }
+      });
     }
     async function startSessionFromSelection() {
       const pending = state.pendingStudy;
@@ -1895,7 +2256,6 @@
     async function startSession(detail, ware) {
       if (state.studySession?.active) await stopSession({ silent: true, syncBeforeStop: true });
       const serial = ++state.sessionSerial;
-      showSessionNotice('正在准备学习…', 'info');
       setFloatMode('panel');
       try {
         const totalMs = await resolveMediaDurationMs(ware);
@@ -1950,14 +2310,16 @@
         };
         state.studySession = session;
         state.pendingStudy = null;
+        markSelectedWareRow(ware);
+        refreshSpeedButton(); // 学习中：速按钮不可点
         session.timerId = setInterval(() => { if (state.studySession?.serial === serial) updateSessionUi(); }, CONFIG.UI_TICK_INTERVAL_MS);
         startBackgroundReporter(session);
+        if (state.keepalive) startKeepaliveAudio(); // 保活模式已启用：开始学习即正式启动音频
         $('btn-start').disabled = false;
         $('btn-end').disabled = false;
         showSessionNotice('', 'info'); hideNotice($('session-notice'));
         updateSessionUi();
         refreshWareRow(session);
-        if (state.autoStudy) armAutoStudyDeadline();
       } catch (error) {
         if (state.studySession?.serial === serial) state.studySession = null;
         if (state.pendingStudy) showPendingPanel(state.pendingStudy.detail, state.pendingStudy.ware);
@@ -1980,6 +2342,23 @@
       syncMiniWare(session);
       $('mini-fill').style.width = `${pct}%`;
       $('mini-time').textContent = `${formatClock(progressMs)} / ${formatClock(session.totalMs)}`;
+    }
+    // 迷你台显示待学习课件：课件名（溢出轮播）、已学/总时长、进度条（与待开始面板同一套逻辑）
+    function syncMiniFromPending(detail, ware) {
+      const span = $('mini-ware');
+      const name = ware?.WareName ?? ware?.wareName ?? '—';
+      span.dataset.wareId = `pending:${String(ware?.WareId ?? ware?.wareId ?? '')}`;
+      span.dataset.name = name;
+      span.textContent = name;
+      $('mini-ware-wrap').classList.remove('marquee');
+      resolveMediaDurationMs(ware).then((totalMs) => {
+        if (state.pendingStudy?.ware !== ware) return; // 已切换到其他课件，丢弃
+        const baseMs = normalizeBaseProgressMs(ware, totalMs || 0);
+        const pct = totalMs > 0 ? Math.min(100, (baseMs / totalMs) * 100) : 0;
+        $('mini-fill').style.width = `${pct}%`;
+        $('mini-time').textContent = `${formatClock(baseMs)} / ${formatClock(totalMs || 0)}`;
+        refreshMiniMarquee();
+      }).catch(() => { /* 解析失败则保持原样 */ });
     }
     function syncMiniWare(session) {
       const span = $('mini-ware');
@@ -2024,7 +2403,8 @@
         session.startedAt = Date.now();
         session.baseMs = session.lastSyncMs;
         session.nextSyncAt = Date.now() + CONFIG.PROGRESS_FIRST_SYNC_DELAY_MS;
-        state.backgroundReporter?.postMessage({ type: 'reschedule', syncAt: session.nextSyncAt });
+        rescheduleBackgroundReporter(session.nextSyncAt);
+        if (state.keepalive) startKeepaliveAudio(); // 继续：按保活模式决定是否启动音频
         updateSessionUi();
         return;
       }
@@ -2032,14 +2412,16 @@
       session.baseMs = getSessionProgressMs(session);
       session.startedAt = 0;
       stopBackgroundReporter();
+      stopKeepaliveAudio(); // 暂停：如音频在启动中则关闭（模式保持）
       updateSessionUi();
       await syncSessionProgress(session);
     }
-    async function stopSession({ silent = false, syncBeforeStop = true } = {}) {
+    async function stopSession({ silent = false, syncBeforeStop = true, keepAudio = false } = {}) {
       const session = state.studySession;
       state.studySession = null;
       state.pendingStudy = null;
       stopBackgroundReporter();
+      if (!keepAudio) stopKeepaliveAudio(); // 连学中转课件时 keepAudio=true，不断开保活音频
       if (session?.timerId) clearInterval(session.timerId);
       if (session?.active && syncBeforeStop && state.auth) {
         try {
@@ -2058,9 +2440,11 @@
         } catch { /* 结束时同步失败不打扰 */ }
       }
       if (session) session.active = false;
+      clearSelectedWareRow();
       $('btn-start').disabled = true;
       $('btn-end').disabled = true;
       hideNotice($('session-notice'));
+      refreshSpeedButton();
       if (!silent) void loadSummary().catch(() => {});
     }
     async function completeSession(session) {
@@ -2074,20 +2458,17 @@
     }
 
     /* ================= 连续学习 ================= */
-    function armAutoStudyDeadline() {
-      state.autoStudyStartedAt = Date.now();
-      state.autoStudyDeadlineAt = state.autoStudyStartedAt + CONFIG.AUTO_STUDY_MAX_DURATION_MS;
-    }
-    function autoStudyExpired() {
-      return state.autoStudy && Date.now() > state.autoStudyDeadlineAt;
+    // 停止连学（静默收尾）
+    async function stopAutoStudyQuiet() {
+      state.autoStudy = false;
+      state.autoStudyCount = 0;
+      $('auto-study-toggle').checked = false;
+      await stopSession({ syncBeforeStop: true });
+      collapseToBallAnimated();
     }
     async function advanceAutoStudy(finishedSession) {
-      if (!state.autoStudy || autoStudyExpired()) {
-        state.autoStudy = false;
-        state.autoStudyCount = 0;
-        $('auto-study-toggle').checked = false;
-        await stopSession({ syncBeforeStop: true });
-        collapseToBallAnimated();
+      if (!state.autoStudy) {
+        await stopAutoStudyQuiet();
         return;
       }
       // 连学上限 5 个课件：detail.wares 由 getCourseDetail 统一构建，各模块场景通用
@@ -2107,7 +2488,7 @@
       const next = wares.slice(idx + 1).find((w) => wareProgress(w) < 100 && !isH5Course(detail?.course) && !isH5Ware(w));
       if (next && detail) {
         state.autoStudyCount += 1;
-        await stopSession({ silent: true, syncBeforeStop: true });
+        await stopSession({ silent: true, syncBeforeStop: true, keepAudio: true }); // 连学中不断保活音频
         await startSession(detail, next);
         return;
       }
@@ -2345,6 +2726,17 @@
 
     /* ================= 初始化 ================= */
     function bindStaticEvents() {
+      // 密码框显隐切换
+      $('toggle-password').addEventListener('click', () => {
+        const input = $('password');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        const btn = $('toggle-password');
+        btn.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+        btn.setAttribute('aria-pressed', String(show));
+        btn.querySelectorAll('svg').forEach((s) => s.classList.toggle('hidden'));
+        input.focus();
+      });
       $('login-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const username = $('username').value.trim();
@@ -2376,6 +2768,7 @@
 
       // 主界面 Hero 入口：点分钟数进兑换，点积分可用进积分记录
       $('hero-duration-card').addEventListener('click', () => { switchView('exchange-view'); void loadExchangeView(); });
+      $('hero-goal-card').addEventListener('click', () => { switchView('exchange-view'); void loadExchangeView(); });
       $('hero-points-card').addEventListener('click', () => { switchView('integral-view'); void loadIntegralRecords(); });
       $('exchange-back').addEventListener('click', () => switchView('study-view'));
       $('integral-back').addEventListener('click', () => switchView('study-view'));
@@ -2394,6 +2787,8 @@
       });
 
       // 开始按钮：待开始时开始学习，学习中时暂停/继续二合一
+      // 速按钮：直接学完当前课件（二次确认，风险操作）
+      $('btn-speed').addEventListener('click', onSpeedButtonClick);
       $('btn-start').addEventListener('click', () => {
         if (state.studySession?.active) void pauseSession();
         else void startSessionFromSelection();
@@ -2411,8 +2806,11 @@
       // 右上角缩小：播放中→迷你台（出现在面板当前位置），未播/暂停→悬浮球
       $('btn-minimize').addEventListener('click', () => {
         const s = state.studySession;
-        if (s?.active && !s.paused) minimizeToMini();
-        else collapseToBallAnimated();
+        // 当前存在课件（学习中或已选中待学）时缩小进迷你台，否则回悬浮球
+        if (s?.active || state.pendingStudy) {
+          if (!s?.active && state.pendingStudy) syncMiniFromPending(state.pendingStudy.detail, state.pendingStudy.ware);
+          minimizeToMini();
+        } else collapseToBallAnimated();
       });
       // 迷你台无按钮，点击整个迷你台展开为控制台（拖动不会误触发）
       $('session-mini').addEventListener('click', () => expandPanelFromMini());
@@ -2421,18 +2819,28 @@
       });
       // 悬浮球恒为书本图标，点击总是打开控制台
       $('session-ball').addEventListener('click', () => expandPanelFromBall());
+      // 后台回来对账：计时按时间戳累计不受影响，这里只补到期的上报（一次）、确认排期、刷新 UI
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) void reconcileAfterVisible();
+      });
       makeFloatDraggable($('session-ball'));
       makeFloatDraggable($('session-mini'));
       makeFloatDraggable($('session-panel'));
       $('auto-study-toggle').addEventListener('change', (event) => {
-        // 开关只改变状态，不弹提示、不改变布局
+        // 开关只改变状态，不改变布局；打开时 toast 提示上限
         state.autoStudy = event.target.checked;
         if (state.autoStudy) {
           if (state.autoStudyCount < 1) state.autoStudyCount = 1;
-          armAutoStudyDeadline();
+          showToast('连学已开启：最大连续学习 5 个课件');
         } else {
           state.autoStudyCount = 0;
         }
+      });
+      // 保活开关只代表"启用此模式"：音频在开始学习时启动、学完/结束时关闭；打开时 toast 提示局限性
+      $('keepalive-toggle').addEventListener('change', (event) => {
+        const on = event.target.checked;
+        setKeepalive(on);
+        if (on && state.keepalive) showToast('保活已开启：基于无声音频方式，非 100% 有效');
       });
 
       $('refresh-exchange').addEventListener('click', () => void loadExchangeView());
@@ -2479,6 +2887,7 @@
       <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>
     </button>
     <section id="session-panel" class="panel session hidden" aria-label="学习控制台" aria-live="polite">
+      <button id="btn-speed" type="button" aria-label="直接学完当前课件" disabled>速</button>
       <div class="session-top">
         <span id="session-course">—</span>
         <button class="icon-button" id="btn-minimize" type="button" aria-label="缩小">—</button>
@@ -2491,10 +2900,16 @@
       <div class="session-actions">
         <button class="primary-button" id="btn-start" type="button" disabled>开始</button>
         <button class="ghost-button" id="btn-end" type="button">结束</button>
-        <label class="lianxue" aria-label="自动连学">
-          <span>连学</span>
-          <span class="switch"><input type="checkbox" id="auto-study-toggle"><span class="track"><span class="thumb"></span></span></span>
-        </label>
+        <div class="session-toggles">
+          <label class="toggle-label" aria-label="自动连学">
+            <span>连学</span>
+            <span class="switch"><input type="checkbox" id="auto-study-toggle"><span class="track"><span class="thumb"></span></span></span>
+          </label>
+          <label class="toggle-label" aria-label="后台保活">
+            <span>保活</span>
+            <span class="switch"><input type="checkbox" id="keepalive-toggle"><span class="track"><span class="thumb"></span></span></span>
+          </label>
+        </div>
       </div>
       <div class="notice" id="session-notice"></div>
     </section>
