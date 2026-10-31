@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="name" content="模拟培训">
-  <meta name="version" content="3.0.41">
-  <meta name="author" content="Hrimyx">
+  <meta name="version" content="3.0.45">
+  <meta name="author" content="🅷🆁🅸🅼🆈🆇">
   <style>
     :root {
       --brand-primary: #1A6AFF;
@@ -45,8 +45,9 @@
       }
     }
     * { box-sizing: border-box; }
+    html { overflow-x: clip; } /* 仅 body 设防横滑时 iOS 仍可平移文档，两处都要设 */
     body {
-      margin: 0; min-height: 100vh;
+      margin: 0; min-height: 100vh; min-height: 100dvh; /* dvh 跟随移动端动态工具栏：100vh 会含工具栏高度，导致明明放得下还多一段滚动 */
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       background: var(--bg); color: var(--text); line-height: 1.5;
       -webkit-tap-highlight-color: transparent;
@@ -634,6 +635,7 @@
       UI_TICK_INTERVAL_MS: 1000,
       MEDIA_META_RANGE_BYTES: 1024 * 1024,
       LS_REMEMBER: 'hbcoal.remember.v3',
+      LS_AUTH: 'hbcoal.auth.v3', // 登录态（uid/codon/tid 等）：刷新页面不掉线，登出或失效时清除
       LS_DAILY: 'hbcoal.daily.v3', // 当日当前设备已上报时长（按日期归零）
       DAILY_POINT_CAP: 5, // 每日积分上限：每 5 分钟 1 分，活动期可能翻倍，按需调整
       CENTER_RELATION_NAME: '自主学习', // 课程中心/我的学习来源标识（APK：source=1，relationId=0，relationName=自主学习）
@@ -817,6 +819,7 @@
       authExpiredNotified = true;
       try { void stopSession({ silent: true, syncBeforeStop: false }); } catch { /* 忽略 */ }
       state.auth = null;
+      saveAuth();
       state.plans = [];
       state.stageCache.clear();
       state.courseDetailCache.clear();
@@ -825,6 +828,7 @@
       state.openCourseKey = null;
       state.autoStudy = false;
       state.autoStudyCount = 0;
+      $('auto-study-toggle').checked = false; // 状态与开关同步
       state.tiers = [];
       state.studyDuration = null;
       state.serverUseable = null;
@@ -869,6 +873,7 @@
             userName: response.userName || username, deptName: response.deptName || ''
           };
           authExpiredNotified = false;
+          saveAuth(); // 登录成功即持久化，刷新不掉线
           return;
         } catch (error) {
           if (attempt === 0 && isTransientRequestError(error)) { await waitMs(400); continue; }
@@ -882,6 +887,27 @@
         else localStorage.removeItem(CONFIG.LS_REMEMBER);
       } catch { /* 忽略存储异常 */ }
     }
+    // 登录态持久化：刷新/重进页面不掉线；登出或服务端判定失效时清除
+    function saveAuth() {
+      try {
+        if (state.auth) localStorage.setItem(CONFIG.LS_AUTH, JSON.stringify(state.auth));
+        else localStorage.removeItem(CONFIG.LS_AUTH);
+      } catch { /* 忽略存储异常 */ }
+    }
+    function loadAuth() {
+      try {
+        const raw = localStorage.getItem(CONFIG.LS_AUTH);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (saved && saved.uid !== undefined && saved.uid !== null && saved.codon) {
+          state.auth = {
+            uid: saved.uid, codon: saved.codon, domain: saved.domain || '',
+            tid: saved.tid, name: saved.name || saved.userName || '',
+            userName: saved.userName || '', deptName: saved.deptName || ''
+          };
+        }
+      } catch { /* 损坏的存储直接丢弃，下次登录重建 */ }
+    }
     function loadRemember() {
       try {
         const raw = localStorage.getItem(CONFIG.LS_REMEMBER);
@@ -894,6 +920,7 @@
     function logout() {
       void stopSession({ silent: true, syncBeforeStop: false });
       state.auth = null;
+      saveAuth();
       state.plans = [];
       state.stageCache.clear();
       state.courseDetailCache.clear();
@@ -901,6 +928,8 @@
       state.activeStageId = null;
       state.openCourseKey = null;
       state.autoStudy = false;
+      state.autoStudyCount = 0;
+      $('auto-study-toggle').checked = false; // 状态与开关同步：只清状态不复位开关会造成“看着开、实际不连学”
       state.tiers = [];
       state.studyDuration = null;
       state.serverUseable = null;
@@ -1726,6 +1755,11 @@
         if (state.studySession?.serial !== serial) return;
         const prevReportedMs = Math.max(session.lastSyncMs || 0, session.baseMs || 0);
         applyStudySyncResult(session, progressMs);
+        // 回写课件进度：会话与 detail.wares 共享同一课件对象；不回写则连学判断会用过期 Progress
+        // 把以前已学完的课件重新拉起来再学一遍
+        if (session.ware && session.totalMs > 0) {
+          session.ware.Progress = Math.floor(Math.min(100, (progressMs / session.totalMs) * 100));
+        }
         recordDailyReport(progressMs - prevReportedMs);
         rescheduleBackgroundReporter(session.nextSyncAt);
         updateSessionUi();
@@ -2244,6 +2278,9 @@
       state.startingSession = true;
       const btn = $('btn-start');
       try {
+        // 保活音频必须在手势处理中同步启动：startSession 内是先 await 时长/上报再启动音频，
+        // 到时已脱离点击手势，iOS 上 AudioContext 会被挂起、保活实际无效；此处先同步创建，startSession 内幂等复用
+        if (state.keepalive) startKeepaliveAudio();
         setButtonBusy(btn, true, '准备中…');
         state.autoStudyCount = 1; // 手动开始作为连学链的第 1 个
         await startSession(pending.detail, pending.ware);
@@ -2321,6 +2358,7 @@
         refreshWareRow(session);
       } catch (error) {
         if (state.studySession?.serial === serial) state.studySession = null;
+        if (!state.studySession) stopKeepaliveAudio(); // 启动失败：不留无会话的空转音频（模式保持，下次开始再启）
         if (state.pendingStudy) showPendingPanel(state.pendingStudy.detail, state.pendingStudy.ware);
         else resetPanelIdle();
         showSessionNotice(error.message || '开始学习失败', 'error');
@@ -2872,8 +2910,10 @@
       $('footer-text').textContent = `${TOOL_META.name} v${TOOL_META.version} · by ${TOOL_META.author}`;
       state.daily = loadDaily();
       loadRemember();
+      loadAuth(); // 恢复上次登录态（若服务端已失效，首次请求会走登录失效流程弹回登录页）
       bindStaticEvents();
       renderAuthState();
+      if (state.auth) void afterLogin();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
