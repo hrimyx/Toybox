@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="name" content="模拟培训">
-  <meta name="version" content="3.0.45">
+  <meta name="version" content="3.0.53">
   <meta name="author" content="🅷🆁🅸🅼🆈🆇">
   <style>
     :root {
@@ -45,7 +45,7 @@
       }
     }
     * { box-sizing: border-box; }
-    html { overflow-x: clip; } /* 仅 body 设防横滑时 iOS 仍可平移文档，两处都要设 */
+    html { overflow-x: clip; scrollbar-gutter: stable; } /* 仅 body 设防横滑时 iOS 仍可平移文档，两处都要设；stable 预留滚动条位，切换标签时内容不因滚动条出现/消失而横移 */
     body {
       margin: 0; min-height: 100vh; min-height: 100dvh; /* dvh 跟随移动端动态工具栏：100vh 会含工具栏高度，导致明明放得下还多一段滚动 */
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -328,12 +328,6 @@
     .eye-button svg { width: 20px; height: 20px; }
     .remember-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--text-secondary); user-select: none; cursor: pointer; }
     .remember-row input { width: 18px; height: 18px; accent-color: var(--brand-primary); }
-    .notice { border-radius: 12px; padding: 11px 13px; font-size: 13px; line-height: 1.55; display: none; }
-    .notice.show { display: block; }
-    .notice.error { background: color-mix(in srgb, var(--danger) 9%, var(--surface)); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--border)); }
-    .notice.success { background: color-mix(in srgb, var(--success) 8%, var(--surface)); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 22%, var(--border)); }
-    .notice.info { background: color-mix(in srgb, var(--brand-primary) 7%, var(--surface)); color: var(--text-secondary); border: 1px solid var(--border); }
-    .notice.warning { background: color-mix(in srgb, var(--warning) 9%, var(--surface)); color: var(--warning); border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border)); }
     /* 全局 toast：底部居中短暂提示 */
     #global-toast {
       position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
@@ -364,6 +358,8 @@
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 6px 20px rgba(0,0,0,.28); cursor: grab; touch-action: none; padding: 0;
     }
+    /* 控制台拖动时不触发文字选中/复制（iOS 长按菜单一并禁掉）；控制台内无需要复制的文本 */
+    .session-ball, .session-mini, #session-panel { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .session-ball.dragging { cursor: grabbing; opacity: .92; }
     #session-panel {
       position: fixed; left: 12px; bottom: 12px; margin: 0;
@@ -392,7 +388,25 @@
     #session-panel.reporting, .session-mini.reporting {
       animation: rainbow-border 1.1s linear infinite;
     }
-    .session-progress-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .session-progress-row { display: flex; align-items: center; gap: 10px; min-width: 0; touch-action: none; }
+    .session-pbar { cursor: grab; overflow: visible; }
+    .session-pbar:active { cursor: grabbing; }
+    /* 缩小按钮比通用 icon-button 小一圈（仅控制台右上角） */
+    #btn-minimize { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; }
+    /* 进度条播放头：学习中在填充末端显示一个带微光脉动的小圆点，进度极小时也能一眼看出在正常推进；暂停时静止、未开始时隐藏 */
+    #session-progress-fill { position: relative; }
+    #session-progress-fill::after {
+      content: ''; position: absolute; left: 100%; top: 50%; width: 14px; height: 14px;
+      transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+      background: var(--accent-cyan); opacity: 0;
+      box-shadow: 0 0 6px color-mix(in srgb, var(--accent-cyan) 65%, transparent);
+    }
+    #session-panel.st-playing #session-progress-fill::after { opacity: 1; animation: seek-head-pulse 2s ease-in-out infinite; }
+    #session-panel.st-paused #session-progress-fill::after { opacity: 1; }
+    @keyframes seek-head-pulse {
+      0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--accent-cyan) 65%, transparent); }
+      50% { box-shadow: 0 0 12px color-mix(in srgb, var(--accent-cyan) 85%, transparent); }
+    }
     .session-pbar { flex: 1; min-width: 0; }
     .session-time-text { font-size: 12px; white-space: nowrap; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
     .session-actions { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: center; }
@@ -429,13 +443,12 @@
     .session-mini-ware.marquee > span { max-width: none; animation: mini-marquee 14s linear infinite; }
     @keyframes mini-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
     .session-mini-time { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-    /* 桌面端：加宽布局，计划双列、档位双列，专注型视图居中收窄 */
+    /* 桌面端：加宽布局，档位双列，专注型视图居中收窄；计划顶层列表保持单列（展开前后一致） */
     @media (min-width: 1024px) {
       .hero-cards { grid-template-columns: 1fr 1fr 1.3fr; }
       .hero-goal { grid-column: auto; }
       .hero-card .hero-big { font-size: 34px; }
-      #plan-list { grid-template-columns: 1fr 1fr; align-items: start; gap: 12px; }
-      #plan-list .plan.open { grid-column: 1 / -1; order: -1; }
+      #plan-list { gap: 12px; }
       #tier-list { grid-template-columns: 1fr 1fr; gap: 12px; }
       #session-panel {
         width: 380px; left: calc(50% - 190px); bottom: 24px;
@@ -495,7 +508,6 @@
         <label class="remember-row" for="remember-me"><input type="checkbox" id="remember-me"> 记住账号（仅保存账号与企业域）</label>
         <button class="primary-button block" id="login-button" type="submit">登录</button>
       </form>
-      <div class="notice" id="login-notice"></div>
     </section>
 
     <main id="study-view" class="hidden">
@@ -532,7 +544,6 @@
               <button type="button" data-status="1" class="active" role="tab" aria-selected="true">学习中</button>
               <button type="button" data-status="2" role="tab" aria-selected="false">已完成</button>
             </div>
-            <div class="notice" id="mine-notice"></div>
             <div id="mine-list"><div class="empty-state">正在加载我的学习…</div></div>
           </div>
           <div id="module-plan" class="hidden">
@@ -570,7 +581,6 @@
             <button class="secondary-button" id="exchange-send-sms" type="button" disabled>获取验证码</button>
           </div>
           <button class="primary-button block" id="exchange-submit" type="button" disabled>提交兑换</button>
-          <div class="notice" id="exchange-notice"></div>
         </div>
 
         <div class="panel">
@@ -591,7 +601,6 @@
           <div class="record-list" id="integral-earned-list"><div class="empty-state">正在加载…</div></div>
           <div class="record-list hidden" id="integral-spent-list"><div class="empty-state">正在加载…</div></div>
         </div>
-        <div class="notice" id="integral-notice"></div>
       </div>
     </section>
 
@@ -636,6 +645,7 @@
       MEDIA_META_RANGE_BYTES: 1024 * 1024,
       LS_REMEMBER: 'hbcoal.remember.v3',
       LS_AUTH: 'hbcoal.auth.v3', // 登录态（uid/codon/tid 等）：刷新页面不掉线，登出或失效时清除
+      LS_FLOAT: 'hbcoal.float.v3', // 学习控制台位置：拖动/页面隐藏时保存，登录/刷新后恢复
       LS_DAILY: 'hbcoal.daily.v3', // 当日当前设备已上报时长（按日期归零）
       DAILY_POINT_CAP: 5, // 每日积分上限：每 5 分钟 1 分，活动期可能翻倍，按需调整
       CENTER_RELATION_NAME: '自主学习', // 课程中心/我的学习来源标识（APK：source=1，relationId=0，relationName=自主学习）
@@ -646,6 +656,7 @@
     const state = {
       auth: null,
       currentView: 'study-view',
+      subViewPushed: false, // 是否为二级页面压过历史：压过时页内返回走 history.back()，由 popstate 切回学习
       plans: [],
       stageCache: new Map(),
       courseDetailCache: new Map(),
@@ -694,14 +705,7 @@
       $('status-text').textContent = text;
       $('status-chip').classList.toggle('ready', ready);
     }
-    function showNotice(element, message, type = 'info') {
-      element.textContent = message || '';
-      element.className = `notice show ${type}`;
-    }
-    function hideNotice(element) {
-      element.textContent = '';
-      element.className = 'notice';
-    }
+    // 提示一律走 toast：旧的 .notice 条出现/消失会改变布局，现已全部移除
     // 全局 toast：底部短暂提示，1.8 秒后自动消失
     let globalToastTimer = null;
     function showToast(message) {
@@ -820,6 +824,7 @@
       try { void stopSession({ silent: true, syncBeforeStop: false }); } catch { /* 忽略 */ }
       state.auth = null;
       saveAuth();
+      state.subViewPushed = false;
       state.plans = [];
       state.stageCache.clear();
       state.courseDetailCache.clear();
@@ -839,7 +844,7 @@
       resetLearnModules();
       renderAuthState();
       // APK 在 result==3 时会 toast 服务端消息；无消息时用默认文案
-      showNotice($('login-notice'), serverMsg || '登录已失效，请重新登录', 'error');
+      showToast(serverMsg || '登录已失效，请重新登录');
     }
     async function waitMs(ms) {
       await new Promise((resolve) => setTimeout(resolve, ms));
@@ -921,6 +926,7 @@
       void stopSession({ silent: true, syncBeforeStop: false });
       state.auth = null;
       saveAuth();
+      state.subViewPushed = false;
       state.plans = [];
       state.stageCache.clear();
       state.courseDetailCache.clear();
@@ -938,7 +944,6 @@
       stopExchangeViewTimers();
       resetLearnModules();
       renderAuthState();
-      hideNotice($('login-notice'));
     }
     function renderAuthState() {
       const loggedIn = Boolean(state.auth);
@@ -947,7 +952,7 @@
       $('exchange-view').classList.add('hidden');
       $('integral-view').classList.add('hidden');
       $('session-float').classList.toggle('hidden', !loggedIn);
-      if (loggedIn) { resetFloatPosition(); setFloatMode('ball'); }
+      if (loggedIn) { resetFloatPosition(); setFloatMode('ball'); restoreFloatPosition(); }
       state.currentView = 'study-view';
       $('user-name-top').textContent = loggedIn ? state.auth.name : '';
       setStatus(loggedIn ? '已登录 · 点击退出' : '未登录', loggedIn);
@@ -955,8 +960,12 @@
     }
 
     /* ================= 视图切换：仅一个主界面（学习），兑换/积分/控制台为二级界面 ================= */
-    function switchView(viewId) {
+    function switchView(viewId, { fromHistory = false } = {}) {
       if (!state.auth) { renderAuthState(); return; }
+      // 进入二级页面（兑换/积分）时压一条历史：浏览器返回先回到学习，而不是直接离页
+      if (!fromHistory && (viewId === 'exchange-view' || viewId === 'integral-view') && state.currentView === 'study-view') {
+        try { history.pushState({ view: viewId }, ''); state.subViewPushed = true; } catch { /* 忽略 */ }
+      }
       state.currentView = viewId;
       $('login-view').classList.add('hidden');
       $('study-view').classList.toggle('hidden', viewId !== 'study-view');
@@ -967,7 +976,11 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    /* ================= 学习总览 Hero ================= */
+    // 二级页内返回：压过历史时走 history.back()（由 popstate 切回学习），否则直接切回
+    function goBackToStudy() {
+      if (state.subViewPushed) history.back();
+      else switchView('study-view');
+    }
     /* 当日当前设备已上报时长：只记录本设备上报成功的学习时长，不与服务端对账（服务端统计有延迟且不可控） */
     function todayKey() {
       const d = new Date();
@@ -1274,13 +1287,16 @@
       if (!wares.length) { waresWrap.innerHTML = '<div class="empty-state">该课程暂无课件</div>'; return; }
       wares.forEach((ware) => {
         const p = wareProgress(ware);
+        // 进行中：百分比 + 总时长（总时长缺失时只显示百分比）；名称 flex 占剩余宽度、超长省略，右侧不换行
+        const totalSec = safeNumber(ware?.total ?? ware?.Total);
+        const totalText = totalSec > 0 ? ` · ${formatHms(totalSec)}` : '';
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `ware-row${p >= 100 ? ' done' : ''}`;
         btn.dataset.wareId = String(ware?.WareId ?? ware?.wareId ?? '');
         btn.innerHTML = `
           <span class="ware-name">${esc(ware?.WareName ?? ware?.wareName ?? '未命名课件')}</span>
-          <span class="ware-meta${p > 0 && p < 100 ? ' hot' : ''}">${p >= 100 ? '已完成' : (p > 0 ? `${p}%` : formatHms(ware?.total ?? ware?.Total))}</span>`;
+          <span class="ware-meta${p > 0 && p < 100 ? ' hot' : ''}">${p >= 100 ? '已完成' : (p > 0 ? `${p}%${totalText}` : formatHms(ware?.total ?? ware?.Total))}</span>`;
         btn.addEventListener('click', () => {
           void selectWare(detail, ware, module, btn);
         });
@@ -1290,6 +1306,8 @@
     /* ================= 课程中心（分类 → 课程列表 → 课件） ================= */
     function switchLearnModule(module) {
       state.learnModule = module;
+      // 切标签回到顶部：否则从长列表切到短列表时浏览器钳制滚动位置，页面会突然跳动
+      window.scrollTo(0, 0);
       document.querySelectorAll('#learn-module-tabs button').forEach((button) => {
         const active = button.dataset.module === module;
         button.classList.toggle('active', active);
@@ -1755,17 +1773,18 @@
         if (state.studySession?.serial !== serial) return;
         const prevReportedMs = Math.max(session.lastSyncMs || 0, session.baseMs || 0);
         applyStudySyncResult(session, progressMs);
+        // 完成判定先算：自然学完时 progressMs 可能差总时长几百毫秒，floor 会写成 99%，行上永远不显示已完成
+        const done = progressMs >= Math.max(1, session.totalMs) - 1;
         // 回写课件进度：会话与 detail.wares 共享同一课件对象；不回写则连学判断会用过期 Progress
-        // 把以前已学完的课件重新拉起来再学一遍
+        // 把以前已学完的课件重新拉起来再学一遍；学完直接写 100，不用 floor
         if (session.ware && session.totalMs > 0) {
-          session.ware.Progress = Math.floor(Math.min(100, (progressMs / session.totalMs) * 100));
+          session.ware.Progress = done ? 100 : Math.floor(Math.min(100, (progressMs / session.totalMs) * 100));
         }
         recordDailyReport(progressMs - prevReportedMs);
         rescheduleBackgroundReporter(session.nextSyncAt);
         updateSessionUi();
         refreshWareRow(session);
         void loadSummary().catch(() => {});
-        const done = progressMs >= Math.max(1, session.totalMs) - 1;
         if (done) await completeSession(session);
       } catch (error) {
         if (state.studySession?.serial !== serial) return;
@@ -1794,10 +1813,8 @@
     }
 
     /* ================= 会话生命周期 ================= */
-    function showSessionNotice(message, type = 'info') {
-      const el = $('session-notice');
-      if (!message) { hideNotice(el); return; }
-      showNotice(el, message, type);
+    function showSessionNotice(message) {
+      if (message) showToast(message);
     }
     /* ================= 学习控制台内容 ================= */
     // 空面板：无待学/学习中课件时的默认显示
@@ -1811,7 +1828,6 @@
       btn.disabled = true;
       $('btn-end').disabled = true;
       setPanelStateClass('st-ready');
-      hideNotice($('session-notice'));
       refreshSpeedButton();
     }
     // 待开始面板：显示选中的课程/课件，进度条归零
@@ -1823,9 +1839,10 @@
       const btn = $('btn-start');
       btn.textContent = '开始';
       btn.disabled = false;
+      // 已完成课件进控制台后不可再学：开始按钮直接禁用（结束=取消仍可点）
+      if (wareProgress(ware) >= 100) btn.disabled = true;
       $('btn-end').disabled = false; // 待学习时结束=取消该课件，可点
       setPanelStateClass('st-ready');
-      hideNotice($('session-notice'));
       refreshSpeedButton();
       // 异步解析真实时长与已学进度（与开始学习用同一套逻辑），解析完再填上
       try {
@@ -1852,6 +1869,26 @@
         if (!el) continue;
         el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = '';
       }
+    }
+    // 学习控制台位置持久化：拖动结束与页面隐藏时保存当前可见浮动元素的位置，登录/刷新后恢复到悬浮球
+    function saveFloatPosition() {
+      try {
+        const el = ['session-ball', 'session-mini', 'session-panel'].map((id) => $(id)).find((e) => e && !e.classList.contains('hidden'));
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0) return;
+        localStorage.setItem(CONFIG.LS_FLOAT, JSON.stringify({ left: Math.round(r.left), top: Math.round(r.top) }));
+      } catch { /* 忽略 */ }
+    }
+    function restoreFloatPosition() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(CONFIG.LS_FLOAT) || 'null');
+        if (!saved || typeof saved.left !== 'number' || typeof saved.top !== 'number') return;
+        const ball = $('session-ball');
+        const left = Math.min(Math.max(saved.left, 0), Math.max(0, window.innerWidth - (ball.offsetWidth || 56)));
+        const top = Math.min(Math.max(saved.top, 0), Math.max(0, window.innerHeight - (ball.offsetHeight || 56)));
+        placeElAt(ball, left, top);
+      } catch { /* 忽略 */ }
     }
     function setFloatMode(mode) {
       state.floatMode = mode;
@@ -2138,7 +2175,7 @@
         if (!dragging) return;
         dragging = false;
         el.classList.remove('dragging');
-        if (moved) snapToEdge(el);
+        if (moved) { snapToEdge(el); setTimeout(saveFloatPosition, 220); } // 吸附动画结束后再存最终位置
       };
       window.addEventListener('pointerup', endDrag);
       window.addEventListener('pointercancel', endDrag);
@@ -2169,7 +2206,7 @@
         return;
       }
       if (state.studySession?.active) await stopSession({ silent: true, syncBeforeStop: true });
-      state.pendingStudy = { detail, ware };
+      state.pendingStudy = { detail, ware, module };
       markSelectedWareRow(ware, rowEl);
       if (state.floatMode === 'panel') {
         // 面板已显示时切换课件：内容轻柔淡入淡出
@@ -2184,11 +2221,11 @@
         if (state.floatMode === 'mini') expandPanelFromMini();
         else expandPanelFromBall();
       }
+      if (wareProgress(ware) >= 100) showToast('该课件已完成，无需再学');
     }
     function cancelSelection() {
       state.pendingStudy = null;
       clearSelectedWareRow();
-      hideNotice($('session-notice'));
       refreshSpeedButton();
       collapseToBallAnimated();
     }
@@ -2198,7 +2235,8 @@
     function refreshSpeedButton() {
       const btn = $('btn-speed');
       if (!btn) return;
-      btn.disabled = !(!!state.pendingStudy && !state.studySession?.active && !state.speedBusy && !!state.auth);
+      // 已完成课件不给速：速是“直接学完”，已完成无需再学
+      btn.disabled = !(!!state.pendingStudy && !state.studySession?.active && !state.speedBusy && !!state.auth && wareProgress(state.pendingStudy.ware) < 100);
     }
     function onSpeedButtonClick() {
       const btn = $('btn-speed');
@@ -2210,6 +2248,7 @@
       const pending = state.pendingStudy;
       if (!pending || state.studySession?.active || !state.auth) return;
       const { detail, ware } = pending;
+      const sourceModule = pending.module; // 速完成同样刷新课件来源列表（清 pending 前先取）
       const wareId = String(ware?.WareId ?? ware?.wareId ?? '');
       state.speedBusy = true;
       refreshSpeedButton();
@@ -2247,20 +2286,42 @@
         } finally {
           endReporting();
         }
-        ware.Progress = 100; ware.progress = 100; // 本地标记完成
-        markWareRowComplete(ware);
+        // 速写后向服务端核实：写入请求与正常学完完全一致（HAR 已验证 13 个参数），
+        // 但服务端可能按实际 elapsed 校验、并不接受瞬间写满；只凭 result=1 就本地标完成会误导，
+        // 因此重拉课程详情核对课件进度，未确认则不标完成、如实提示
+        const verified = await verifySpeedComplete(detail, course, ware);
+        if (verified === true) {
+          ware.Progress = 100; ware.progress = 100; // 本地标记完成（已核实）
+          markWareRowComplete(ware);
+          showToast('已确认学完');
+        } else if (verified === false) {
+          showToast('服务器未确认完成：直接写入可能未被接受，请正常学习该课件');
+        } else {
+          showToast('无法确认服务器状态，请在列表中查看实际进度');
+        }
         state.pendingStudy = null;
         clearSelectedWareRow();
         resetPanelIdle();
-        showToast('已直接写入完成进度（服务器不保证有效）');
         void loadSummary().catch(() => {});
-        void loadMineCourses().catch(() => {}); // 刷新我的学习列表（学习中/已完成会变动）
+        refreshSourceList(sourceModule); // 刷新来源列表（以服务端为准）
       } catch (error) {
         showToast(error.message || '写入失败');
       } finally {
         state.speedBusy = false;
         refreshSpeedButton();
       }
+    }
+    // 速写核实：清掉课程详情缓存、重拉后看课件进度是否到 100；true=已确认，false=未确认，null=核实本身失败
+    async function verifySpeedComplete(detail, course, ware) {
+      try {
+        const courseId = course?.CourseId ?? course?.courseId ?? '';
+        const source = detail.source ?? 2;
+        const relationId = detail.relationId ?? '';
+        state.courseDetailCache.delete(`${source}:${courseId}:${relationId}`);
+        const fresh = await getCourseDetail(courseId, relationId, { source, relationName: detail.relationName || '' });
+        const target = (fresh?.wares || []).find((w) => String(w?.WareId ?? w?.wareId) === String(ware?.WareId ?? ware?.wareId));
+        return !!target && wareProgress(target) >= 100;
+      } catch { return null; }
     }
     function markWareRowComplete(ware) {
       const id = String(ware?.WareId ?? ware?.wareId ?? '');
@@ -2275,6 +2336,8 @@
     async function startSessionFromSelection() {
       const pending = state.pendingStudy;
       if (!pending || state.startingSession) return;
+      // 已完成课件不可再学（开始按钮已禁用，这里是兜底）
+      if (wareProgress(pending.ware) >= 100) { showToast('该课件已完成，无需再学'); return; }
       state.startingSession = true;
       const btn = $('btn-start');
       try {
@@ -2283,13 +2346,13 @@
         if (state.keepalive) startKeepaliveAudio();
         setButtonBusy(btn, true, '准备中…');
         state.autoStudyCount = 1; // 手动开始作为连学链的第 1 个
-        await startSession(pending.detail, pending.ware);
+        await startSession(pending.detail, pending.ware, pending.module);
       } finally {
         state.startingSession = false;
         setButtonBusy(btn, false);
       }
     }
-    async function startSession(detail, ware) {
+    async function startSession(detail, ware, module) {
       if (state.studySession?.active) await stopSession({ silent: true, syncBeforeStop: true });
       const serial = ++state.sessionSerial;
       setFloatMode('panel');
@@ -2325,6 +2388,7 @@
           serial,
           active: true,
           detail,
+          module: module || '', // 课件来源模块：学完后刷新该模块列表用（mine/plan/center）
           paused: false,
           background: false,
           course,
@@ -2353,7 +2417,6 @@
         if (state.keepalive) startKeepaliveAudio(); // 保活模式已启用：开始学习即正式启动音频
         $('btn-start').disabled = false;
         $('btn-end').disabled = false;
-        showSessionNotice('', 'info'); hideNotice($('session-notice'));
         updateSessionUi();
         refreshWareRow(session);
       } catch (error) {
@@ -2371,14 +2434,114 @@
       const pct = session.totalMs > 0 ? Math.min(100, (progressMs / session.totalMs) * 100) : 0;
       $('session-course').textContent = session.course?.CourseName ?? session.course?.courseName ?? '';
       $('session-ware').textContent = session.ware?.WareName ?? session.ware?.wareName ?? '';
-      $('session-progress-fill').style.width = `${pct}%`;
-      $('session-time-text').textContent = `${formatClock(progressMs)} / ${formatClock(session.totalMs)}`;
+      // 拖动预览中不覆盖填充与时间（否则每秒刷新会和手指抢进度条）
+      if (!seekDrag) {
+        $('session-progress-fill').style.width = `${pct}%`;
+        $('session-time-text').textContent = `${formatClock(progressMs)} / ${formatClock(session.totalMs)}`;
+        $('mini-fill').style.width = `${pct}%`;
+        $('mini-time').textContent = `${formatClock(progressMs)} / ${formatClock(session.totalMs)}`;
+      }
       $('btn-start').textContent = session.paused ? '继续' : '暂停';
       setPanelStateClass(session.paused ? 'st-paused' : 'st-playing');
       // 小型学习台同步：课件名（溢出轮播）、已学/全时长、进度背景色
       syncMiniWare(session);
-      $('mini-fill').style.width = `${pct}%`;
-      $('mini-time').textContent = `${formatClock(progressMs)} / ${formatClock(session.totalMs)}`;
+      // 进度到顶立即触发完成：之前完成只在 5 分钟定时同步里检测，进度条走满后最长要等 5 分钟才有反应，
+      // 看着就像卡死了；这里由每秒 UI 刷新直接触发最终同步，失败时按重试间隔节流、不刷屏请求
+      if (session.active && !session.paused && !session.syncing && progressMs >= Math.max(1, session.totalMs) - 1) {
+        const now = Date.now();
+        if (now - (session.completionAttemptedAt || 0) >= CONFIG.BACKGROUND_SYNC_RETRY_DELAY_MS) {
+          session.completionAttemptedAt = now;
+          void syncSessionProgress(session);
+        }
+      }
+    }
+    // 进度条拖动快进（仅学习中）：只增不减、单次至少增加 1 分钟、拖动后立即上传、3 秒冷却
+    const SEEK_MIN_GAIN_MS = 60000;
+    const SEEK_COOLDOWN_MS = 3000;
+    let seekDrag = null; // { pointerId, targetMs }：拖动中 updateSessionUi 不覆盖预览
+    function seekProgressFromClientX(track, clientX) {
+      const session = state.studySession;
+      if (!session || session.totalMs <= 0) return null;
+      const r = track.getBoundingClientRect();
+      const ratio = r.width > 0 ? Math.min(1, Math.max(0, (clientX - r.left) / r.width)) : 0;
+      const currentMs = getSessionProgressMs(session);
+      // 只允许增加：预览下限钳制在当前进度，手指往回拖时填充停在原地
+      return { currentMs, targetMs: Math.min(session.totalMs, Math.max(currentMs, Math.round(ratio * session.totalMs))) };
+    }
+    function renderSeekPreview(targetMs, totalMs) {
+      const fill = $('session-progress-fill');
+      fill.style.transition = 'none'; // 拖动预览跟手，不走 0.3s 平滑
+      fill.style.width = `${totalMs > 0 ? Math.min(100, (targetMs / totalMs) * 100) : 0}%`;
+      $('session-time-text').textContent = `${formatClock(targetMs)} / ${formatClock(totalMs)}`;
+    }
+    // 拖动后上传：若正有同步在途，等它结束再补一次（最多等 3 秒），保证拖动后一定上传最新进度
+    function syncAfterSeek(session, waitedMs = 0) {
+      if (!session || state.studySession?.serial !== session.serial) return;
+      if (session.syncing) {
+        if (waitedMs >= 3000) return; // 在途同步按旧进度上报，随后由定时/暂停/结束补齐
+        setTimeout(() => syncAfterSeek(session, waitedMs + 300), 300);
+        return;
+      }
+      void syncSessionProgress(session);
+    }
+    function bindSeekBar() {
+      const row = $('session-panel')?.querySelector('.session-progress-row');
+      const track = $('session-panel')?.querySelector('.session-pbar');
+      if (!row || !track || row.dataset.seekBound) return;
+      row.dataset.seekBound = '1';
+      row.addEventListener('pointerdown', (event) => {
+        const session = state.studySession;
+        if (!session?.active || seekDrag) return;
+        // 命中判定：轨道左右各放宽 4px、上下各放宽 8px（手指好点），点到时间文字上不触发
+        const r = track.getBoundingClientRect();
+        if (event.clientX < r.left - 4 || event.clientX > r.right + 4 || event.clientY < r.top - 8 || event.clientY > r.bottom + 8) return;
+        if (session.seekCooldownUntil && Date.now() < session.seekCooldownUntil) {
+          showToast('拖动太频繁，3 秒后再试');
+          return;
+        }
+        const pos = seekProgressFromClientX(track, event.clientX);
+        if (!pos) return;
+        event.preventDefault();
+        event.stopPropagation(); // 不触发面板拖动
+        seekDrag = { pointerId: event.pointerId, targetMs: pos.targetMs };
+        try { row.setPointerCapture(event.pointerId); } catch { /* 忽略 */ }
+        renderSeekPreview(pos.targetMs, session.totalMs);
+      });
+      row.addEventListener('pointermove', (event) => {
+        if (!seekDrag || event.pointerId !== seekDrag.pointerId) return;
+        const session = state.studySession;
+        if (!session) return;
+        const pos = seekProgressFromClientX(track, event.clientX);
+        if (!pos) return;
+        seekDrag.targetMs = pos.targetMs;
+        renderSeekPreview(pos.targetMs, session.totalMs);
+      });
+      row.addEventListener('pointerup', (event) => {
+        if (!seekDrag || event.pointerId !== seekDrag.pointerId) return;
+        const session = state.studySession;
+        const targetMs = seekDrag.targetMs;
+        seekDrag = null;
+        $('session-progress-fill').style.transition = '';
+        if (!session?.active) { updateSessionUi(); return; }
+        const currentMs = getSessionProgressMs(session);
+        const reachedEnd = targetMs >= Math.max(1, session.totalMs) - 1;
+        if (reachedEnd || targetMs >= currentMs + SEEK_MIN_GAIN_MS) {
+          session.baseMs = targetMs;
+          if (!session.paused) session.startedAt = Date.now(); // 播放中从新进度继续计时；暂停中 startedAt 保持 0，进度冻结在新值
+          session.seekCooldownUntil = Date.now() + SEEK_COOLDOWN_MS;
+          updateSessionUi();
+          syncAfterSeek(session);
+        } else {
+          updateSessionUi(); // 恢复原进度显示
+          showToast('每次拖动至少增加 1 分钟');
+        }
+      });
+      row.addEventListener('pointercancel', () => {
+        if (!seekDrag) return;
+        seekDrag = null;
+        $('session-progress-fill').style.transition = '';
+        updateSessionUi(); // 取消则不提交，恢复原进度
+      });
     }
     // 迷你台显示待学习课件：课件名（溢出轮播）、已学/总时长、进度条（与待开始面板同一套逻辑）
     function syncMiniFromPending(detail, ware) {
@@ -2425,16 +2588,23 @@
       const wareId = String(session.ware?.WareId ?? session.ware?.wareId ?? '');
       if (!wareId) return;
       const progressMs = getSessionProgressMs(session);
-      const pct = session.totalMs > 0 ? Math.floor(Math.min(100, (progressMs / session.totalMs) * 100)) : 0;
-      document.querySelectorAll(`#module-plan .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-center .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta`).forEach((meta) => {
-        meta.textContent = pct >= 100 ? '已完成' : `${pct}%`;
+      // 与完成判定一致：差总时长 1ms 内即算完成，不用 floor（否则自然学完显示 99%）
+      const done = progressMs >= Math.max(1, session.totalMs) - 1;
+      const pct = done ? 100 : (session.totalMs > 0 ? Math.floor(Math.min(100, (progressMs / session.totalMs) * 100)) : 0);
+      // 进行中右侧同步加总时长（与列表初次渲染一致）
+      const totalSec = safeNumber(session.ware?.total ?? session.ware?.Total);
+      const totalText = totalSec > 0 ? ` · ${formatHms(totalSec)}` : '';
+      document.querySelectorAll(`#module-plan .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-center .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-mine .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta`).forEach((meta) => {
+        meta.textContent = pct >= 100 ? '已完成' : `${pct}%${totalText}`;
         meta.classList.toggle('hot', pct > 0 && pct < 100);
         meta.closest('.ware-row')?.classList.toggle('done', pct >= 100);
       });
     }
     async function pauseSession() {
       const session = state.studySession;
-      if (!session?.active) return;
+      if (!session?.active || session.pauseBusy) return; // 暂停/继续连点：第一次的同步未完成前忽略后续点击
+      session.pauseBusy = true;
+      try {
       if (session.paused) {
         session.paused = false;
         session.startedAt = Date.now();
@@ -2452,6 +2622,9 @@
       stopKeepaliveAudio(); // 暂停：如音频在启动中则关闭（模式保持）
       updateSessionUi();
       await syncSessionProgress(session);
+      } finally {
+        session.pauseBusy = false;
+      }
     }
     async function stopSession({ silent = false, syncBeforeStop = true, keepAudio = false } = {}) {
       const session = state.studySession;
@@ -2480,17 +2653,32 @@
       clearSelectedWareRow();
       $('btn-start').disabled = true;
       $('btn-end').disabled = true;
-      hideNotice($('session-notice'));
       refreshSpeedButton();
       if (!silent) void loadSummary().catch(() => {});
     }
     async function completeSession(session) {
+      // 学完立即把所有模块里该课件的行标为已完成（不只靠后续列表重拉）
+      markWareRowComplete(session.ware);
       showSessionNotice('本课件已学完，正在同步最终进度…', 'success');
       if (state.autoStudy) {
         await advanceAutoStudy(session);
       } else {
         await stopSession({ syncBeforeStop: true });
+        refreshSourceList(session.module);
         collapseToBallAnimated();
+      }
+    }
+
+    // 学完后刷新课件来源列表：行内文案（refreshWareRow）只改当前课件行，课程级状态
+    // （我的学习 学习中/已完成归属、计划与中心课程状态）必须重拉服务端才更新；
+    // 只在会话结束时刷一次，连学中转不重复刷
+    function refreshSourceList(module) {
+      if (module === 'plan') {
+        if (state.plansLoaded) void loadPlans().catch(() => {});
+      } else if (module === 'center') {
+        if (state.center.loaded) void loadCenterTopCourses().catch(() => {});
+      } else {
+        void loadMineCourses().catch(() => {}); // mine 或未知：默认刷我的学习（与速按钮现有行为一致）
       }
     }
 
@@ -2514,6 +2702,7 @@
         state.autoStudyCount = 0;
         $('auto-study-toggle').checked = false;
         await stopSession({ syncBeforeStop: true });
+        refreshSourceList(finishedSession.module);
         showSessionNotice(`已连续学习 ${CONFIG.AUTO_STUDY_MAX_WARES} 个课件，自动连学停止`, 'info');
         setTimeout(() => { if (!state.studySession && !state.pendingStudy) collapseToBallAnimated(); }, 2600);
         return;
@@ -2526,13 +2715,14 @@
       if (next && detail) {
         state.autoStudyCount += 1;
         await stopSession({ silent: true, syncBeforeStop: true, keepAudio: true }); // 连学中不断保活音频
-        await startSession(detail, next);
+        await startSession(detail, next, finishedSession.module);
         return;
       }
       state.autoStudy = false;
       state.autoStudyCount = 0;
       $('auto-study-toggle').checked = false;
       await stopSession({ syncBeforeStop: true });
+      refreshSourceList(finishedSession.module);
       showSessionNotice('连续学习已完成本课程全部课件', 'success');
       setTimeout(() => { if (!state.studySession && !state.pendingStudy) collapseToBallAnimated(); }, 2600);
     }
@@ -2556,7 +2746,12 @@
       return node && isTruthyFlag(node.canExchange) && !isTruthyFlag(node.isExchange)
         && safeNumber(node?.metaTime) <= safeNumber(state.studyDuration);
     }
+    // 兑换/积分加载防连点：进行中的加载直接忽略，避免第二次请求撞 lock 后刷出错误态或多余提示
+    let exchangeLoading = false;
+    let integralLoading = false;
     async function loadExchangeView() {
+      if (exchangeLoading) return;
+      exchangeLoading = true;
       const tierList = $('tier-list');
       tierList.innerHTML = '<div class="empty-state">正在加载兑换规则…</div>';
       try {
@@ -2572,6 +2767,8 @@
       } catch (error) {
         tierList.innerHTML = `<div class="empty-state">加载失败：${esc(error.message)}<br><button class="text-button" id="retry-tiers" type="button">点击重试</button></div>`;
         $('retry-tiers')?.addEventListener('click', () => void loadExchangeView());
+      } finally {
+        exchangeLoading = false;
       }
     }
     function renderTiers() {
@@ -2635,7 +2832,6 @@
     }
     async function sendExchangeSms() {
       const button = $('exchange-send-sms');
-      hideNotice($('exchange-notice'));
       try {
         setButtonBusy(button, true, '发送中…');
         await requestJson({
@@ -2652,10 +2848,8 @@
         updateExchangeForm();
       }
     }
-    function showSessionExchangeNotice(message, type = 'info') {
-      const el = $('exchange-notice');
-      if (!message) { hideNotice(el); return; }
-      showNotice(el, message, type);
+    function showSessionExchangeNotice(message) {
+      if (message) showToast(message);
     }
     async function submitExchange() {
       const node = state.tiers.find((n) => getExchangeNodeKey(n) === state.exchange.selectedNodeKey);
@@ -2664,12 +2858,13 @@
       if (!/^\d{4,12}$/.test(code)) { showSessionExchangeNotice('请输入正确的短信验证码', 'warning'); return; }
       if (!window.confirm(`确认使用 ${safeNumber(node.metaTime)} 分钟学习时长兑换 ${safeNumber(node.metaIntegral)} 积分？`)) return;
       const button = $('exchange-submit');
-      hideNotice($('exchange-notice'));
       try {
         setButtonBusy(button, true, '提交中…');
         await requestJson({
           path: CONFIG.STUDY_EXCHANGE_SUBMIT_PATH, method: 'POST',
-          body: { studyTime: node.metaTime, integral: node.metaIntegral, exchangeCode: code },
+          // HAR 已验证：服务端按 nodeKey 认档位（METAKEY，如 StudyEx_node_1），验证码字段是 smsCode；
+          // 之前发 studyTime/integral/exchangeCode，服务端认不出档位 → “兑换档位不能为空”
+          body: { nodeKey: node.METAKEY ?? node.metaKey ?? getExchangeNodeKey(node), smsCode: code },
           lockKey: 'exchange-submit'
         });
         showSessionExchangeNotice('兑换成功，积分已到账', 'success');
@@ -2728,9 +2923,10 @@
       return { earned, spent };
     }
     async function loadIntegralRecords() {
+      if (integralLoading) return;
+      integralLoading = true;
       const earnedList = $('integral-earned-list');
       const spentList = $('integral-spent-list');
-      hideNotice($('integral-notice'));
       try {
         const [earnedResp, spentResp] = await Promise.all([
           requestJson({ path: CONFIG.INTEGRAL_LIST_PATH, method: 'POST', body: { scoreType: 0, pageIndex: 1, pageSize: 50 }, lockKey: 'integral-earned' }),
@@ -2742,7 +2938,9 @@
         renderRecordList(earnedList, state.integralRecords.earned, true);
         renderRecordList(spentList, state.integralRecords.spent, false);
       } catch (error) {
-        showNotice($('integral-notice'), error.message || '积分记录加载失败', 'error');
+        showToast(error.message || '积分记录加载失败');
+      } finally {
+        integralLoading = false;
       }
     }
     function renderRecordList(container, records, isEarned) {
@@ -2779,11 +2977,9 @@
         const username = $('username').value.trim();
         const password = $('password').value;
         const domain = $('domain').value.trim();
-        const notice = $('login-notice');
-        hideNotice(notice);
-        if (!username) { showNotice(notice, '请输入账号', 'warning'); $('username').focus(); return; }
-        if (!password) { showNotice(notice, '请输入密码', 'warning'); $('password').focus(); return; }
-        if (!domain) { showNotice(notice, '请输入企业域', 'warning'); $('domain').focus(); return; }
+        if (!username) { showToast('请输入账号'); $('username').focus(); return; }
+        if (!password) { showToast('请输入密码'); $('password').focus(); return; }
+        if (!domain) { showToast('请输入企业域'); $('domain').focus(); return; }
         const button = $('login-button');
         try {
           setButtonBusy(button, true, '登录中…');
@@ -2792,7 +2988,7 @@
           renderAuthState();
           void afterLogin();
         } catch (error) {
-          showNotice(notice, error.message || '登录失败', 'error');
+          showToast(error.message || '登录失败');
         } finally {
           setButtonBusy(button, false);
         }
@@ -2807,8 +3003,21 @@
       $('hero-duration-card').addEventListener('click', () => { switchView('exchange-view'); void loadExchangeView(); });
       $('hero-goal-card').addEventListener('click', () => { switchView('exchange-view'); void loadExchangeView(); });
       $('hero-points-card').addEventListener('click', () => { switchView('integral-view'); void loadIntegralRecords(); });
-      $('exchange-back').addEventListener('click', () => switchView('study-view'));
-      $('integral-back').addEventListener('click', () => switchView('study-view'));
+      $('exchange-back').addEventListener('click', goBackToStudy);
+      $('integral-back').addEventListener('click', goBackToStudy);
+      // 浏览器返回：二级页面压过历史，返回先回到学习；前进则恢复对应二级页面
+      window.addEventListener('popstate', (event) => {
+        const view = event.state?.view;
+        if (view === 'exchange-view' || view === 'integral-view') {
+          state.subViewPushed = true;
+          switchView(view, { fromHistory: true });
+          if (view === 'exchange-view') void loadExchangeView();
+          else void loadIntegralRecords();
+        } else {
+          state.subViewPushed = false;
+          switchView('study-view', { fromHistory: true });
+        }
+      });
 
       document.querySelectorAll('#integral-tabs button').forEach((button) => {
         button.addEventListener('click', () => {
@@ -2832,6 +3041,17 @@
       });
       // 结束按钮：学习中时结束并同步，待开始时等同取消选择
       $('btn-end').addEventListener('click', async () => {
+        // 已完成课件：结束只做 dismiss，不上报、不确认（正常结束仍需确认并同步）
+        const currentWare = state.studySession?.ware ?? state.pendingStudy?.ware;
+        if (currentWare && wareProgress(currentWare) >= 100) {
+          if (state.studySession?.active) {
+            await stopSession({ syncBeforeStop: false });
+            collapseToBallAnimated();
+          } else {
+            cancelSelection();
+          }
+          return;
+        }
         if (state.studySession?.active) {
           if (!window.confirm('结束本次学习并同步进度？')) return;
           await stopSession({ syncBeforeStop: true });
@@ -2860,9 +3080,12 @@
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) void reconcileAfterVisible();
       });
+      // 刷新/切走页面时保存控制台位置（恢复时用）
+      window.addEventListener('pagehide', saveFloatPosition);
       makeFloatDraggable($('session-ball'));
       makeFloatDraggable($('session-mini'));
       makeFloatDraggable($('session-panel'));
+      bindSeekBar(); // 学习中进度条拖动快进
       $('auto-study-toggle').addEventListener('change', (event) => {
         // 开关只改变状态，不改变布局；打开时 toast 提示上限
         state.autoStudy = event.target.checked;
@@ -2950,7 +3173,6 @@
           </label>
         </div>
       </div>
-      <div class="notice" id="session-notice"></div>
     </section>
     <div id="session-mini" class="session-mini hidden" role="button" tabindex="0" aria-label="小型学习台，点击展开控制台">
       <div class="session-mini-fill" id="mini-fill"></div>
