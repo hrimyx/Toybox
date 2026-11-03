@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="name" content="模拟培训">
-  <meta name="version" content="3.0.60">
+  <meta name="version" content="3.0.61">
   <meta name="author" content="🅷🆁🅸🅼🆈🆇">
   <style>
     :root {
@@ -76,8 +76,6 @@
       opacity: 0; transition: opacity .2s ease; pointer-events: none;
     }
     #header-mini-stats.show { opacity: 1; }
-    /* 小字出现时暂时隐藏版本号（标题与右侧登录区位置不动），否则窄屏中间塞不下完整数字 */
-    .app-header.mini-showing #tool-version { display: none; }
     .brand h1 { margin: 0; font-size: 21px; letter-spacing: -.02em; white-space: nowrap; }
     .brand span { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
     .account-area { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -468,7 +466,10 @@
       .app-shell { width: calc(100% - 20px); padding-top: 12px; }
       .brand h1 { font-size: 18px; }
       .brand span { font-size: 11px; }
-      #user-name-top { max-width: 84px; font-size: 12px; }
+      #user-name-top { max-width: 64px; font-size: 12px; }
+      /* 窄屏标题行实在挤：chip 与小字各收一点，中间格才能塞下完整数字（不藏版本号与用户名） */
+      .status-chip { padding: 6px 8px; }
+      #header-mini-stats { font-size: 10px; }
       .hero-big { font-size: 32px; }
       .panel { padding: 15px; }
       .hero { padding: 14px 12px; }
@@ -716,6 +717,12 @@
     function setStatus(text, ready = false) {
       $('status-text').textContent = text;
       $('status-chip').classList.toggle('ready', ready);
+    }
+    // 右上角状态：未登录 / 已登录 / 学习中（会话进行中，含暂停）；
+    // 退出仍点状态 chip，确认弹窗后退出，文案本身不再占地方写“点击退出”
+    function refreshStatusChip() {
+      if (!state.auth) { setStatus('未登录', false); return; }
+      setStatus(state.studySession?.active ? '学习中' : '已登录', true);
     }
     // 提示一律走 toast：旧的 .notice 条出现/消失会改变布局，现已全部移除
     // 全局 toast：底部短暂提示，1.8 秒后自动消失
@@ -967,7 +974,7 @@
       if (loggedIn) { resetFloatPosition(); setFloatMode('ball'); restoreFloatPosition(); }
       state.currentView = 'study-view';
       $('user-name-top').textContent = loggedIn ? state.auth.name : '';
-      setStatus(loggedIn ? '已登录 · 点击退出' : '未登录', loggedIn);
+      refreshStatusChip();
       $('status-chip').title = loggedIn ? '点击退出登录' : '当前未登录';
     }
 
@@ -1031,7 +1038,12 @@
       const el = $('header-mini-stats');
       if (!el) return;
       if (!state.summaryLoadedAt) { el.textContent = ''; return; }
-      el.textContent = `⏱️ ${Math.round(safeNumber(state.studyDuration)).toLocaleString('zh-CN')} · ${safeNumber(state.serverUseable).toLocaleString('zh-CN')} 🏅`;
+      // 窄屏中间格会被左右两端挤得很小，紧凑格式（去空格）才塞得下完整数字
+      const compact = window.matchMedia('(max-width: 560px)').matches;
+      const min = Math.round(safeNumber(state.studyDuration)).toLocaleString('zh-CN');
+      const pts = safeNumber(state.serverUseable).toLocaleString('zh-CN');
+      const text = compact ? `⏱️${min}·${pts}🏅` : `⏱️ ${min} · ${pts} 🏅`;
+      if (el.textContent !== text) el.textContent = text;
     }
     let headerMiniStatsObserver = null;
     function setupHeaderMiniStats() {
@@ -1044,9 +1056,13 @@
         const visible = !$('study-view').classList.contains('hidden') && !!state.auth;
         const show = visible && !entry.isIntersecting;
         el.classList.toggle('show', show);
-        document.querySelector('.app-header')?.classList.toggle('mini-showing', show);
       }, { rootMargin: '-56px 0px 0px 0px' });
       headerMiniStatsObserver.observe(hero);
+      // 横竖屏切换会跨过 560px 断点，格式（紧凑/正常）要跟着换
+      if (!setupHeaderMiniStats.resizeBound) {
+        setupHeaderMiniStats.resizeBound = true;
+        window.addEventListener('resize', renderHeaderMiniStats);
+      }
     }
     function renderDaily() {
       ensureDailyDate();
@@ -2457,6 +2473,7 @@
         };
         state.studySession = session;
         state.pendingStudy = null;
+        refreshStatusChip(); // 学习中：右上角改显示学习中
         markSelectedWareRow(ware);
         refreshSpeedButton(); // 学习中：速按钮不可点
         session.timerId = setInterval(() => { if (state.studySession?.serial === serial) updateSessionUi(); }, CONFIG.UI_TICK_INTERVAL_MS);
@@ -2468,6 +2485,7 @@
         refreshWareRow(session);
       } catch (error) {
         if (state.studySession?.serial === serial) state.studySession = null;
+        refreshStatusChip(); // 开始失败：会话没立起来，右上角回到已登录
         if (!state.studySession) stopKeepaliveAudio(); // 启动失败：不留无会话的空转音频（模式保持，下次开始再启）
         if (state.pendingStudy) showPendingPanel(state.pendingStudy.detail, state.pendingStudy.ware);
         else resetPanelIdle();
@@ -2679,6 +2697,7 @@
     async function stopSession({ silent = false, syncBeforeStop = true, keepAudio = false } = {}) {
       const session = state.studySession;
       state.studySession = null;
+      refreshStatusChip(); // 会话结束：右上角回到已登录
       state.pendingStudy = null;
       stopBackgroundReporter();
       if (!keepAudio) stopKeepaliveAudio(); // 连学中转课件时 keepAudio=true，不断开保活音频
