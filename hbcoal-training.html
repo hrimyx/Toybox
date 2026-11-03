@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="name" content="模拟培训">
-  <meta name="version" content="3.0.53">
+  <meta name="version" content="3.0.60">
   <meta name="author" content="🅷🆁🅸🅼🆈🆇">
   <style>
     :root {
@@ -69,6 +69,15 @@
       backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     }
     .brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+    #header-mini-stats {
+      flex: 1; min-width: 0; text-align: center;
+      font-size: 11px; color: var(--text-secondary); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      opacity: 0; transition: opacity .2s ease; pointer-events: none;
+    }
+    #header-mini-stats.show { opacity: 1; }
+    /* 小字出现时暂时隐藏版本号（标题与右侧登录区位置不动），否则窄屏中间塞不下完整数字 */
+    .app-header.mini-showing #tool-version { display: none; }
     .brand h1 { margin: 0; font-size: 21px; letter-spacing: -.02em; white-space: nowrap; }
     .brand span { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
     .account-area { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -332,9 +341,9 @@
     #global-toast {
       position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
       background: rgba(20, 28, 38, .92); color: var(--on-brand); font-size: 14px; line-height: 1.4;
-      padding: 10px 18px; border-radius: 999px; z-index: 200; pointer-events: none;
+      padding: 10px 18px; border-radius: 16px; z-index: 200; pointer-events: none;
       opacity: 0; transition: opacity .22s ease, transform .22s ease; max-width: 82vw;
-      text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      text-align: center; white-space: normal; overflow-wrap: break-word; word-break: break-word;
     }
     #global-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .empty-state {
@@ -450,6 +459,7 @@
       .hero-card .hero-big { font-size: 34px; }
       #plan-list { gap: 12px; }
       #tier-list { grid-template-columns: 1fr 1fr; gap: 12px; }
+      #global-toast { max-width: 520px; }
       #session-panel {
         width: 380px; left: calc(50% - 190px); bottom: 24px;
       }
@@ -476,6 +486,8 @@
         <h1 id="tool-title">模拟培训</h1>
         <span id="tool-version"></span>
       </div>
+      <!-- 标题行中间小字：上滑看不到 hero 时显示；flex 中间格恒占位，只切换透明度，左右两端位置不动，超长省略不重叠 -->
+      <span id="header-mini-stats" aria-hidden="true"></span>
       <div class="account-area">
         <span id="user-name-top"></span>
         <button class="status-chip" id="status-chip" type="button" aria-label="登录状态"><span class="status-dot"></span><span id="status-text">未登录</span></button>
@@ -1012,6 +1024,29 @@
       $('hero-integral-total').textContent = safeNumber(state.serverIntegralTotal).toLocaleString('zh-CN');
       renderGoal();
       renderDaily();
+      renderHeaderMiniStats();
+    }
+    // 标题行中间小字：与 hero 同源（本月学习分钟 + 积分可用/总计），上滑 hero 被标题行盖住时显示
+    function renderHeaderMiniStats() {
+      const el = $('header-mini-stats');
+      if (!el) return;
+      if (!state.summaryLoadedAt) { el.textContent = ''; return; }
+      el.textContent = `⏱️ ${Math.round(safeNumber(state.studyDuration)).toLocaleString('zh-CN')} · ${safeNumber(state.serverUseable).toLocaleString('zh-CN')} 🏅`;
+    }
+    let headerMiniStatsObserver = null;
+    function setupHeaderMiniStats() {
+      const hero = document.querySelector('#study-view .hero');
+      const el = $('header-mini-stats');
+      if (!hero || !el) return;
+      if (headerMiniStatsObserver) headerMiniStatsObserver.disconnect();
+      // hero 完全滑到标题行上方（-56px 约为标题行高度）时显示小字，否则隐藏
+      headerMiniStatsObserver = new IntersectionObserver(([entry]) => {
+        const visible = !$('study-view').classList.contains('hidden') && !!state.auth;
+        const show = visible && !entry.isIntersecting;
+        el.classList.toggle('show', show);
+        document.querySelector('.app-header')?.classList.toggle('mini-showing', show);
+      }, { rootMargin: '-56px 0px 0px 0px' });
+      headerMiniStatsObserver.observe(hero);
     }
     function renderDaily() {
       ensureDailyDate();
@@ -1205,7 +1240,8 @@
       const { planId, stageId } = ctx;
       courses.forEach((course) => {
         const courseId = String(course?.id ?? '');
-        const relationId = course?.relationId ?? course?.RelationId ?? '';
+        const relationId = course?.relationId ?? course?.RelationId ?? stageId ?? '';
+        // HAR + 真机实测：学习计划上报的 relationId 就是阶段 id（阶段课程列表本身不带 relationId，空串会被服务端 FAIL 拒绝）
         const name = course?.name ?? '未命名课程';
         const st = courseStateOf(course);
         const key = `${stageId}:${courseId}`;
@@ -2205,7 +2241,16 @@
         showToast('外部课件');
         return;
       }
-      if (state.studySession?.active) await stopSession({ silent: true, syncBeforeStop: true });
+      if (state.studySession?.active) {
+        // 学习中点其他课件：先弹窗确认，取消则继续当前学习，不中断
+        const current = state.studySession.ware;
+        const switching = current && String(current.WareId ?? current.wareId ?? '') !== String(ware?.WareId ?? ware?.wareId ?? '');
+        if (switching) {
+          const name = current.WareName ?? current.wareName ?? '当前课件';
+          if (!window.confirm(`正在学习《${name}》，切换会结束当前学习并同步进度，确定切换吗？`)) return;
+        }
+        await stopSession({ silent: true, syncBeforeStop: true });
+      }
       state.pendingStudy = { detail, ware, module };
       markSelectedWareRow(ware, rowEl);
       if (state.floatMode === 'panel') {
@@ -2303,7 +2348,9 @@
         clearSelectedWareRow();
         resetPanelIdle();
         void loadSummary().catch(() => {});
-        refreshSourceList(sourceModule); // 刷新来源列表（以服务端为准）
+        // 速完成：课程 cell 按核实后重拉的详情原地更新，不重拉列表
+        const freshDetail = state.courseDetailCache.get(`${detail.source ?? 2}:${course?.CourseId ?? course?.courseId ?? ''}:${detail.relationId ?? ''}`);
+        refreshCourseCell(sourceModule, freshDetail || detail);
       } catch (error) {
         showToast(error.message || '写入失败');
       } finally {
@@ -2503,7 +2550,7 @@
         if (!pos) return;
         event.preventDefault();
         event.stopPropagation(); // 不触发面板拖动
-        seekDrag = { pointerId: event.pointerId, targetMs: pos.targetMs };
+        seekDrag = { pointerId: event.pointerId, targetMs: pos.targetMs, startMs: pos.currentMs };
         try { row.setPointerCapture(event.pointerId); } catch { /* 忽略 */ }
         renderSeekPreview(pos.targetMs, session.totalMs);
       });
@@ -2520,12 +2567,14 @@
         if (!seekDrag || event.pointerId !== seekDrag.pointerId) return;
         const session = state.studySession;
         const targetMs = seekDrag.targetMs;
+        const startMs = seekDrag.startMs;
         seekDrag = null;
         $('session-progress-fill').style.transition = '';
         if (!session?.active) { updateSessionUi(); return; }
         const currentMs = getSessionProgressMs(session);
         const reachedEnd = targetMs >= Math.max(1, session.totalMs) - 1;
-        if (reachedEnd || targetMs >= currentMs + SEEK_MIN_GAIN_MS) {
+        // 增量按按下时刻算：播放中松手时刻的当前进度比按下时多走了拖动耗时，拖满 60 秒按住几秒再松手会被误判为不足 60 秒
+        if (reachedEnd || targetMs >= (startMs ?? currentMs) + SEEK_MIN_GAIN_MS) {
           session.baseMs = targetMs;
           if (!session.paused) session.startedAt = Date.now(); // 播放中从新进度继续计时；暂停中 startedAt 保持 0，进度冻结在新值
           session.seekCooldownUntil = Date.now() + SEEK_COOLDOWN_MS;
@@ -2608,7 +2657,8 @@
       if (session.paused) {
         session.paused = false;
         session.startedAt = Date.now();
-        session.baseMs = session.lastSyncMs;
+        // 继续不重置 baseMs：暂停时 baseMs 已冻结在暂停点；若暂停同步失败，lastSyncMs 还是旧值，
+        // 重置会把暂停前（以及暂停时拖动）的进度全部丢掉，改回旧值后下一次上报还会把服务端进度拉回去
         session.nextSyncAt = Date.now() + CONFIG.PROGRESS_FIRST_SYNC_DELAY_MS;
         rescheduleBackgroundReporter(session.nextSyncAt);
         if (state.keepalive) startKeepaliveAudio(); // 继续：按保活模式决定是否启动音频
@@ -2647,6 +2697,13 @@
             endReporting();
           }
           recordDailyReport(progressMs - prevReportedMs);
+          // 结束时最终进度回写：课件 cell 与课程 cell 原地更新，不重拉列表
+          if (session.ware && session.totalMs > 0) {
+            const done = progressMs >= Math.max(1, session.totalMs) - 1;
+            session.ware.Progress = done ? 100 : Math.floor(Math.min(100, (progressMs / session.totalMs) * 100));
+          }
+          refreshWareRow(session);
+          refreshCourseCell(session.module, session.detail);
         } catch { /* 结束时同步失败不打扰 */ }
       }
       if (session) session.active = false;
@@ -2664,22 +2721,56 @@
         await advanceAutoStudy(session);
       } else {
         await stopSession({ syncBeforeStop: true });
-        refreshSourceList(session.module);
         collapseToBallAnimated();
       }
     }
 
-    // 学完后刷新课件来源列表：行内文案（refreshWareRow）只改当前课件行，课程级状态
-    // （我的学习 学习中/已完成归属、计划与中心课程状态）必须重拉服务端才更新；
-    // 只在会话结束时刷一次，连学中转不重复刷
-    function refreshSourceList(module) {
-      if (module === 'plan') {
-        if (state.plansLoaded) void loadPlans().catch(() => {});
-      } else if (module === 'center') {
-        if (state.center.loaded) void loadCenterTopCourses().catch(() => {});
-      } else {
-        void loadMineCourses().catch(() => {}); // mine 或未知：默认刷我的学习（与速按钮现有行为一致）
+    // 课件结束时只更新该课件所在课程 cell：按 detail.wares（与会话共享对象，已回写最新进度）
+    // 重算课程状态，原地改 .course-state 的文字与 class；不重拉整个列表，避免页面抖动。
+    // 我的学习 tab 归属（学习中/已完成）与计划总进度仍以下次列表加载为准。
+    function refreshCourseCell(module, detail) {
+      const wares = detail?.wares;
+      if (!Array.isArray(wares) || !wares.length) return;
+      const course = detail.course || {};
+      const courseId = String(course?.id ?? course?.CourseId ?? course?.courseId ?? '');
+      if (!courseId) return;
+      const scope = module === 'center' ? '#module-center' : module === 'mine' ? '#module-mine' : '#module-plan';
+      const stateEl = document.querySelector(`${scope} .course-row[data-course-id="${CSS.escape(courseId)}"] .course-state`);
+      if (!stateEl) return;
+      const doneCount = wares.filter((w) => wareProgress(w) >= 100).length;
+      const anyProgress = wares.some((w) => wareProgress(w) > 0);
+      // 保留 meta 后缀（如“ · 3 个课件”）：只换状态文字
+      const suffix = (stateEl.textContent.match(/ · .*$/) || [''])[0];
+      let text; let cls;
+      if (doneCount >= wares.length) {
+        text = '已完成'; cls = 'done';
+        // 我的学习：课程学完后从当前学习中列表移除（切到已完成 tab 时服务端会返回它）
+        if (module === 'mine' && state.mine.learnStatus === 1) {
+          const row = stateEl.closest('.course-row');
+          const wrap = row?.nextElementSibling;
+          if (row) row.remove();
+          if (wrap && wrap.classList.contains('wares')) wrap.remove();
+          if (state.mine.openCourseKey === `mine:${courseId}`) state.mine.openCourseKey = null;
+          state.mine.courses = state.mine.courses.filter((c) => String(c?.CourseId ?? c?.courseId ?? '') !== courseId);
+          const listEl = document.querySelector('#mine-list');
+          if (listEl && !listEl.querySelector('.course-row')) {
+            listEl.innerHTML = '<div class="empty-state">还没有在学的课程，去学习计划或课程中心找课吧</div>';
+          }
+          return;
+        }
       }
+      else if (module === 'mine') { text = '学习中'; cls = 'doing'; }
+      else if (!anyProgress) { text = '未开始'; cls = ''; }
+      else {
+        cls = 'doing';
+        // 原来带百分比的（如“进行中 45%”）按课件平均进度重算；原来只有“进行中”的保持原样
+        if (/进行中\s*\d+%/.test(stateEl.textContent)) {
+          const avg = Math.floor(wares.reduce((sum, w) => sum + wareProgress(w), 0) / wares.length);
+          text = `进行中 ${avg}%`;
+        } else text = '进行中';
+      }
+      stateEl.textContent = text + suffix;
+      stateEl.className = `course-state${cls ? ` ${cls}` : ''}`;
     }
 
     /* ================= 连续学习 ================= */
@@ -2702,7 +2793,6 @@
         state.autoStudyCount = 0;
         $('auto-study-toggle').checked = false;
         await stopSession({ syncBeforeStop: true });
-        refreshSourceList(finishedSession.module);
         showSessionNotice(`已连续学习 ${CONFIG.AUTO_STUDY_MAX_WARES} 个课件，自动连学停止`, 'info');
         setTimeout(() => { if (!state.studySession && !state.pendingStudy) collapseToBallAnimated(); }, 2600);
         return;
@@ -2722,7 +2812,6 @@
       state.autoStudyCount = 0;
       $('auto-study-toggle').checked = false;
       await stopSession({ syncBeforeStop: true });
-      refreshSourceList(finishedSession.module);
       showSessionNotice('连续学习已完成本课程全部课件', 'success');
       setTimeout(() => { if (!state.studySession && !state.pendingStudy) collapseToBallAnimated(); }, 2600);
     }
@@ -3136,6 +3225,7 @@
       loadAuth(); // 恢复上次登录态（若服务端已失效，首次请求会走登录失效流程弹回登录页）
       bindStaticEvents();
       renderAuthState();
+      setupHeaderMiniStats();
       if (state.auth) void afterLogin();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
