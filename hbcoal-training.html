@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="name" content="模拟培训">
-  <meta name="version" content="3.0.61">
+  <meta name="version" content="3.0.65">
   <meta name="author" content="🅷🆁🅸🅼🆈🆇">
   <style>
     :root {
@@ -101,9 +101,11 @@
     .tabs.small button { min-height: 38px; font-size: 13px; }
     .secondary-button.block { width: 100%; }
     /* 课程展示防横向溢出：链路容器允许收缩，长名称最多两行省略、无断点长串强制断行 */
-    #module-plan, #module-center, #plan-list, .plan-body, .wares { min-width: 0; }
+    #module-plan, #module-center, #module-elective, #plan-list, .plan-body, .wares { min-width: 0; }
     .stack > * { min-width: 0; } /* .panel 是 grid item，缺了这一层会被长内容横向撑开 */
-    .plan-body > *, .wares > *, #plan-list > *, #module-center > *, #module-plan > * { min-width: 0; }
+    .plan-body > *, .wares > *, #plan-list > *, #module-center > *, #module-plan > *, #module-elective > * { min-width: 0; }
+    /* 选课中心：加载更多按钮与列表留间距 */
+    #elective-more { margin-top: 10px; }
     .course-row { min-width: 0; }
     .course-name {
       overflow: hidden; text-overflow: ellipsis;
@@ -567,7 +569,9 @@
             <div id="cc-top-list"><div class="empty-state">正在加载热门课程…</div></div>
           </div>
           <div id="module-elective" class="hidden">
-            <div class="empty-state">选课中心即将上线，敬请期待</div>
+            <div class="row-head"><h3>全部课程</h3></div>
+            <div id="elective-course-list"><div class="empty-state">正在加载课程…</div></div>
+            <button class="secondary-button block hidden" id="elective-more" type="button">加载更多</button>
           </div>
         </section>
       </div>
@@ -638,6 +642,7 @@
       STAGE_COURSES_PATH: '/appRes/getLearnPlanStageCourses.action',
       COURSE_DETAIL_PATH: '/appRes/getCourseDetail.action',
       TOP_COURSE_PATH: '/appRes/getTopCourse.action', // 课程中心：热门课程（HAR 已验证参数 {num, tid, type}）
+      ELECTIVE_SEARCH_PATH: '/appRes/getSearchList.action', // 选课中心：默认列表（APK FindModel：不带 name/cateId 即无筛选，返回 {course:[]}，无总数、短页即到底）
       MY_STUDY_PATH: '/appRes/getMyStudyedCourseList.action', // 我的学习（APK MyStudyReq：learnStatus 1=学习中，2=已完成）
       EDU_URL_PATH: '/appRes/getCoaleduParam.action', // 我的学习 source==1 的外部 H5 课程取跳转地址
       BEFORE_WARE_PATH: '/appRes/beforeLearnWare.action',
@@ -663,6 +668,7 @@
       DAILY_POINT_CAP: 5, // 每日积分上限：每 5 分钟 1 分，活动期可能翻倍，按需调整
       CENTER_RELATION_NAME: '自主学习', // 课程中心/我的学习来源标识（APK：source=1，relationId=0，relationName=自主学习）
       TOP_COURSE_NUM: 10, // 热门课程数量（HAR 实测 num=10）
+      ELECTIVE_PAGE_SIZE: 20, // 选课中心每页条数（Web 默认列表每页 20）
     });
 
     /* ================= 状态 ================= */
@@ -686,6 +692,13 @@
       },
       center: {
         topCourses: [], // 热门课程（getTopCourse）
+        openCourseKey: null,
+        loaded: false
+      },
+      elective: { // 选课中心：默认列表（无搜索、无分类），直接展示全部课程
+        courses: [], // 已加载的课（getSearchList 的 course[]）
+        pageIndex: 1, // 当前页（APK 从 1 开始）
+        hasMore: false, // 上一页是否满页（满页才可能有下一页）
         openCourseKey: null,
         loaded: false
       },
@@ -1372,10 +1385,15 @@
         state.center.loaded = true;
         void loadCenterTopCourses();
       }
+      if (module === 'elective' && !state.elective.loaded) {
+        state.elective.loaded = true;
+        void loadElectiveCourses({ append: false });
+      }
     }
     function resetLearnModules() {
       Object.assign(state.mine, { courses: [], openCourseKey: null, loaded: false, learnStatus: 1 });
       Object.assign(state.center, { topCourses: [], openCourseKey: null, loaded: false });
+      Object.assign(state.elective, { courses: [], pageIndex: 1, hasMore: false, openCourseKey: null, loaded: false });
       state.plansLoaded = false;
       document.querySelectorAll('#mine-status-tabs button').forEach((button) => {
         const active = button.dataset.status === '1';
@@ -1557,6 +1575,93 @@
         waresWrap.innerHTML = `<div class="empty-state">课件加载失败：${esc(error.message)}</div>`;
       }
     }
+    /* ================= 选课中心：默认列表（无搜索、无分类） ================= */
+    // 默认列表 = Web 课程中心默认列表的 App 等价：getSearchList 不带任何筛选（不带 name/cateId），
+    // 服务端默认按发布时间倒序；每页 20 条（Web 默认），pageIndex 从 1（APK FindModel）。
+    // tid 必须显式带：authParams() 里没有 tid，而 App 调这个接口每次都带 tid（FindModel.setTid），
+    // 缺 tid 服务端按 tid=0 过滤、返回成功但空列表（3.0.64 的“暂无课程”就是这么来的；after 上报也曾因缺 tid 报错）。
+    // Web 端那套 /courseUserAction/* 需要 JSESSIONID，工具无 Web 会话，走不了（见 3.0.63）。
+    async function loadElectiveCourses({ append = false } = {}) {
+      const listEl = $('elective-course-list');
+      const pageIndex = append ? state.elective.pageIndex + 1 : 1;
+      try {
+        const response = await requestJson({
+          path: CONFIG.ELECTIVE_SEARCH_PATH, method: 'POST',
+          body: { pageIndex, pageSize: CONFIG.ELECTIVE_PAGE_SIZE, tid: state.auth.tid },
+          lockKey: 'elective-courses'
+        });
+        const list = response?.course || [];
+        const items = Array.isArray(list) ? list : [];
+        if (!append) state.elective.courses = items;
+        else state.elective.courses.push(...items);
+        state.elective.pageIndex = pageIndex;
+        // 无总数：满页才可能有下一页，短页即到底
+        state.elective.hasMore = items.length >= CONFIG.ELECTIVE_PAGE_SIZE;
+        renderElectiveCourses({ append });
+      } catch (error) {
+        if (!append) listEl.innerHTML = `<div class="empty-state">课程加载失败：${esc(error.message)}<br><button class="text-button" id="retry-elective-courses" type="button">点击重试</button></div>`;
+        else showToast(error.message || '加载更多失败');
+        $('retry-elective-courses')?.addEventListener('click', () => void loadElectiveCourses({ append: false }));
+      }
+    }
+    function renderElectiveCourses({ append = false } = {}) {
+      const listEl = $('elective-course-list');
+      if (!append) listEl.innerHTML = '';
+      if (!state.elective.courses.length) {
+        listEl.innerHTML = '<div class="empty-state">暂无课程</div>';
+        $('elective-more').classList.add('hidden');
+        return;
+      }
+      const start = append ? listEl.querySelectorAll('.course-row').length : 0;
+      state.elective.courses.slice(start).forEach((course) => appendElectiveCourseRow(listEl, course));
+      $('elective-more').classList.toggle('hidden', !state.elective.hasMore);
+    }
+    function appendElectiveCourseRow(listEl, course) {
+      const courseId = String(course?.courseId ?? course?.CourseId ?? '');
+      const name = course?.courseName ?? course?.CourseName ?? '未命名课程';
+      const score = safeNumber(course?.courseCommentScore ?? course?.CourseCommentScore);
+      const learners = safeNumber(course?.learnUserCount ?? course?.LearnUserCount);
+      const meta = [score > 0 ? `★${score}` : '', learners > 0 ? `${learners}人学习` : ''].filter(Boolean).join(' · ');
+      const st = courseStateOf(course); // 搜索结果无学习进度，未学过显示“未开始”
+      const key = `elective:${courseId}`;
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = `course-row${state.elective.openCourseKey === key ? ' open' : ''}`;
+      row.dataset.courseId = courseId;
+      row.innerHTML = `<span class="course-name">${esc(name)}</span><span class="course-state ${st.cls}">${esc(st.text)}${meta ? ` · ${esc(meta)}` : ''}</span>`;
+      const waresWrap = document.createElement('div');
+      waresWrap.className = 'wares';
+      waresWrap.style.display = state.elective.openCourseKey === key ? '' : 'none';
+      row.addEventListener('click', () => toggleElectiveCourse(key, row, waresWrap, { courseId }));
+      listEl.appendChild(row);
+      listEl.appendChild(waresWrap);
+      if (state.elective.openCourseKey === key) void expandElectiveCourse(waresWrap, courseId);
+    }
+    async function toggleElectiveCourse(key, row, waresWrap, { courseId }) {
+      if (state.elective.openCourseKey === key) {
+        state.elective.openCourseKey = null;
+        row.classList.remove('open');
+        waresWrap.style.display = 'none';
+        return;
+      }
+      state.elective.openCourseKey = key;
+      document.querySelectorAll('#module-elective .course-row.open').forEach((r) => r.classList.remove('open'));
+      document.querySelectorAll('#module-elective .wares').forEach((w) => { w.style.display = 'none'; });
+      row.classList.add('open');
+      waresWrap.style.display = '';
+      await expandElectiveCourse(waresWrap, courseId);
+    }
+    async function expandElectiveCourse(waresWrap, courseId) {
+      waresWrap.innerHTML = '<div class="empty-state">正在加载课件…</div>';
+      try {
+        // 选课中心开课与课程中心一致：自主学习 source=1，relationId=0；点开始发 beforeLearnWare 登记，课随即进我的学习
+        const detail = await getCourseDetail(courseId, 0, { source: 1, relationName: CONFIG.CENTER_RELATION_NAME });
+        const wares = detail?.wares || [];
+        renderWares(waresWrap, detail, wares, { module: 'elective' });
+      } catch (error) {
+        waresWrap.innerHTML = `<div class="empty-state">课件加载失败：${esc(error.message)}</div>`;
+      }
+    }
     /* ================= 课件真实时长解析（MP4 moov/mvhd，HAR 已验证必需） ================= */
     function readUint32(view, offset) { return view.getUint32(offset, false); }
     function readUint64(view, offset) {
@@ -1679,7 +1784,6 @@
     function createBackgroundReporter() {
       const workerCode = `
         let timerId = null;
-        let syncAt = 0;
         let running = false;
         function schedule(delayMs) {
           if (timerId) clearTimeout(timerId);
@@ -1690,14 +1794,13 @@
         }
         self.onmessage = (event) => {
           const data = event.data || {};
+          // at 是下一次唤醒时刻：上报闹钟与课件学完时刻取较早者，单次触发，不堆积
           if (data.type === 'start') {
             running = true;
-            syncAt = Number(data.syncAt) || 0;
-            schedule(syncAt - Date.now());
+            schedule(Number(data.at) - Date.now());
           } else if (data.type === 'reschedule') {
             if (!running) return;
-            syncAt = Number(data.syncAt) || 0;
-            schedule(syncAt - Date.now());
+            schedule(Number(data.at) - Date.now());
           } else if (data.type === 'stop') {
             running = false;
             if (timerId) { clearTimeout(timerId); timerId = null; }
@@ -1711,15 +1814,28 @@
         return worker;
       } catch { return null; }
     }
+    // 课件学完时刻（播放中才有）：后台也要准时结束并切换，不能只等 5 分钟一次的上报闹钟；
+    // 已逾期返回 0（不安排立即唤醒——回前台对账会处理，免得失败重试时自激循环）
+    function sessionWakeAt(session) {
+      if (!session?.active || session.paused || !session.startedAt || !(session.totalMs > 0)) return 0;
+      const remainingMs = session.totalMs - getSessionProgressMs(session);
+      return remainingMs > 0 ? Date.now() + remainingMs : 0;
+    }
+    // 下一次唤醒：上报闹钟与学完时刻取较早者
+    function reporterWakeAt(session) {
+      const wakeAt = sessionWakeAt(session);
+      return wakeAt > 0 ? Math.min(session.nextSyncAt, wakeAt) : session.nextSyncAt;
+    }
     function startBackgroundReporter(session) {
       stopBackgroundReporter();
       if (session.background) return;
       state.backgroundReporter = createBackgroundReporter();
+      const at = reporterWakeAt(session);
       if (state.backgroundReporter) {
-        state.backgroundReporter.postMessage({ type: 'start', syncAt: session.nextSyncAt });
+        state.backgroundReporter.postMessage({ type: 'start', at });
       } else {
         // Worker 不可用（如旧 webview）：降级为页面单次定时器，语义与 Worker 一致
-        armFallbackReporter(session.nextSyncAt);
+        armFallbackReporter(at);
       }
       session.background = true;
     }
@@ -1732,24 +1848,26 @@
     }
     // 统一重排后台上报：Worker 优先，否则降级定时器（单次、可覆盖，不堆积）
     function rescheduleBackgroundReporter(syncAt) {
+      const at = Math.min(syncAt, sessionWakeAt(state.studySession) || syncAt);
       if (state.backgroundReporter) {
-        try { state.backgroundReporter.postMessage({ type: 'reschedule', syncAt }); } catch { /* 忽略 */ }
+        try { state.backgroundReporter.postMessage({ type: 'reschedule', at }); } catch { /* 忽略 */ }
       } else if (state.studySession?.background) {
-        armFallbackReporter(syncAt);
+        armFallbackReporter(at);
       }
     }
-    function armFallbackReporter(syncAt) {
+    function armFallbackReporter(at) {
       clearFallbackReporter();
       state.fallbackTimerId = setTimeout(() => {
         state.fallbackTimerId = null;
         void handleBackgroundReporterMessage({ type: 'sync-due', at: Date.now() });
-      }, Math.max(0, syncAt - Date.now()));
+      }, Math.max(0, at - Date.now()));
     }
     function clearFallbackReporter() {
       if (state.fallbackTimerId) { clearTimeout(state.fallbackTimerId); state.fallbackTimerId = null; }
     }
-    // 后台保活：静音音频循环。浏览器把"正在播放音频"的页面视为活跃，不节流定时器、
-    // 不冻结页面（桌面切后台、移动端后台/息屏大概率有效；iOS 锁屏会显示媒体控件）。
+    // 后台保活：循环播放一段 0.25 秒的静音 WAV（<audio> 元素，不是 Web Audio 振荡器——
+    // 振荡器在 iOS 上拿不到后台音频权限，页面一进后台就被冻住，链学完也切不了课；<audio> 才是
+    // 系统认的媒体播放，桌面切后台、移动端后台/息屏大概率有效，iOS 锁屏会显示媒体控件）。
     // 开关只代表"启用此模式"，音频起停规则：
     // - 未开始/暂停/已结束时操作开关：仅记录模式，不启动音频
     // - 点击开始/继续：按模式决定是否启动音频
@@ -1757,14 +1875,11 @@
     // - 暂停/结束/外部点击切换课件：如音频在启动中则关闭（模式保持）
     // - 连学切下一个课件：按模式判定，启用则中转不断
     // 代价：阻止深度睡眠、持续耗电，需用户手势启动。
+    // 0.25s 16-bit 单声道全零静音 WAV（data URI，无需联网拉音频文件），循环播放只为保活
+    const KEEPALIVE_SILENCE_SRC = 'data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
     function setKeepalive(on) {
       if (on) {
-        if (!window.AudioContext && !window.webkitAudioContext) {
-          $('keepalive-toggle').checked = false;
-          state.keepalive = false;
-          showSessionNotice('当前浏览器不支持后台保活', 'error');
-          return;
-        }
         state.keepalive = true;
         // 学习进行中（非暂停）才立即启动音频；未开始/暂停/已结束只记录模式
         if (state.studySession?.active && !state.studySession.paused) startKeepaliveAudio();
@@ -1773,20 +1888,25 @@
         stopKeepaliveAudio();
       }
     }
+    let keepaliveAudioEl = null; // 复用同一个 <audio>，避免重复创建
     function startKeepaliveAudio() {
       if (state.keepaliveAudio) return true; // 已在运行
       try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return false;
-        const ctx = new AC();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        gain.gain.value = 0; // 静音，只为保活
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        if (ctx.state === 'suspended') void ctx.resume(); // 手势链路可唤醒
-        state.keepaliveAudio = { ctx, osc };
+        if (!keepaliveAudioEl) {
+          const el = document.createElement('audio');
+          el.src = KEEPALIVE_SILENCE_SRC;
+          el.loop = true;
+          el.playsInline = true;
+          el.preload = 'auto';
+          el.setAttribute('aria-hidden', 'true');
+          // 移出可视区但不 display:none：个别移动端会暂停不渲染的媒体元素
+          el.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+          document.body.appendChild(el);
+          keepaliveAudioEl = el;
+        }
+        const p = keepaliveAudioEl.play();
+        if (p && p.catch) p.catch(() => {}); // 手势外调用可能被拒，由回前台对账再试
+        state.keepaliveAudio = { el: keepaliveAudioEl };
         return true;
       } catch { return false; }
     }
@@ -1794,8 +1914,7 @@
       const k = state.keepaliveAudio;
       state.keepaliveAudio = null;
       if (!k) return;
-      try { k.osc.stop(); } catch { /* 忽略 */ }
-      try { void k.ctx.close(); } catch { /* 忽略 */ }
+      try { k.el.pause(); } catch { /* 忽略 */ } // 元素留着复用，只暂停，不删
     }
     async function handleBackgroundReporterMessage(message) {
       const session = state.studySession;
@@ -1825,19 +1944,24 @@
         if (state.studySession?.serial !== serial) return;
         const prevReportedMs = Math.max(session.lastSyncMs || 0, session.baseMs || 0);
         applyStudySyncResult(session, progressMs);
-        // 完成判定先算：自然学完时 progressMs 可能差总时长几百毫秒，floor 会写成 99%，行上永远不显示已完成
-        const done = progressMs >= Math.max(1, session.totalMs) - 1;
+        // 完成判定用同步结束后的最新进度重算：上报请求本身要花时间，刚到学完时刻的唤醒
+        // 若按请求开始时的进度算，可能差几毫秒被判成未完成，后台又要再等 5 分钟
+        const finalProgressMs = getSessionProgressMs(session);
+        const done = finalProgressMs >= Math.max(1, session.totalMs) - 1;
         // 回写课件进度：会话与 detail.wares 共享同一课件对象；不回写则连学判断会用过期 Progress
         // 把以前已学完的课件重新拉起来再学一遍；学完直接写 100，不用 floor
         if (session.ware && session.totalMs > 0) {
-          session.ware.Progress = done ? 100 : Math.floor(Math.min(100, (progressMs / session.totalMs) * 100));
+          session.ware.Progress = done ? 100 : Math.floor(Math.min(100, (finalProgressMs / session.totalMs) * 100));
         }
         recordDailyReport(progressMs - prevReportedMs);
-        rescheduleBackgroundReporter(session.nextSyncAt);
-        updateSessionUi();
-        refreshWareRow(session);
-        void loadSummary().catch(() => {});
+        // 学完走 completeSession（连学由 startSession 重排新会话的闹钟，不学完则重排本会话）
         if (done) await completeSession(session);
+        else rescheduleBackgroundReporter(session.nextSyncAt);
+        updateSessionUi();
+        // 学完时跳过：completeSession 开头已把行标为已完成，stopSession 内也已用活会话刷新过；
+        // 此时会话已死，再按 baseMs 重算会把 0% 写回去（自然学完的行会显示 0%）
+        if (!done) refreshWareRow(session);
+        void loadSummary().catch(() => {});
       } catch (error) {
         if (state.studySession?.serial !== serial) return;
         session.backgroundFailures = (session.backgroundFailures || 0) + 1;
@@ -1856,6 +1980,11 @@
     async function reconcileAfterVisible() {
       const session = state.studySession;
       updateSessionUi();
+      // 保活音频可能在后台被系统打断（来电/Siri/锁屏）：回前台时按模式把它接回来，下次进后台才继续有效
+      if (state.keepalive && session?.active && !session.paused && state.keepaliveAudio?.el?.paused) {
+        const p = state.keepaliveAudio.el.play();
+        if (p && p.catch) p.catch(() => {});
+      }
       if (!session?.active || session.syncing || session.paused) return;
       if (Date.now() >= session.nextSyncAt) {
         await syncSessionProgress(session); // 内部重排下一次上报
@@ -2405,7 +2534,7 @@
       const btn = $('btn-start');
       try {
         // 保活音频必须在手势处理中同步启动：startSession 内是先 await 时长/上报再启动音频，
-        // 到时已脱离点击手势，iOS 上 AudioContext 会被挂起、保活实际无效；此处先同步创建，startSession 内幂等复用
+        // 到时已脱离点击手势，iOS 上 <audio> 播放会被拒、保活实际无效；此处先同步创建，startSession 内幂等复用
         if (state.keepalive) startKeepaliveAudio();
         setButtonBusy(btn, true, '准备中…');
         state.autoStudyCount = 1; // 手动开始作为连学链的第 1 个
@@ -2661,7 +2790,7 @@
       // 进行中右侧同步加总时长（与列表初次渲染一致）
       const totalSec = safeNumber(session.ware?.total ?? session.ware?.Total);
       const totalText = totalSec > 0 ? ` · ${formatHms(totalSec)}` : '';
-      document.querySelectorAll(`#module-plan .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-center .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-mine .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta`).forEach((meta) => {
+      document.querySelectorAll(`#module-plan .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-center .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-mine .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-elective .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta`).forEach((meta) => {
         meta.textContent = pct >= 100 ? '已完成' : `${pct}%${totalText}`;
         meta.classList.toggle('hot', pct > 0 && pct < 100);
         meta.closest('.ware-row')?.classList.toggle('done', pct >= 100);
@@ -2678,7 +2807,7 @@
         // 继续不重置 baseMs：暂停时 baseMs 已冻结在暂停点；若暂停同步失败，lastSyncMs 还是旧值，
         // 重置会把暂停前（以及暂停时拖动）的进度全部丢掉，改回旧值后下一次上报还会把服务端进度拉回去
         session.nextSyncAt = Date.now() + CONFIG.PROGRESS_FIRST_SYNC_DELAY_MS;
-        rescheduleBackgroundReporter(session.nextSyncAt);
+        startBackgroundReporter(session); // 继续要重启后台上报：暂停时 worker 已停，光重排闹钟唤不回来
         if (state.keepalive) startKeepaliveAudio(); // 继续：按保活模式决定是否启动音频
         updateSessionUi();
         return;
@@ -2753,7 +2882,7 @@
       const course = detail.course || {};
       const courseId = String(course?.id ?? course?.CourseId ?? course?.courseId ?? '');
       if (!courseId) return;
-      const scope = module === 'center' ? '#module-center' : module === 'mine' ? '#module-mine' : '#module-plan';
+      const scope = module === 'center' ? '#module-center' : module === 'mine' ? '#module-mine' : module === 'elective' ? '#module-elective' : '#module-plan';
       const stateEl = document.querySelector(`${scope} .course-row[data-course-id="${CSS.escape(courseId)}"] .course-state`);
       if (!stateEl) return;
       const doneCount = wares.filter((w) => wareProgress(w) >= 100).length;
@@ -3223,6 +3352,8 @@
         button.addEventListener('click', () => switchMineStatus(Number(button.dataset.status)));
       });
       $('cc-reload-top').addEventListener('click', () => void loadCenterTopCourses());
+      // 选课中心：加载更多
+      $('elective-more').addEventListener('click', () => void loadElectiveCourses({ append: true }));
     }
     async function afterLogin() {
       $('month-label').textContent = `${currentMonthLabel()}学习`;
