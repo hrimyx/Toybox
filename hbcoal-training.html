@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="name" content="模拟培训">
-  <meta name="version" content="3.0.65">
+  <meta name="version" content="3.0.76">
   <meta name="author" content="🅷🆁🅸🅼🆈🆇">
   <style>
     :root {
@@ -33,6 +33,8 @@
       --rainbow-5: #54a0ff;
       --rainbow-6: #a55eea;
       --rainbow-7: #fd79a8;
+      /* 学习控制台三形态（悬浮球/迷你台/面板）共用的吸附边距：唯一来源。改这里一处，三形态的默认位、吸附位、展开锚定与贴边判定阈值（= 2 × 边距）全部跟着变 */
+      --float-margin: 10px;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -251,6 +253,7 @@
     .course-state { flex: 0 0 auto; font-size: 11.5px; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
     .course-state.doing { color: var(--brand-primary); border-color: var(--brand-primary); }
     .course-state.done { color: var(--success); border-color: var(--success); }
+    .course-state.external { color: var(--warning); border-color: var(--warning); }
     .wares { display: grid; gap: 6px; margin: -2px 0 10px; padding: 10px; background: var(--surface-alt); border-radius: var(--radius-sm); }
     .ware-row {
       display: flex; align-items: center; gap: 10px; text-align: left; width: 100%;
@@ -265,6 +268,11 @@
     .ware-row.selected .ware-name { color: var(--brand-primary); font-weight: 700; }
     .ware-meta { flex: 0 0 auto; font-size: 11.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .ware-meta.hot { color: var(--brand-primary); font-weight: 700; }
+    .ware-row-wrap { display: flex; gap: 6px; align-items: center; min-width: 0; }
+    .ware-row-wrap .ware-row { flex: 1 1 auto; width: auto; min-width: 0; }
+    .ware-add { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--brand-primary); font-size: 17px; line-height: 1; cursor: pointer; padding: 0; }
+    .ware-add:hover { border-color: var(--brand-primary); }
+    .ware-add:disabled { color: var(--success); border-color: var(--success); cursor: default; }
     #tier-list { display: grid; gap: 10px; }
     .tier {
       border: 1px solid var(--border); border-radius: 12px; padding: 14px;
@@ -338,10 +346,11 @@
     .remember-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--text-secondary); user-select: none; cursor: pointer; }
     .remember-row input { width: 18px; height: 18px; accent-color: var(--brand-primary); }
     /* 全局 toast：底部居中短暂提示 */
+    /* toast 必须在最上层：学习控制台容器 #session-float 也是 z-index 200 且在 DOM 里排在 toast 后面，同级会被控制台盖住 */
     #global-toast {
       position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
       background: rgba(20, 28, 38, .92); color: var(--on-brand); font-size: 14px; line-height: 1.4;
-      padding: 10px 18px; border-radius: 16px; z-index: 200; pointer-events: none;
+      padding: 10px 18px; border-radius: 16px; z-index: 300; pointer-events: none;
       opacity: 0; transition: opacity .22s ease, transform .22s ease; max-width: 82vw;
       text-align: center; white-space: normal; overflow-wrap: break-word; word-break: break-word;
     }
@@ -361,7 +370,7 @@
     #session-float { position: fixed; inset: 0; z-index: 200; pointer-events: none; }
     #session-float > * { pointer-events: auto; }
     .session-ball {
-      position: fixed; right: 12px; bottom: 12px; width: 56px; height: 56px; border-radius: 50%;
+      position: fixed; right: var(--float-margin); bottom: var(--float-margin); width: 56px; height: 56px; border-radius: 50%;
       background: linear-gradient(135deg, var(--brand-primary), var(--brand-dark));
       color: var(--on-brand); border: 0;
       display: flex; align-items: center; justify-content: center;
@@ -371,8 +380,8 @@
     .session-ball, .session-mini, #session-panel { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .session-ball.dragging { cursor: grabbing; opacity: .92; }
     #session-panel {
-      position: fixed; left: 12px; bottom: 12px; margin: 0;
-      width: min(380px, calc(100vw - 24px));
+      position: fixed; left: var(--float-margin); bottom: var(--float-margin); margin: 0;
+      width: min(380px, calc(100vw - 2 * var(--float-margin)));
       max-height: 72vh; max-height: 72dvh; overflow-y: auto;
       box-shadow: 0 12px 40px rgba(0,0,0,.3);
       transform: scale(var(--pscale, 1));
@@ -411,6 +420,12 @@
       box-shadow: 0 0 6px color-mix(in srgb, var(--accent-cyan) 65%, transparent);
     }
     #session-panel.st-playing #session-progress-fill::after { opacity: 1; animation: seek-head-pulse 2s ease-in-out infinite; }
+    /* 进度条呼吸：学习中填充条颜色呼吸（青色 ↔ 亮青色）+ 微光，与播放头脉动同频（2s），暂停/未开始时静止 */
+    @keyframes pbar-breathe {
+      0%, 100% { background-color: var(--accent-cyan); box-shadow: 0 0 0 rgba(24, 184, 216, 0); }
+      50% { background-color: #7FE7F5; box-shadow: 0 0 10px rgba(24, 184, 216, 0.55); }
+    }
+    #session-panel.st-playing #session-progress-fill { animation: pbar-breathe 2s ease-in-out infinite; }
     #session-panel.st-paused #session-progress-fill::after { opacity: 1; }
     @keyframes seek-head-pulse {
       0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--accent-cyan) 65%, transparent); }
@@ -428,7 +443,7 @@
       color: var(--text-secondary); cursor: pointer; white-space: nowrap;
     }
     .session-mini {
-      position: fixed; right: 12px; bottom: 12px;
+      position: fixed; right: var(--float-margin); bottom: var(--float-margin);
       display: flex; align-items: center; gap: 6px;
       background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
       padding: 8px 8px 8px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.22);
@@ -642,7 +657,7 @@
       STAGE_COURSES_PATH: '/appRes/getLearnPlanStageCourses.action',
       COURSE_DETAIL_PATH: '/appRes/getCourseDetail.action',
       TOP_COURSE_PATH: '/appRes/getTopCourse.action', // 课程中心：热门课程（HAR 已验证参数 {num, tid, type}）
-      ELECTIVE_SEARCH_PATH: '/appRes/getSearchList.action', // 选课中心：默认列表（APK FindModel：不带 name/cateId 即无筛选，返回 {course:[]}，无总数、短页即到底）
+      ELECTIVE_SEARCH_PATH: '/appRes/getSearchList.action', // 选课中心：默认列表（APK FindModel.search("")：name:'' + cateId:0，进按名搜索分支；不带这两个键会落到服务端另一条分支，内容与网页默认列表不符，见 3.0.67）
       MY_STUDY_PATH: '/appRes/getMyStudyedCourseList.action', // 我的学习（APK MyStudyReq：learnStatus 1=学习中，2=已完成）
       EDU_URL_PATH: '/appRes/getCoaleduParam.action', // 我的学习 source==1 的外部 H5 课程取跳转地址
       BEFORE_WARE_PATH: '/appRes/beforeLearnWare.action',
@@ -700,7 +715,8 @@
         pageIndex: 1, // 当前页（APK 从 1 开始）
         hasMore: false, // 上一页是否满页（满页才可能有下一页）
         openCourseKey: null,
-        loaded: false
+        loaded: false,
+        addedWareIds: new Set() // 选课中心已点“＋”登记进我的学习的课件（key=courseId:wareId），按钮变 ✓
       },
       studySession: null,
       sessionSerial: 0,
@@ -794,7 +810,9 @@
     function buildQuery(params) {
       const query = new URLSearchParams();
       Object.entries(params || {}).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+        // 空字符串要保留：App 的表单里空值是发出来的（如登录的 registrationId=），
+        // 选课搜索的 name='' 更是靠“键在、值空”进服务端按名搜索分支；只跳过 undefined/null
+        if (value !== undefined && value !== null) query.set(key, String(value));
       });
       return query.toString();
     }
@@ -1249,19 +1267,25 @@
     function courseProgress(course) {
       return Math.min(100, Math.max(0, safeNumber(course?.progress ?? course?.Progress ?? course?.ProgressInt)));
     }
-    function courseStateOf(course) {
+    // 课程 cell 状态四模块统一：只三种——未开始 / 进行中 / 已完成（不再带“进行中 45%”这种百分比）。
+    // 外部课（source==1，见 WAIBU 抓包）直接显示“外部课件”；学完的外部课仍显示已完成（与课件 cell 一致）。
+    // started：我的学习列表只含已开始的课（无 learnProcess/进度字段时也算进行中）。
+    function courseStateOf(course, { started = false } = {}) {
+      const external = isH5Course(course) ? { text: '外部课件', cls: 'external' } : null;
       // HAR/原页面：learnProcess 0=未开始 1=进行中 2=已完成；无该字段时按百分比兜底
       const lp = course?.learnProcess ?? course?.LearnProcess;
       if (lp !== undefined && lp !== null && lp !== '') {
         const v = safeNumber(lp, -1);
         if (v === 2) return { text: '已完成', cls: 'done' };
-        if (v === 1) return { text: '进行中', cls: 'doing' };
-        if (v === 0) return { text: '未开始', cls: '' };
+        if (v === 1) return external || { text: '进行中', cls: 'doing' };
+        if (v === 0) return external || { text: '未开始', cls: '' };
       }
+      if (Number(course?.isFinished) === 1) return { text: '已完成', cls: 'done' };
       const p = courseProgress(course);
       if (p >= 100) return { text: '已完成', cls: 'done' };
-      if (p > 0) return { text: `进行中 ${p}%`, cls: 'doing' };
-      return { text: '未开始', cls: '' };
+      if (p > 0) return external || { text: '进行中', cls: 'doing' };
+      if (started) return external || { text: '进行中', cls: 'doing' };
+      return external || { text: '未开始', cls: '' };
     }
     function renderCourses(listWrap, ctx, courses) {
       listWrap.innerHTML = '';
@@ -1352,6 +1376,9 @@
       if (!wares.length) { waresWrap.innerHTML = '<div class="empty-state">该课程暂无课件</div>'; return; }
       wares.forEach((ware) => {
         const p = wareProgress(ware);
+        // 外部课件（WAIBU 抓包：课 source==1 走 coaledu 外站；课件 Type!=3 走 H5）没有站内时长，
+        // 未开始时 total 为 0 会显示成 00:00；cell 上直接标“外部课件”，与点开始时的判断同一条规则
+        const external = isH5Course(detail.course) || isH5Ware(ware);
         // 进行中：百分比 + 总时长（总时长缺失时只显示百分比）；名称 flex 占剩余宽度、超长省略，右侧不换行
         const totalSec = safeNumber(ware?.total ?? ware?.Total);
         const totalText = totalSec > 0 ? ` · ${formatHms(totalSec)}` : '';
@@ -1361,12 +1388,83 @@
         btn.dataset.wareId = String(ware?.WareId ?? ware?.wareId ?? '');
         btn.innerHTML = `
           <span class="ware-name">${esc(ware?.WareName ?? ware?.wareName ?? '未命名课件')}</span>
-          <span class="ware-meta${p > 0 && p < 100 ? ' hot' : ''}">${p >= 100 ? '已完成' : (p > 0 ? `${p}%${totalText}` : formatHms(ware?.total ?? ware?.Total))}</span>`;
+          <span class="ware-meta${p > 0 && p < 100 ? ' hot' : ''}">${p >= 100 ? '已完成' : external ? '外部课件' : (p > 0 ? `${p}%${totalText}` : formatHms(ware?.total ?? ware?.Total))}</span>`;
         btn.addEventListener('click', () => {
           void selectWare(detail, ware, module, btn);
         });
-        waresWrap.appendChild(btn);
+        // 选课中心：未开始的视频课件行尾加“＋”小按钮，点一下只登记进我的学习，不开始学习；
+        // 外部课件（走外站）与已学完的课件不显示
+        if (module === 'elective' && !external && p === 0) {
+          const wrap = document.createElement('div');
+          wrap.className = 'ware-row-wrap';
+          const addBtn = document.createElement('button');
+          addBtn.type = 'button';
+          addBtn.className = 'ware-add';
+          const added = isWareRegistered(detail, ware);
+          addBtn.textContent = added ? '✓' : '+';
+          addBtn.disabled = added;
+          addBtn.title = added ? '已加入我的学习' : '加入我的学习';
+          addBtn.setAttribute('aria-label', added ? '已加入我的学习' : '加入我的学习');
+          addBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            void registerWareToMine(detail, ware, addBtn);
+          });
+          wrap.appendChild(btn);
+          wrap.appendChild(addBtn);
+          waresWrap.appendChild(wrap);
+        } else {
+          waresWrap.appendChild(btn);
+        }
       });
+    }
+    function registerWareKey(detail, ware) {
+      const courseId = String(detail?.course?.CourseId ?? detail?.course?.courseId ?? '');
+      const wareId = String(ware?.WareId ?? ware?.wareId ?? '');
+      return `${courseId}:${wareId}`;
+    }
+    function isWareRegistered(detail, ware) {
+      return state.elective.addedWareIds.has(registerWareKey(detail, ware));
+    }
+    // 选课中心“＋”按钮：只登记、不开始学习。调一次 beforeLearnWare（与点开始同一登记接口；
+    // 网页等价动作是 recordCourseAndWare，选课场景为 source=1、relationId=0、relationName=自主学习），
+    // 课随即进我的学习；不建会话、不计时、不上报进度。重复登记无害（服务端返回同一记录）。
+    // 选课中心“＋”按钮：只登记、不开始学习。调 App 接口 beforeLearnWare（与点开始同一登记接口）。
+    // 对比结论（APK vs 网页，2026-11-11）：网页端所有接口都走 JSESSIONID 会话——不止
+    // recordCourseAndWare 一个，getCoursesByConditions 也一样，工具没有网页会话、调不了；
+    // APK 端全部在请求体里带 uid/domain/codon/tid，不用会话。登记进学习这个操作，APK 的
+    // 做法就是 beforeLearnWare，模仿 APK 的处理方式就用它。只调一次，不建会话、不计时、不上报进度。
+    async function registerWareToMine(detail, ware, addBtn) {
+      if (!state.auth) { showToast('请先登录'); return; }
+      if (addBtn?.disabled) return;
+      const course = detail?.course || {};
+      if (addBtn) addBtn.disabled = true; // 防重复点
+      try {
+        await runWithTransientRetry(() => requestJson({
+          path: CONFIG.BEFORE_WARE_PATH, method: 'POST',
+          body: {
+            courseId: course?.CourseId ?? course?.courseId ?? '',
+            sectionId: ware?.sectionId ?? '',
+            wareId: ware?.WareId ?? ware?.wareId ?? '',
+            wareType: ware?.Type ?? ware?.type ?? '',
+            source: detail?.source ?? 2,
+            relationId: detail?.relationId ?? '',
+            relationName: detail?.relationName || (course?.CourseName ?? course?.courseName ?? ''),
+            tid: state.auth.tid
+          },
+          lockKey: `register-${ware?.WareId ?? ware?.wareId ?? 'x'}`
+        }));
+        state.elective.addedWareIds.add(registerWareKey(detail, ware));
+        state.mine.loaded = false; // 我的学习列表是懒加载只拉一次，置脏后下次切过去重拉，才能看到新加的课
+        if (addBtn) {
+          addBtn.textContent = '✓';
+          addBtn.title = '已加入我的学习';
+          addBtn.setAttribute('aria-label', '已加入我的学习');
+        }
+        showToast('已加入我的学习');
+      } catch (error) {
+        if (addBtn) addBtn.disabled = false;
+        showToast(error.message || '加入失败，请稍后重试');
+      }
     }
     /* ================= 课程中心（分类 → 课程列表 → 课件） ================= */
     function switchLearnModule(module) {
@@ -1436,12 +1534,8 @@
       const name = course?.CourseName ?? course?.courseName ?? '未命名课程';
       const wareCount = safeNumber(course?.WareCount ?? course?.wareCount);
       const isH5 = Number(course?.source) === 1; // APK：source==1 的课程走外部 H5，不进课程详情
-      const finished = Number(course?.isFinished) === 1;
-      const meta = [
-        wareCount > 0 ? `${wareCount} 个课件` : null,
-        isH5 ? '外部H5' : null
-      ].filter(Boolean).join(' · ');
-      const st = finished ? { text: '已完成', cls: 'done' } : { text: '学习中', cls: 'doing' };
+      const meta = wareCount > 0 ? `${wareCount} 个课件` : '';
+      const st = courseStateOf(course, { started: true }); // 课程 cell 四模块统一：未开始/进行中/已完成，外部课显示外部课件
       const key = `mine:${courseId}`;
       const row = document.createElement('button');
       row.type = 'button';
@@ -1576,8 +1670,11 @@
       }
     }
     /* ================= 选课中心：默认列表（无搜索、无分类） ================= */
-    // 默认列表 = Web 课程中心默认列表的 App 等价：getSearchList 不带任何筛选（不带 name/cateId），
-    // 服务端默认按发布时间倒序；每页 20 条（Web 默认），pageIndex 从 1（APK FindModel）。
+    // 默认列表 = Web 课程中心默认列表的 App 等价：getSearchList 按 App 的 search("") 原样发
+    // name:'' + cateId:0（SearchReq 里 cateId 是 int、默认 0 一定会发；name 是 String、设了空串才会发），
+    // 进服务端“按名搜索”分支（name LIKE '%%' 即全量）；3.0.65 之前两个键都不发，落到服务端另一条分支，
+    // 返回的内容与网页默认列表（getCoursesByConditions，publish_time 倒序）不符。服务端搜索分支是否按
+    // 发布时间倒序仍待真机验证（App 侧无排序字段，顺序由服务端定）。每页 20 条（Web 默认），pageIndex 从 1。
     // tid 必须显式带：authParams() 里没有 tid，而 App 调这个接口每次都带 tid（FindModel.setTid），
     // 缺 tid 服务端按 tid=0 过滤、返回成功但空列表（3.0.64 的“暂无课程”就是这么来的；after 上报也曾因缺 tid 报错）。
     // Web 端那套 /courseUserAction/* 需要 JSESSIONID，工具无 Web 会话，走不了（见 3.0.63）。
@@ -1587,7 +1684,7 @@
       try {
         const response = await requestJson({
           path: CONFIG.ELECTIVE_SEARCH_PATH, method: 'POST',
-          body: { pageIndex, pageSize: CONFIG.ELECTIVE_PAGE_SIZE, tid: state.auth.tid },
+          body: { pageIndex, pageSize: CONFIG.ELECTIVE_PAGE_SIZE, tid: state.auth.tid, name: '', cateId: 0 },
           lockKey: 'elective-courses'
         });
         const list = response?.course || [];
@@ -1619,9 +1716,9 @@
     function appendElectiveCourseRow(listEl, course) {
       const courseId = String(course?.courseId ?? course?.CourseId ?? '');
       const name = course?.courseName ?? course?.CourseName ?? '未命名课程';
-      const score = safeNumber(course?.courseCommentScore ?? course?.CourseCommentScore);
-      const learners = safeNumber(course?.learnUserCount ?? course?.LearnUserCount);
-      const meta = [score > 0 ? `★${score}` : '', learners > 0 ? `${learners}人学习` : ''].filter(Boolean).join(' · ');
+      // 课程 cell 四模块统一：只留状态 + 课件数量，星级评分与多少人学习不要
+      const wareCount = safeNumber(course?.wareCount ?? course?.WareCount);
+      const meta = wareCount > 0 ? `${wareCount} 个课件` : '';
       const st = courseStateOf(course); // 搜索结果无学习进度，未学过显示“未开始”
       const key = `elective:${courseId}`;
       const row = document.createElement('button');
@@ -1658,6 +1755,15 @@
         const detail = await getCourseDetail(courseId, 0, { source: 1, relationName: CONFIG.CENTER_RELATION_NAME });
         const wares = detail?.wares || [];
         renderWares(waresWrap, detail, wares, { module: 'elective' });
+        // 选课列表（getSearchList）不带课程级进度，行初始只能显示“未开始”；用详情里课件的实际进度回写课程行，
+        // 并写回列表数据，之后重渲染也不再回落到“未开始”
+        refreshCourseCell('elective', detail);
+        const course = state.elective.courses.find((c) => String(c?.courseId ?? c?.CourseId ?? '') === String(courseId));
+        if (course && wares.length) {
+          const doneCount = wares.filter((w) => wareProgress(w) >= 100).length;
+          const anyProgress = wares.some((w) => wareProgress(w) > 0);
+          course.learnProcess = doneCount >= wares.length ? 2 : anyProgress ? 1 : 0;
+        }
       } catch (error) {
         waresWrap.innerHTML = `<div class="empty-state">课件加载失败：${esc(error.message)}</div>`;
       }
@@ -2098,15 +2204,19 @@
       for (const c of cands) if (c.dist < best.dist) best = c;
       return best.edge;
     }
-    // 贴边判定阈值：球/面板默认边距与拖动吸附边距均为 12px，24px 足以覆盖吸附位
-    const EDGE_NEAR = 24;
+    // 控制台三形态共用的边距/阈值：唯一来源是 CSS 变量 --float-margin（JS 只读不写）；贴边判定阈值 = 2 × 边距，足以覆盖吸附位
+    function floatMetrics() {
+      const m = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--float-margin')) || 10;
+      return { margin: m, near: m * 2 };
+    }
     // 边缘信息：每条边的精确距离、是否贴近；每轴选一条边（贴近者优先按距离，平局取 right/bottom）
     function edgeInfo(r) {
       const vw = window.innerWidth, vh = window.innerHeight;
+      const nearPx = floatMetrics().near;
       const dist = { left: r.left, right: vw - r.right, top: r.top, bottom: vh - r.bottom };
       const near = {
-        left: dist.left <= EDGE_NEAR, right: dist.right <= EDGE_NEAR,
-        top: dist.top <= EDGE_NEAR, bottom: dist.bottom <= EDGE_NEAR,
+        left: dist.left <= nearPx, right: dist.right <= nearPx,
+        top: dist.top <= nearPx, bottom: dist.bottom <= nearPx,
       };
       const pick = (a, b) => {
         if (near[a] !== near[b]) return near[a] ? a : b;
@@ -2125,28 +2235,29 @@
       const rr = { left: r.left, top: r.top, right: r.left + r.width, bottom: r.top + r.height };
       const scx = (rr.left + rr.right) / 2, scy = (rr.top + rr.bottom) / 2;
       const info = edgeInfo(rr);
+      const M = floatMetrics().margin;
       let left, top, origin;
       if (info.near[info.hx] && info.near[info.vy]) {
-        left = info.hx === 'right' ? vw - pw - 12 : 12;
-        top = info.vy === 'bottom' ? vh - ph - 12 : 12;
+        left = info.hx === 'right' ? vw - pw - M : M;
+        top = info.vy === 'bottom' ? vh - ph - M : M;
         origin = `${info.hx} ${info.vy}`;
       } else if (info.near[info.hx]) {
-        left = info.hx === 'right' ? vw - pw - 12 : 12;
+        left = info.hx === 'right' ? vw - pw - M : M;
         top = scy - ph / 2;
         origin = `${info.hx} center`;
       } else if (info.near[info.vy]) {
         left = scx - pw / 2;
-        top = info.vy === 'bottom' ? vh - ph - 12 : 12;
+        top = info.vy === 'bottom' ? vh - ph - M : M;
         origin = `center ${info.vy}`;
       } else {
         const edge = nearestEdge(rr);
-        if (edge === 'left') { left = 12; top = scy - ph / 2; origin = 'left center'; }
-        else if (edge === 'right') { left = vw - pw - 12; top = scy - ph / 2; origin = 'right center'; }
-        else if (edge === 'top') { left = scx - pw / 2; top = 12; origin = 'center top'; }
-        else { left = scx - pw / 2; top = vh - ph - 12; origin = 'center bottom'; }
+        if (edge === 'left') { left = M; top = scy - ph / 2; origin = 'left center'; }
+        else if (edge === 'right') { left = vw - pw - M; top = scy - ph / 2; origin = 'right center'; }
+        else if (edge === 'top') { left = scx - pw / 2; top = M; origin = 'center top'; }
+        else { left = scx - pw / 2; top = vh - ph - M; origin = 'center bottom'; }
       }
-      left = Math.min(Math.max(Math.round(left), 12), Math.max(12, vw - pw - 12));
-      top = Math.min(Math.max(Math.round(top), 12), Math.max(12, vh - ph - 12));
+      left = Math.min(Math.max(Math.round(left), M), Math.max(M, vw - pw - M));
+      top = Math.min(Math.max(Math.round(top), M), Math.max(M, vh - ph - M));
       placeElAt(panel, left, top);
       panel.style.visibility = '';
       return origin;
@@ -2181,12 +2292,12 @@
       y = Math.min(Math.max(Math.round(y), 0), Math.max(0, vh - h));
       return { x, y, origin };
     }
-    // 吸附到最近的左/右/下边缘；另一轴如被拖到 0 边距也一并拉回 12px 安全区
+    // 吸附到最近的左/右/下边缘；另一轴如被拖到 0 边距也一并拉回一个边距的安全区
     function snapToEdge(el) {
       const r = el.getBoundingClientRect();
       if (r.width <= 0) return;
       const vw = window.innerWidth, vh = window.innerHeight;
-      const M = 12;
+      const M = floatMetrics().margin;
       const dLeft = r.left, dRight = vw - r.right, dBottom = vh - r.bottom;
       const m = Math.min(dLeft, dRight, dBottom);
       let x = r.left, y = r.top;
@@ -2791,7 +2902,8 @@
       const totalSec = safeNumber(session.ware?.total ?? session.ware?.Total);
       const totalText = totalSec > 0 ? ` · ${formatHms(totalSec)}` : '';
       document.querySelectorAll(`#module-plan .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-center .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-mine .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta, #module-elective .ware-row[data-ware-id="${CSS.escape(wareId)}"] .ware-meta`).forEach((meta) => {
-        meta.textContent = pct >= 100 ? '已完成' : `${pct}%${totalText}`;
+        // 与 renderWares 一致：0% 只显示时长，不写“0% · 时长”
+        meta.textContent = pct >= 100 ? '已完成' : pct > 0 ? `${pct}%${totalText}` : formatHms(session.ware?.total ?? session.ware?.Total);
         meta.classList.toggle('hot', pct > 0 && pct < 100);
         meta.closest('.ware-row')?.classList.toggle('done', pct >= 100);
       });
@@ -2835,16 +2947,20 @@
         try {
           const progressMs = getSessionProgressMs(session);
           const prevReportedMs = Math.max(session.lastSyncMs || 0, session.baseMs || 0);
-          beginReporting(); // 结束前最终上报：边框七彩跑马灯，按请求实际起止显示
-          try {
-            await runWithTransientRetry(() => requestJson({
-              path: CONFIG.AFTER_WARE_PATH, method: 'GET',
-              query: buildProgressSyncQuery(session, progressMs), authRequired: false
-            }));
-          } finally {
-            endReporting();
+          // 暂停后直接结束：当前进度已在上次同步成功上报过（只认 lastSyncMs），重发同一份进度是多余的，跳过这次上报；
+          // 若暂停那次同步失败，lastSyncMs 还是旧值，仍会正常上报，不丢进度
+          if (progressMs > (session.lastSyncMs || 0)) {
+            beginReporting(); // 结束前最终上报：边框七彩跑马灯，按请求实际起止显示
+            try {
+              await runWithTransientRetry(() => requestJson({
+                path: CONFIG.AFTER_WARE_PATH, method: 'GET',
+                query: buildProgressSyncQuery(session, progressMs), authRequired: false
+              }));
+            } finally {
+              endReporting();
+            }
+            recordDailyReport(progressMs - prevReportedMs);
           }
-          recordDailyReport(progressMs - prevReportedMs);
           // 结束时最终进度回写：课件 cell 与课程 cell 原地更新，不重拉列表
           if (session.ware && session.totalMs > 0) {
             const done = progressMs >= Math.max(1, session.totalMs) - 1;
@@ -2907,16 +3023,9 @@
           return;
         }
       }
-      else if (module === 'mine') { text = '学习中'; cls = 'doing'; }
+      else if (module === 'mine') { text = '进行中'; cls = 'doing'; }
       else if (!anyProgress) { text = '未开始'; cls = ''; }
-      else {
-        cls = 'doing';
-        // 原来带百分比的（如“进行中 45%”）按课件平均进度重算；原来只有“进行中”的保持原样
-        if (/进行中\s*\d+%/.test(stateEl.textContent)) {
-          const avg = Math.floor(wares.reduce((sum, w) => sum + wareProgress(w), 0) / wares.length);
-          text = `进行中 ${avg}%`;
-        } else text = '进行中';
-      }
+      else { text = '进行中'; cls = 'doing'; }
       stateEl.textContent = text + suffix;
       stateEl.className = `course-state${cls ? ` ${cls}` : ''}`;
     }
