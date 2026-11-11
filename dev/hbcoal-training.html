@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="name" content="模拟培训">
-  <meta name="version" content="3.0.76">
+  <meta name="version" content="3.1.0">
   <meta name="author" content="🅷🆁🅸🅼🆈🆇">
   <style>
     :root {
@@ -411,7 +411,7 @@
     .session-pbar:active { cursor: grabbing; }
     /* 缩小按钮比通用 icon-button 小一圈（仅控制台右上角） */
     #btn-minimize { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; }
-    /* 进度条播放头：学习中在填充末端显示一个带微光脉动的小圆点，进度极小时也能一眼看出在正常推进；暂停时静止、未开始时隐藏 */
+    /* 进度条滑块（播放头圆点）：在填充末端显示，标出当前进度位置；学习中带呼吸变色+微光脉动，暂停/待学习时静止显示 */
     #session-progress-fill { position: relative; }
     #session-progress-fill::after {
       content: ''; position: absolute; left: 100%; top: 50%; width: 14px; height: 14px;
@@ -420,16 +420,12 @@
       box-shadow: 0 0 6px color-mix(in srgb, var(--accent-cyan) 65%, transparent);
     }
     #session-panel.st-playing #session-progress-fill::after { opacity: 1; animation: seek-head-pulse 2s ease-in-out infinite; }
-    /* 进度条呼吸：学习中填充条颜色呼吸（青色 ↔ 亮青色）+ 微光，与播放头脉动同频（2s），暂停/未开始时静止 */
-    @keyframes pbar-breathe {
-      0%, 100% { background-color: var(--accent-cyan); box-shadow: 0 0 0 rgba(24, 184, 216, 0); }
-      50% { background-color: #7FE7F5; box-shadow: 0 0 10px rgba(24, 184, 216, 0.55); }
-    }
-    #session-panel.st-playing #session-progress-fill { animation: pbar-breathe 2s ease-in-out infinite; }
-    #session-panel.st-paused #session-progress-fill::after { opacity: 1; }
+    #session-panel.st-paused #session-progress-fill::after,
+    #session-panel.st-ready #session-progress-fill::after { opacity: 1; }
+    /* 滑块呼吸：学习中播放头圆点颜色呼吸（青色 ↔ 亮青色）+ 微光脉动（2s），暂停/待学习时静止显示 */
     @keyframes seek-head-pulse {
-      0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--accent-cyan) 65%, transparent); }
-      50% { box-shadow: 0 0 12px color-mix(in srgb, var(--accent-cyan) 85%, transparent); }
+      0%, 100% { background-color: var(--accent-cyan); box-shadow: 0 0 6px color-mix(in srgb, var(--accent-cyan) 65%, transparent); }
+      50% { background-color: color-mix(in srgb, var(--accent-cyan) 55%, white); box-shadow: 0 0 12px color-mix(in srgb, var(--accent-cyan) 85%, transparent); }
     }
     .session-pbar { flex: 1; min-width: 0; }
     .session-time-text { font-size: 12px; white-space: nowrap; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
@@ -493,8 +489,6 @@
       .tabs { top: 53px; }
       .record-list { max-height: 380px; }
     }
-  </style>
-
   </style>
 </head>
 <body>
@@ -866,12 +860,8 @@
       const message = String(error?.message || '');
       return message.includes('网络连接失败') || message.includes('请求超时') || message.includes('网络请求失败');
     }
-    let authExpiredNotified = false;
-    // 登录失效全局处理：停掉学习会话（不再尝试同步）、清理登录态、回到登录页提示重登
-    function handleAuthExpired(serverMsg) {
-      if (authExpiredNotified || !state.auth) return;
-      authExpiredNotified = true;
-      try { void stopSession({ silent: true, syncBeforeStop: false }); } catch { /* 忽略 */ }
+    // 退出登录与登录失效共用的状态清理：清登录态、学习数据、兑换状态并回到登录页
+    function clearAuthState() {
       state.auth = null;
       saveAuth();
       state.subViewPushed = false;
@@ -883,16 +873,24 @@
       state.openCourseKey = null;
       state.autoStudy = false;
       state.autoStudyCount = 0;
-      $('auto-study-toggle').checked = false; // 状态与开关同步
+      $('auto-study-toggle').checked = false; // 状态与开关同步：只清状态不复位开关会造成“看着开、实际不连学”
       state.tiers = [];
       state.studyDuration = null;
       state.serverUseable = null;
       state.serverIntegralTotal = null;
       state.exchange.selectedNodeKey = null;
       stopExchangeViewTimers();
-      setFloatMode('ball');
       resetLearnModules();
       renderAuthState();
+    }
+    let authExpiredNotified = false;
+    // 登录失效全局处理：停掉学习会话（不再尝试同步）、清理登录态、回到登录页提示重登
+    function handleAuthExpired(serverMsg) {
+      if (authExpiredNotified || !state.auth) return;
+      authExpiredNotified = true;
+      try { void stopSession({ silent: true, syncBeforeStop: false }); } catch { /* 忽略 */ }
+      clearAuthState();
+      setFloatMode('ball');
       // APK 在 result==3 时会 toast 服务端消息；无消息时用默认文案
       showToast(serverMsg || '登录已失效，请重新登录');
     }
@@ -974,26 +972,7 @@
     }
     function logout() {
       void stopSession({ silent: true, syncBeforeStop: false });
-      state.auth = null;
-      saveAuth();
-      state.subViewPushed = false;
-      state.plans = [];
-      state.stageCache.clear();
-      state.courseDetailCache.clear();
-      state.openPlanId = null;
-      state.activeStageId = null;
-      state.openCourseKey = null;
-      state.autoStudy = false;
-      state.autoStudyCount = 0;
-      $('auto-study-toggle').checked = false; // 状态与开关同步：只清状态不复位开关会造成“看着开、实际不连学”
-      state.tiers = [];
-      state.studyDuration = null;
-      state.serverUseable = null;
-      state.serverIntegralTotal = null;
-      state.exchange.selectedNodeKey = null;
-      stopExchangeViewTimers();
-      resetLearnModules();
-      renderAuthState();
+      clearAuthState();
     }
     function renderAuthState() {
       const loggedIn = Boolean(state.auth);
@@ -1326,17 +1305,23 @@
       waresWrap.style.display = '';
       await expandCourse(waresWrap, ctx);
     }
-    async function expandCourse(waresWrap, { planId, planName, stageId, stageName, courseId, relationId, courseName }) {
+    // 四模块展开课程共用的加载模板：加载态 → 取详情 → 渲染课件行 → 失败提示；
+    // 各模块只差取详情的参数（source/relationId/relationName）与渲染模块名，选课另有 onDetail 回写
+    async function loadCourseWares(waresWrap, courseId, relationId, { source = 2, relationName = '', module = 'plan', onDetail = null } = {}) {
       waresWrap.innerHTML = '<div class="empty-state">正在加载课件…</div>';
       try {
-        // HAR/APK 已验证：学习计划的 relationName 为“计划名_阶段名”
-        const relationName = planName && stageName ? `${planName}_${stageName}` : '';
-        const detail = await getCourseDetail(courseId, relationId, { source: 2, relationName });
+        const detail = await getCourseDetail(courseId, relationId, { source, relationName });
         const wares = detail?.wares || [];
-        renderWares(waresWrap, detail, wares, { module: 'plan' });
+        renderWares(waresWrap, detail, wares, { module });
+        if (onDetail) onDetail(detail, wares);
       } catch (error) {
         waresWrap.innerHTML = `<div class="empty-state">课件加载失败：${esc(error.message)}</div>`;
       }
+    }
+    async function expandCourse(waresWrap, { planId, planName, stageId, stageName, courseId, relationId, courseName }) {
+      // HAR/APK 已验证：学习计划的 relationName 为“计划名_阶段名”
+      const relationName = planName && stageName ? `${planName}_${stageName}` : '';
+      await loadCourseWares(waresWrap, courseId, relationId, { source: 2, relationName, module: 'plan' });
     }
     async function getCourseDetail(courseId, relationId, { source = 2, relationName = '' } = {}) {
       const key = `${source}:${courseId}:${relationId}`;
@@ -1576,14 +1561,8 @@
     }
     async function expandMineCourse(waresWrap, course) {
       const courseId = String(course?.CourseId ?? course?.courseId ?? '');
-      waresWrap.innerHTML = '<div class="empty-state">正在加载课件…</div>';
-      try {
-        // 我的学习进课程详情页时不带 type，走默认逻辑：source=1，relationId=0，relationName=自主学习（APK ClassDetailsActivity）
-        const detail = await getCourseDetail(courseId, 0, { source: 1, relationName: CONFIG.CENTER_RELATION_NAME });
-        renderWares(waresWrap, detail, detail?.wares || [], { module: 'mine' });
-      } catch (error) {
-        waresWrap.innerHTML = `<div class="empty-state">课件加载失败：${esc(error.message)}</div>`;
-      }
+      // 我的学习进课程详情页时不带 type，走默认逻辑：source=1，relationId=0，relationName=自主学习（APK ClassDetailsActivity）
+      await loadCourseWares(waresWrap, courseId, 0, { source: 1, relationName: CONFIG.CENTER_RELATION_NAME, module: 'mine' });
     }
     function switchMineStatus(learnStatus) {
       if (state.mine.learnStatus === learnStatus) return;
@@ -1659,15 +1638,8 @@
       await expandCenterCourse(waresWrap, courseId);
     }
     async function expandCenterCourse(waresWrap, courseId) {
-      waresWrap.innerHTML = '<div class="empty-state">正在加载课件…</div>';
-      try {
-        // 课程中心自主学习：source=1，relationId=0，relationName=自主学习（APK 已确认）
-        const detail = await getCourseDetail(courseId, 0, { source: 1, relationName: CONFIG.CENTER_RELATION_NAME });
-        const wares = detail?.wares || [];
-        renderWares(waresWrap, detail, wares, { module: 'center' });
-      } catch (error) {
-        waresWrap.innerHTML = `<div class="empty-state">课件加载失败：${esc(error.message)}</div>`;
-      }
+      // 课程中心自主学习：source=1，relationId=0，relationName=自主学习（APK 已确认）
+      await loadCourseWares(waresWrap, courseId, 0, { source: 1, relationName: CONFIG.CENTER_RELATION_NAME, module: 'center' });
     }
     /* ================= 选课中心：默认列表（无搜索、无分类） ================= */
     // 默认列表 = Web 课程中心默认列表的 App 等价：getSearchList 按 App 的 search("") 原样发
@@ -1680,7 +1652,13 @@
     // Web 端那套 /courseUserAction/* 需要 JSESSIONID，工具无 Web 会话，走不了（见 3.0.63）。
     async function loadElectiveCourses({ append = false } = {}) {
       const listEl = $('elective-course-list');
+      const moreBtn = $('elective-more');
       const pageIndex = append ? state.elective.pageIndex + 1 : 1;
+      // 加载更多要有明确反馈：加载中按钮变“正在加载…”并禁用（防重复点、看得出在加载）
+      if (append && moreBtn) {
+        moreBtn.disabled = true;
+        moreBtn.textContent = '正在加载…';
+      }
       try {
         const response = await requestJson({
           path: CONFIG.ELECTIVE_SEARCH_PATH, method: 'POST',
@@ -1695,10 +1673,21 @@
         // 无总数：满页才可能有下一页，短页即到底
         state.elective.hasMore = items.length >= CONFIG.ELECTIVE_PAGE_SIZE;
         renderElectiveCourses({ append });
+        if (append) {
+          if (!items.length) showToast('已全部加载');
+          else if (!state.elective.hasMore) showToast(`已加载 ${items.length} 门课程，已全部加载`);
+          else showToast(`已加载 ${items.length} 门课程`);
+        }
       } catch (error) {
         if (!append) listEl.innerHTML = `<div class="empty-state">课程加载失败：${esc(error.message)}<br><button class="text-button" id="retry-elective-courses" type="button">点击重试</button></div>`;
         else showToast(error.message || '加载更多失败');
         $('retry-elective-courses')?.addEventListener('click', () => void loadElectiveCourses({ append: false }));
+      } finally {
+        // 恢复按钮（renderElectiveCourses 会按 hasMore 决定是否隐藏；失败时也要恢复可点）
+        if (append && moreBtn) {
+          moreBtn.disabled = false;
+          moreBtn.textContent = '加载更多';
+        }
       }
     }
     function renderElectiveCourses({ append = false } = {}) {
@@ -1749,24 +1738,21 @@
       await expandElectiveCourse(waresWrap, courseId);
     }
     async function expandElectiveCourse(waresWrap, courseId) {
-      waresWrap.innerHTML = '<div class="empty-state">正在加载课件…</div>';
-      try {
-        // 选课中心开课与课程中心一致：自主学习 source=1，relationId=0；点开始发 beforeLearnWare 登记，课随即进我的学习
-        const detail = await getCourseDetail(courseId, 0, { source: 1, relationName: CONFIG.CENTER_RELATION_NAME });
-        const wares = detail?.wares || [];
-        renderWares(waresWrap, detail, wares, { module: 'elective' });
-        // 选课列表（getSearchList）不带课程级进度，行初始只能显示“未开始”；用详情里课件的实际进度回写课程行，
-        // 并写回列表数据，之后重渲染也不再回落到“未开始”
-        refreshCourseCell('elective', detail);
-        const course = state.elective.courses.find((c) => String(c?.courseId ?? c?.CourseId ?? '') === String(courseId));
-        if (course && wares.length) {
-          const doneCount = wares.filter((w) => wareProgress(w) >= 100).length;
-          const anyProgress = wares.some((w) => wareProgress(w) > 0);
-          course.learnProcess = doneCount >= wares.length ? 2 : anyProgress ? 1 : 0;
+      // 选课中心开课与课程中心一致：自主学习 source=1，relationId=0；点开始发 beforeLearnWare 登记，课随即进我的学习
+      await loadCourseWares(waresWrap, courseId, 0, {
+        source: 1, relationName: CONFIG.CENTER_RELATION_NAME, module: 'elective',
+        onDetail: (detail, wares) => {
+          // 选课列表（getSearchList）不带课程级进度，行初始只能显示“未开始”；用详情里课件的实际进度回写课程行，
+          // 并写回列表数据，之后重渲染也不再回落到“未开始”
+          refreshCourseCell('elective', detail);
+          const course = state.elective.courses.find((c) => String(c?.courseId ?? c?.CourseId ?? '') === String(courseId));
+          if (course && wares.length) {
+            const doneCount = wares.filter((w) => wareProgress(w) >= 100).length;
+            const anyProgress = wares.some((w) => wareProgress(w) > 0);
+            course.learnProcess = doneCount >= wares.length ? 2 : anyProgress ? 1 : 0;
+          }
         }
-      } catch (error) {
-        waresWrap.innerHTML = `<div class="empty-state">课件加载失败：${esc(error.message)}</div>`;
-      }
+      });
     }
     /* ================= 课件真实时长解析（MP4 moov/mvhd，HAR 已验证必需） ================= */
     function readUint32(view, offset) { return view.getUint32(offset, false); }
