@@ -6,39 +6,37 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <!-- 应用元信息 -->
+    <!-- 应用元信息：名称、版本、作者只维护这一个来源，其他位置动态读取 -->
     <meta name="name" content="图片压缩" />
-    <meta name="version" content="2.5.5" />
+    <meta name="version" content="3.2.0" />
     <meta name="author" content="Hrimyx" />
     <title></title>
     <script>
       document.title = document.querySelector('meta[name="name"]').content;
     </script>
+    <!-- 唯一外部依赖：JSZip，仅用于“全部下载”打包；浏览器无原生 zip 能力 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-      /* 按照冷蓝色彩体系规范设计 */
+      /* 工具开发基础规范 §10-§12 冷蓝色彩体系：业务样式只用以下 Token */
       :root {
-        --surface-bg: #f7f9fc;
-        --surface-card: #ffffff;
-        --surface-overlay: #ebeef5;
-        --border-divider: #d0d7e5;
-        --text-primary: #1a202c;
-        --text-secondary: #4a5568;
-
         --brand-primary: #1a6aff;
-        --on-brand-primary: #ffffff;
-        --brand-light: #6b9cff;
+        --brand-light: #78a2f8;
         --brand-dark: #0d3b8c;
+        --on-brand: #ffffff;
 
-        --accent-cyan: #00c4eb;
-        --accent-coral: #e64a2e;
+        --accent-cyan: #18b8d8;
 
-        --semantic-success: #059669;
-        --semantic-success-bg: #e6faf3;
-        --semantic-danger: #d92644;
-        --semantic-danger-bg: #ffebee;
-        --semantic-warning: #d97706;
-        --semantic-warning-bg: #fff8e1;
+        --success: #0b9468;
+        --warning: #c77a08;
+        --danger: #d0445a;
+
+        --bg: #f7f9fc;
+        --surface: #ffffff;
+        --surface-alt: #ebeef5;
+        --border: #d0d7e5;
+
+        --text: #1a202c;
+        --text-secondary: #4a5568;
 
         --shadow-sm: 0 2px 8px rgba(26, 32, 44, 0.04);
         --shadow-md: 0 6px 20px rgba(26, 32, 44, 0.08);
@@ -50,16 +48,13 @@
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --surface-bg: #0a0f1a;
-          --surface-card: #141c2b;
-          --surface-overlay: #1f2a3f;
-          --border-divider: #2c3a54;
-          --text-primary: #e2e8f0;
-          --text-secondary: #a0b0c8;
+          --bg: #0a0f1a;
+          --surface: #141c2b;
+          --surface-alt: #1f2a3f;
+          --border: #2c3a54;
 
-          --semantic-success-bg: #0b2f26;
-          --semantic-danger-bg: #3d0f1a;
-          --semantic-warning-bg: #3d2e00;
+          --text: #e2e8f0;
+          --text-secondary: #a0b0c8;
 
           --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
           --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
@@ -75,8 +70,8 @@
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
           Arial, sans-serif;
-        background-color: var(--surface-bg);
-        color: var(--text-primary);
+        background-color: var(--bg);
+        color: var(--text);
         line-height: 1.5;
         height: 100vh;
         display: flex;
@@ -93,7 +88,7 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        background: var(--surface-card);
+        background: var(--surface);
       }
 
       @media (min-width: 768px) {
@@ -104,19 +99,19 @@
           height: calc(100vh - 48px);
           border-radius: var(--radius-lg);
           box-shadow: var(--shadow-md);
-          border: 1px solid var(--border-divider);
+          border: 1px solid var(--border);
         }
       }
 
       header {
         flex-shrink: 0;
         padding: 12px 24px;
-        border-bottom: 1px solid var(--border-divider);
+        border-bottom: 1px solid var(--border);
         display: flex;
         justify-content: space-between;
         align-items: center;
         z-index: 20;
-        background: var(--surface-card);
+        background: var(--surface);
         flex-wrap: wrap;
         gap: 12px;
       }
@@ -136,8 +131,8 @@
       .top-brand .version-tag {
         font-size: 11px;
         font-weight: normal;
-        background: var(--surface-overlay);
-        border: 1px solid var(--border-divider);
+        background: var(--surface-alt);
+        border: 1px solid var(--border);
         color: var(--text-secondary);
         padding: 1px 6px;
         border-radius: 10px;
@@ -145,7 +140,7 @@
       .top-brand .author-tag {
         font-size: 13px;
         font-weight: 500;
-        color: var(--brand-light);
+        color: var(--text-secondary);
       }
 
       .header-right {
@@ -186,14 +181,14 @@
       }
       .btn-primary {
         background: var(--brand-primary);
-        color: var(--on-brand-primary);
+        color: var(--on-brand);
         box-shadow: var(--shadow-sm);
       }
       .btn-primary:hover:not(:disabled) {
         background: var(--brand-dark);
       }
       .btn-primary:disabled {
-        background: var(--surface-overlay);
+        background: var(--surface-alt);
         color: var(--text-secondary);
         cursor: not-allowed;
         box-shadow: none;
@@ -201,20 +196,20 @@
       }
       .btn-outline {
         background: transparent;
-        color: var(--text-primary);
-        border: 1px solid var(--border-divider);
+        color: var(--text);
+        border: 1px solid var(--border);
       }
       .btn-outline:hover:not(:disabled) {
-        background: var(--surface-overlay);
+        background: var(--surface-alt);
         border-color: var(--text-secondary);
       }
       .btn-danger-outline {
-        color: var(--semantic-danger);
-        border-color: var(--semantic-danger);
+        color: var(--danger);
+        border-color: var(--danger);
         background: transparent;
       }
       .btn-danger-outline:hover:not(:disabled) {
-        background: var(--semantic-danger-bg);
+        background: color-mix(in srgb, var(--danger) 12%, var(--surface));
       }
       .btn-icon {
         padding: 8px;
@@ -233,16 +228,16 @@
       .upload-section {
         flex-shrink: 0;
         padding: 16px 24px;
-        border-bottom: 1px solid var(--border-divider);
-        background: var(--surface-bg);
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
         z-index: 5;
       }
       .upload-zone {
-        border: 2px dashed var(--border-divider);
+        border: 2px dashed var(--border);
         border-radius: var(--radius-md);
         padding: 18px 20px;
         text-align: center;
-        background: var(--surface-card);
+        background: var(--surface);
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
@@ -254,7 +249,7 @@
       .upload-zone:hover,
       .upload-zone.dragover {
         border-color: var(--brand-primary);
-        background: var(--surface-overlay);
+        background: var(--surface-alt);
       }
       .upload-zone svg {
         stroke: var(--brand-primary);
@@ -269,7 +264,7 @@
       .upload-zone h3 {
         font-size: 16px;
         font-weight: 500;
-        color: var(--text-primary);
+        color: var(--text);
         margin-bottom: 4px;
       }
       .upload-zone p {
@@ -290,7 +285,7 @@
         overflow-y: auto;
         padding: 24px;
         padding-bottom: 180px;
-        background: var(--surface-bg);
+        background: var(--bg);
       }
       .file-list {
         display: flex;
@@ -305,8 +300,8 @@
       }
 
       .file-item {
-        background: var(--surface-card);
-        border: 1px solid var(--border-divider);
+        background: var(--surface);
+        border: 1px solid var(--border);
         border-radius: var(--radius-md);
         padding: 16px;
         display: flex;
@@ -345,8 +340,8 @@
         flex-shrink: 0;
         object-fit: cover;
         border-radius: var(--radius-sm);
-        border: 1px solid var(--border-divider);
-        background: var(--surface-bg);
+        border: 1px solid var(--border);
+        background: var(--bg);
       }
       .file-meta {
         display: flex;
@@ -361,7 +356,7 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--text-primary);
+        color: var(--text);
       }
       .file-type {
         font-size: 13px;
@@ -388,7 +383,7 @@
         white-space: nowrap;
       }
       .file-stats .percent {
-        color: var(--semantic-success);
+        color: var(--success);
         font-weight: 600;
         font-size: 16px;
       }
@@ -399,7 +394,7 @@
         left: 0;
         right: 0;
         height: 4px;
-        background: var(--surface-overlay);
+        background: var(--surface-alt);
         z-index: 1;
         opacity: 1;
         transition: opacity 0.3s ease;
@@ -412,7 +407,7 @@
         width: 0%;
       }
       .upload-fill {
-        background: var(--brand-light);
+        background: var(--accent-cyan);
         z-index: 2;
         transition: width 0.2s linear;
       }
@@ -462,11 +457,11 @@
         pointer-events: auto;
       }
       .stats-pill {
-        background: var(--surface-card);
+        background: var(--surface);
         padding: 6px 14px;
         border-radius: 20px;
         box-shadow: var(--shadow-lg);
-        border: 1px solid var(--border-divider);
+        border: 1px solid var(--border);
         font-size: 13px;
         color: var(--text-secondary);
         display: flex;
@@ -474,7 +469,7 @@
         gap: 4px;
       }
       .stats-pill .highlight {
-        color: var(--semantic-success);
+        color: var(--success);
         font-weight: 600;
         font-size: 14px;
       }
@@ -493,11 +488,11 @@
         letter-spacing: 0.5px;
       }
       .btn-danger-outline.floating-btn {
-        background: var(--surface-card);
+        background: var(--surface);
       }
       .btn-danger-outline.floating-btn:disabled {
-        background: var(--surface-overlay);
-        border-color: var(--border-divider);
+        background: var(--surface-alt);
+        border-color: var(--border);
         color: var(--text-secondary);
       }
 
@@ -518,7 +513,7 @@
         opacity: 1;
       }
       .modal-content {
-        background: var(--surface-card);
+        background: var(--surface);
         width: 90%;
         max-width: 500px;
         border-radius: var(--radius-lg);
@@ -526,14 +521,14 @@
         transform: scale(0.95);
         transition: transform 0.2s;
         overflow: hidden;
-        border: 1px solid var(--border-divider);
+        border: 1px solid var(--border);
       }
       .modal-overlay.active .modal-content {
         transform: scale(1);
       }
       .modal-header {
         padding: 20px 24px;
-        border-bottom: 1px solid var(--border-divider);
+        border-bottom: 1px solid var(--border);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -553,7 +548,7 @@
         line-height: 1;
       }
       .btn-close:hover {
-        color: var(--accent-coral);
+        color: var(--danger);
         transform: none;
       }
       .modal-body {
@@ -573,7 +568,7 @@
         font-size: 14px;
         font-weight: 600;
         margin-bottom: 6px;
-        color: var(--text-primary);
+        color: var(--text);
       }
       .form-hint {
         font-size: 12px;
@@ -584,10 +579,10 @@
       .form-control {
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid var(--border-divider);
+        border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        background: var(--surface-bg);
-        color: var(--text-primary);
+        background: var(--bg);
+        color: var(--text);
         font-size: 14px;
         font-family: inherit;
         transition: border-color 0.2s;
@@ -597,7 +592,7 @@
         border-color: var(--brand-primary);
       }
       .form-control:disabled {
-        background-color: var(--surface-overlay);
+        background-color: var(--surface-alt);
         color: var(--text-secondary);
         cursor: not-allowed;
         opacity: 0.7;
@@ -609,7 +604,7 @@
 
       .checkbox-group label {
         cursor: pointer;
-        color: var(--text-primary);
+        color: var(--text);
         font-size: 14px;
       }
       .checkbox-group input[type="checkbox"] {
@@ -625,8 +620,8 @@
 
       .modal-footer {
         padding: 16px 24px;
-        border-top: 1px solid var(--border-divider);
-        background: var(--surface-bg);
+        border-top: 1px solid var(--border);
+        background: var(--bg);
         display: flex;
         justify-content: flex-end;
         gap: 12px;
@@ -644,8 +639,8 @@
         pointer-events: none;
       }
       .toast {
-        background: var(--text-primary);
-        color: var(--surface-card);
+        background: var(--text);
+        color: var(--surface);
         padding: 10px 20px;
         border-radius: var(--radius-md);
         font-size: 14px;
@@ -675,7 +670,7 @@
         }
         .header-left {
           width: 100%;
-          border-bottom: 1px dashed var(--border-divider);
+          border-bottom: 1px dashed var(--border);
           padding-bottom: 6px;
         }
         .top-brand {
@@ -769,7 +764,7 @@
         </div>
         <div class="header-right">
           <div class="api-count">
-            <span id="ui-api-count">配额：未配置</span>
+            <span id="ui-api-count">本月已用：待获取</span>
           </div>
           <button class="btn-outline btn-icon" id="btn-settings" title="配置">
             <svg
@@ -796,7 +791,7 @@
               type="file"
               id="file-input"
               multiple
-              accept="image/jpeg, image/png, image/webp"
+              accept="image/jpeg, image/png, image/webp, image/avif, image/jxl"
             />
             <svg
               viewBox="0 0 24 24"
@@ -809,8 +804,8 @@
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <h3>点击或拖拽图片至此 (单次最高 30 张)</h3>
-            <p>支持 JPG, PNG, WebP 格式，单文件最大 15MB</p>
+            <h3>点击或拖拽图片至此（单次最多 30 张，列表最多 50 张）</h3>
+            <p>支持 JPG、PNG、WebP、AVIF、JPEG XL，单文件最大 15MB</p>
           </div>
         </div>
 
@@ -860,15 +855,10 @@
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>Tinify API 密钥</label>
+            <label>接口</label>
             <div class="form-hint">
-              支持配置多个密钥以防超额，请使用英文逗号分隔。
+              压缩经代理接口统一鉴权，无需配置 API 密钥；用量计入代理侧账号本月额度，压缩结果保留 8 小时。打开页面或离开一段时间回来时会自动刷新已用次数（不计次数）。
             </div>
-            <textarea
-              class="form-control"
-              id="input-keys"
-              placeholder="例如: XXXXXXXXXXXX, YYYYYYYYYYYY"
-            ></textarea>
           </div>
           <div class="form-group">
             <label>图片缩放规则 (Resize)</label>
@@ -889,19 +879,21 @@
                 class="form-control"
                 id="input-resize-w"
                 placeholder="宽(1-2560)"
+                inputmode="numeric"
               />
               <input
                 type="text"
                 class="form-control"
                 id="input-resize-h"
                 placeholder="高(1-2560)"
+                inputmode="numeric"
               />
             </div>
           </div>
           <div class="form-group">
             <label>图像转换 (Convert)</label>
             <div class="form-hint">
-              勾选目标格式，将自动返回其中体积最小的格式。不勾选则保持原图格式。
+              勾选目标格式，将自动返回其中体积最小的格式。不勾选则保持原图格式。转 JPEG 时透明区域将填为白色底。
             </div>
             <div class="checkbox-group flex-row" style="flex-wrap: wrap">
               <label style="display: flex; align-items: center; gap: 6px"
@@ -915,6 +907,10 @@
               <label style="display: flex; align-items: center; gap: 6px"
                 ><input type="checkbox" name="convertType" value="image/png" />
                 PNG</label
+              >
+              <label style="display: flex; align-items: center; gap: 6px"
+                ><input type="checkbox" name="convertType" value="image/avif" />
+                AVIF</label
               >
             </div>
           </div>
@@ -952,7 +948,7 @@
         <div class="modal-header">
           <h2
             style="
-              color: var(--semantic-danger);
+              color: var(--danger);
               display: flex;
               align-items: center;
               gap: 8px;
@@ -980,7 +976,7 @@
         <div
           class="modal-body"
           id="confirm-msg"
-          style="font-size: 15px; color: var(--text-primary)"
+          style="font-size: 15px; color: var(--text)"
         >
           确定要执行此操作吗？
         </div>
@@ -989,7 +985,7 @@
           <button
             class="btn-primary"
             id="btn-confirm-ok"
-            style="background: var(--semantic-danger); color: #fff"
+            style="background: var(--danger); color: var(--on-brand)"
           >
             确定执行
           </button>
@@ -1006,8 +1002,53 @@
         author: document.querySelector('meta[name="author"]').content,
       };
 
-      const PROXY_URL = "https://tinify-proxy.hrimyx.workers.dev";
-      const UPLOAD_TIMEOUT = 120000;
+      /* 配置项统一管理：Tinify 官方 HTTP 接口经通用 CORS 代理转发
+         （Worker 只做跨域 + 按 UPSTREAM_HEADERS Secret 向 api.tinify.com
+         注入 Basic 鉴权，不做任何业务合并；密钥只存在 Worker 侧）。
+         流程（https://tinypng.com/developers/reference/http），每个接口单独调：
+         1) shrink：POST {SHRINK_URL} 图片二进制 -> 201 JSON，output.url 为压缩结果
+            地址（8 小时有效，Worker 已把地址改写回代理域名），响应头
+            Compression-Count 为代理侧账号本月已用次数；
+         2) download：GET output.url 直接下载；
+         3) resize：POST output.url JSON {resize}；
+         4) convert：POST output.url JSON {convert[, transform]}；
+         5) preserve：POST output.url JSON {preserve}。
+         本页不发送、不存储任何 API 密钥。
+         次数：Tinify 没有单独的次数接口，唯一途径是响应头 Compression-Count。
+         本页用 GET 一个不存在的 output 地址读它（返回 404 + 真实次数，不计次数，
+         实测有效）；每次压缩 / 变换的响应头也会顺带更新次数。 */
+      const CONFIG = {
+        shrinkUrl: "https://api.tasy.day/api.tinify.com/shrink",
+        // 次数探测地址：不存在的 output id，GET 返回 404 + 真实 Compression-Count，不计次数
+        countProbeUrl:
+          "https://api.tasy.day/api.tinify.com/output/00000000000000000000000000000000",
+        countFetchTimeoutMs: 15000,
+        // 离开超过该时长回来时刷新一次次数
+        countStaleMs: 10 * 60 * 1000,
+        requestTimeoutMs: 120000,
+        retryDelayMs: 3000,
+        maxFileBytes: 15 * 1024 * 1024,
+        maxBatchFiles: 30,
+        maxListFiles: 50,
+        concurrency: 5,
+        acceptedTypes: [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/avif",
+          "image/jxl",
+        ],
+        monthlyLimitHint: 500,
+        storageKey: "hrimyx_tinify_v3",
+        legacyStorageKey: "hrimyx_tinify_data",
+      };
+      const EXT_BY_MIME = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/avif": ".avif",
+        "image/jxl": ".jxl",
+      };
 
       let lastGlobalErrorAt = 0;
       function reportGlobalError(err) {
@@ -1028,8 +1069,6 @@
 
       const Store = {
         state: {
-          keys: [],
-          currentKeyIndex: 0,
           settings: {
             resize: { method: "", width: "", height: "" },
             convert: [],
@@ -1039,60 +1078,81 @@
           successCount: 0,
           activeTasks: 0,
           apiCount: null,
+          apiCountAt: null,
         },
         init() {
           try {
-            const data = JSON.parse(
-              localStorage.getItem("hrimyx_tinify_data") || "{}",
+            const raw = localStorage.getItem(CONFIG.storageKey);
+            if (raw) {
+              const data = JSON.parse(raw);
+              if (data.settings) this.state.settings = this.normalizeSettings(data.settings);
+              if (data.apiCount !== undefined) this.state.apiCount = data.apiCount;
+              if (data.apiCountAt !== undefined) this.state.apiCountAt = data.apiCountAt;
+              return;
+            }
+            // 迁移旧版：只取缩放/转换/保留设置，旧版 API 密钥一律丢弃，不再存储
+            const legacy = JSON.parse(
+              localStorage.getItem(CONFIG.legacyStorageKey) || "{}",
             );
-            if (data.keys) this.state.keys = data.keys;
-            if (data.settings)
-              this.state.settings = {
-                ...this.state.settings,
-                ...data.settings,
-              };
-            if (data.apiCount !== undefined)
-              this.state.apiCount = data.apiCount;
+            if (legacy.settings) {
+              this.state.settings = this.normalizeSettings(legacy.settings);
+              if (legacy.apiCount !== undefined)
+                this.state.apiCount = legacy.apiCount;
+              this.persist();
+            }
+            localStorage.removeItem(CONFIG.legacyStorageKey);
           } catch (e) {
             console.error("Local storage init failed:", e);
           }
         },
-        save(keysArr, settingsObj) {
-          this.state.keys = keysArr;
-          this.state.settings = settingsObj;
-          this.state.currentKeyIndex = 0;
+        normalizeSettings(settings) {
+          const base = {
+            resize: { method: "", width: "", height: "" },
+            convert: [],
+            preserve: [],
+          };
+          if (!settings || typeof settings !== "object") return base;
+          if (settings.resize && typeof settings.resize === "object") {
+            base.resize.method = ["scale", "fit", "cover", "thumb"].includes(
+              settings.resize.method,
+            )
+              ? settings.resize.method
+              : "";
+            base.resize.width = settings.resize.width || "";
+            base.resize.height = settings.resize.height || "";
+          }
+          if (Array.isArray(settings.convert))
+            base.convert = settings.convert.filter((t) =>
+              CONFIG.acceptedTypes.includes(t),
+            );
+          if (Array.isArray(settings.preserve))
+            base.preserve = settings.preserve.filter((t) =>
+              ["copyright", "creation", "location"].includes(t),
+            );
+          return base;
+        },
+        save(settingsObj) {
+          this.state.settings = this.normalizeSettings(settingsObj);
           this.persist();
         },
         saveApiCount(count) {
           this.state.apiCount = count;
+          this.state.apiCountAt = Date.now();
           this.persist();
         },
         persist() {
           try {
             localStorage.setItem(
-              "hrimyx_tinify_data",
+              CONFIG.storageKey,
               JSON.stringify({
-                keys: this.state.keys,
                 settings: this.state.settings,
                 apiCount: this.state.apiCount,
+                apiCountAt: this.state.apiCountAt,
               }),
             );
           } catch (e) {
             UI.toast("本地存储写入失败");
           }
-        },
-        getCurrentKey() {
-          return this.state.keys.length > 0
-            ? this.state.keys[this.state.currentKeyIndex]
-            : null;
-        },
-        switchNextKey() {
-          if (this.state.keys.length > 1) {
-            this.state.currentKeyIndex =
-              (this.state.currentKeyIndex + 1) % this.state.keys.length;
-            return true;
-          }
-          return false;
         },
         addSavedResult(bytes) {
           this.state.totalSavedBytes += bytes;
@@ -1110,13 +1170,22 @@
       const Utils = {
         _trackedBlobUrls: new Set(),
         formatBytes(bytes) {
-          if (bytes <= 0) return "0 B";
+          if (!bytes || bytes <= 0) return "0 B";
           const sizes = ["B", "KB", "MB", "GB"];
           const i = Math.floor(Math.log(bytes) / Math.log(1024));
           return (bytes / Math.pow(1024, i)).toFixed(2) + " " + sizes[i];
         },
         id() {
           return "file_" + Math.random().toString(36).substr(2, 9);
+        },
+        // 文件名来自用户输入，拼进 HTML 前必须转义（规范 §6）
+        esc(value) {
+          return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
         },
         trackBlobUrl(url) {
           this._trackedBlobUrls.add(url);
@@ -1140,24 +1209,28 @@
           apiSpan.style.borderColor = "";
           apiSpan.style.background = "";
 
-          if (!Store.state.keys || Store.state.keys.length === 0) {
-            apiSpan.innerText = "配额：未配置";
-            apiSpan.style.color = "var(--semantic-danger)";
-            apiSpan.style.borderColor = "var(--semantic-danger)";
-            apiSpan.style.background = "var(--semantic-danger-bg)";
-          } else if (count === null || count === undefined) {
-            apiSpan.innerText = "配额：待获取";
+          if (Store.state.apiCountAt) {
+            const at = new Date(Store.state.apiCountAt);
+            apiSpan.title = `上次更新 ${at.toLocaleString("zh-CN", { hour12: false })}`;
+          } else {
+            apiSpan.title = "";
+          }
+
+          if (count === null || count === undefined) {
+            apiSpan.innerText = "本月已用：待获取";
             apiSpan.style.color = "var(--brand-primary)";
           } else {
-            apiSpan.innerText = `配额：${count}/500`;
-            if (count >= 450) {
-              apiSpan.style.color = "var(--semantic-warning)";
-              apiSpan.style.borderColor = "var(--semantic-warning)";
-              apiSpan.style.background = "var(--semantic-warning-bg)";
+            // Compression-Count 是代理侧账号本月已用次数（非剩余额度）
+            apiSpan.innerText = `本月已用：${count} 次`;
+            if (count >= CONFIG.monthlyLimitHint - 50) {
+              apiSpan.style.color = "var(--warning)";
+              apiSpan.style.borderColor = "var(--warning)";
+              apiSpan.style.background =
+                "color-mix(in srgb, var(--warning) 12%, var(--surface))";
             } else {
               apiSpan.style.color = "var(--brand-primary)";
-              apiSpan.style.borderColor = "var(--border-divider)";
-              apiSpan.style.background = "var(--surface-bg)";
+              apiSpan.style.borderColor = "var(--border)";
+              apiSpan.style.background = "var(--bg)";
             }
           }
         },
@@ -1179,14 +1252,16 @@
         createFileItem(file, id) {
           this.checkEmptyState();
           const url = Utils.trackBlobUrl(URL.createObjectURL(file));
+          const safeName = Utils.esc(file.name);
+          const typeLabel = (file.type.split("/")[1] || "").toUpperCase();
           const html = `
                     <div class="file-item" id="${id}">
                         <div class="file-content">
                             <div class="file-info">
                                 <img src="${url}" class="file-thumb" alt="thumb">
                                 <div class="file-meta">
-                                    <div class="file-name" title="${file.name}">${file.name}</div>
-                                    <div class="file-type"><span>${Utils.formatBytes(file.size)}</span><span style="color:var(--border-divider)">|</span><span>${file.type.split("/")[1].toUpperCase()}</span></div>
+                                    <div class="file-name" title="${safeName}">${safeName}</div>
+                                    <div class="file-type"><span>${Utils.formatBytes(file.size)}</span><span style="color:var(--border)">|</span><span>${Utils.esc(typeLabel)}</span></div>
                                 </div>
                             </div>
                             <div class="file-status" id="status-${id}"><div class="file-stats" id="stats-text-${id}">排队等待...</div></div>
@@ -1241,9 +1316,11 @@
             originalNameEl.innerText = name;
             originalNameEl.title = name;
           }
+          const safeUrl = Utils.esc(blobUrl);
+          const safeName = Utils.esc(name);
           statusEl.innerHTML = `
                     <div class="file-stats"><span class="percent">-${ratio}%</span><br>${Utils.formatBytes(newSize)}</div>
-                    <button class="btn-outline btn-icon btn-dl" data-url="${blobUrl}" data-name="${name}" title="下载">
+                    <button class="btn-outline btn-icon btn-dl" data-url="${safeUrl}" data-name="${safeName}" title="下载">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     </button>`;
           statusEl
@@ -1265,12 +1342,12 @@
             bar.style.opacity = "1";
             bar.style.width = "100%";
             bar.classList.remove("animating");
-            bar.style.background = "var(--semantic-danger)";
+            bar.style.background = "var(--danger)";
           }
           const stats = document.getElementById(`stats-text-${id}`);
           if (stats) {
             stats.innerText = msg;
-            stats.style.color = "var(--semantic-danger)";
+            stats.style.color = "var(--danger)";
           }
         },
         updateStats(count, bytes) {
@@ -1292,7 +1369,8 @@
           const root = document.getElementById("toast-root");
           const el = document.createElement("div");
           el.className = "toast";
-          el.innerHTML = `<svg class="toast-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span>${msg}</span>`;
+          el.innerHTML = `<svg class="toast-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span></span>`;
+          el.querySelector("span").textContent = msg;
           root.appendChild(el);
           void el.offsetWidth;
           el.classList.add("show");
@@ -1325,34 +1403,34 @@
         },
       };
 
-      const TinifyService = {
-        async executeUpload(file, id) {
-          const key = Store.getCurrentKey();
-          if (!key) throw new Error("缺少有效密钥");
-          const auth = "Basic " + btoa("api:" + key);
-          const { settings } = Store.state;
+      // Tinify 官方错误体为 {"error": "...", "message": "..."}，按状态码转中文提示
+      function tinifyErrorMessage(status, body) {
+        const serverMsg =
+          body && typeof body.message === "string" ? body.message : "";
+        if (status === 400)
+          return "请求无效：图片无法识别或参数有误";
+        if (status === 401) return "代理鉴权失败，请稍后重试";
+        if (status === 404) return "压缩结果已过期，请重新上传";
+        if (status === 415) return "不支持的图片格式";
+        if (status === 429) {
+          if (/month/i.test(serverMsg)) return "本月压缩额度已用完";
+          return "请求过于频繁，请稍后重试";
+        }
+        if (status >= 500) return "服务端临时故障，请稍后重试";
+        return serverMsg || "服务器处理异常";
+      }
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
 
+      const TinifyService = {
+        // 第 1 步：POST shrink 上传原图，201 返回 JSON；XHR 只为保留上传进度
+        shrink(file, id, attempt) {
           return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open("POST", `${PROXY_URL}/shrink`);
-            xhr.setRequestHeader("Authorization", auth);
-            if (settings.resize && settings.resize.method) {
-              xhr.setRequestHeader("X-Resize-Method", settings.resize.method);
-              if (settings.resize.width)
-                xhr.setRequestHeader("X-Resize-Width", settings.resize.width);
-              if (settings.resize.height)
-                xhr.setRequestHeader("X-Resize-Height", settings.resize.height);
-            }
-            if (settings.convert && settings.convert.length > 0)
-              xhr.setRequestHeader(
-                "X-Convert-Type",
-                settings.convert.join(","),
-              );
-            if (settings.preserve && settings.preserve.length > 0)
-              xhr.setRequestHeader("X-Preserve", settings.preserve.join(","));
-
-            xhr.timeout = UPLOAD_TIMEOUT;
-            xhr.responseType = "blob";
+            xhr.open("POST", CONFIG.shrinkUrl);
+            xhr.timeout = CONFIG.requestTimeoutMs;
+            xhr.responseType = "text";
             xhr.ontimeout = () =>
               reject(new Error("请求超时，请检查网络后重试"));
             xhr.upload.onprogress = (e) => {
@@ -1364,69 +1442,259 @@
               }
             };
             xhr.onload = () => {
-              if (xhr.status === 429 || xhr.status === 401)
-                reject({ type: "auth", status: xhr.status });
-              else if (xhr.status >= 200 && xhr.status < 300) {
-                const count = xhr.getResponseHeader("compression-count");
-                if (count) {
+              const countHeader = xhr.getResponseHeader("compression-count");
+              if (countHeader !== null) {
+                const count = parseInt(countHeader, 10);
+                if (!Number.isNaN(count)) {
                   Store.saveApiCount(count);
                   UI.setApiCountText(count);
                 }
-                const blob = xhr.response;
-                let finalName = file.name;
-                if (blob.type) {
-                  const extMap = {
-                    "image/jpeg": ".jpg",
-                    "image/png": ".png",
-                    "image/webp": ".webp",
-                  };
-                  const newExt = extMap[blob.type];
-                  const oldExt = finalName.includes(".")
-                    ? finalName.substring(finalName.lastIndexOf("."))
-                    : "";
-                  if (newExt && oldExt.toLowerCase() !== newExt)
-                    finalName =
-                      finalName.substring(0, finalName.lastIndexOf(".")) +
-                      newExt;
-                }
-                resolve({
-                  size: blob.size,
-                  blobUrl: Utils.trackBlobUrl(URL.createObjectURL(blob)),
-                  name: finalName,
-                });
-              } else {
-                const reader = new FileReader();
-                reader.onload = () => {
-                  let errMsg = "服务器处理异常";
-                  try {
-                    const errObj = JSON.parse(reader.result);
-                    if (errObj.message) errMsg = errObj.message;
-                    else if (errObj.error) errMsg = errObj.error;
-                  } catch (e) {}
-                  reject(new Error(errMsg));
-                };
-                reader.readAsText(xhr.response);
               }
+              let body = null;
+              try {
+                body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+              } catch (e) {
+                body = null;
+              }
+              if (xhr.status === 201 && body && body.output && body.output.url) {
+                resolve(body.output.url);
+                return;
+              }
+              const err = new Error(
+                tinifyErrorMessage(xhr.status, body),
+              );
+              err.status = xhr.status;
+              err.retryable =
+                xhr.status === 429 || xhr.status >= 500;
+              err.monthlyLimit =
+                xhr.status === 429 &&
+                body &&
+                /month/i.test(body.message || "");
+              reject(err);
             };
             xhr.onerror = () => reject(new Error("网络请求失败"));
             xhr.send(file);
+          }).catch(async (err) => {
+            // 429 限速 / 5xx 临时故障：官方文档称可重试，只重试一次
+            if (err.retryable && !err.monthlyLimit && attempt === 0) {
+              await sleep(CONFIG.retryDelayMs);
+              return this.shrink(file, id, 1);
+            }
+            throw err;
           });
         },
-        async process(file, id) {
+
+        // 刷新本月已用次数：Tinify 没有单独的次数接口，唯一途径是响应头
+        // Compression-Count。这里 GET 一个不存在的 output 地址：返回 404 是预期的，
+        // 响应头里带的就是代理侧账号本月真实已用次数，且不计次数（下载不计次，
+        // 404 更不计次）。失败时静默保留缓存值，不弹提示、不影响页面。
+        async fetchCount() {
+          const controller = new AbortController();
+          const timer = setTimeout(
+            () => controller.abort(),
+            CONFIG.countFetchTimeoutMs,
+          );
           try {
-            return await this.executeUpload(file, id);
+            const response = await fetch(CONFIG.countProbeUrl, {
+              method: "GET",
+              signal: controller.signal,
+            });
+            const countHeader = response.headers.get("compression-count");
+            if (countHeader === null) return null;
+            const count = parseInt(countHeader, 10);
+            if (Number.isNaN(count)) return null;
+            Store.saveApiCount(count);
+            UI.setApiCountText(count);
+            return count;
           } catch (e) {
-            if (e && e.type === "auth") {
-              if (Store.switchNextKey()) {
-                UI.toast("当前密钥额度耗尽或异常，已自动切换备用密钥");
-                return await this.process(file, id);
-              }
-              throw new Error(
-                e.status === 429 ? "所有配置的密钥均已耗尽" : "API 密钥无效",
-              );
-            }
-            throw e;
+            return null;
+          } finally {
+            clearTimeout(timer);
           }
+        },
+
+        // output 接口的统一传输：无 body 时 GET 下载，有 body 时 POST 一次 JSON 变换。
+        // 下载 / 缩放 / 转换 / 保留元数据四个接口分别调它，body 各自由对应的
+        // build 方法单独拼，不共用、不混写。
+        async requestOutput(outputUrl, body, label, id, attempt) {
+          const controller = new AbortController();
+          const timer = setTimeout(
+            () => controller.abort(),
+            CONFIG.requestTimeoutMs,
+          );
+          try {
+            UI.updateProgress(id, "compress", 100, label);
+            const response = await fetch(outputUrl, {
+              method: body ? "POST" : "GET",
+              headers: body
+                ? { "Content-Type": "application/json" }
+                : undefined,
+              body: body ? JSON.stringify(body) : undefined,
+              signal: controller.signal,
+            });
+            const countHeader = response.headers.get("compression-count");
+            if (countHeader !== null) {
+              const count = parseInt(countHeader, 10);
+              if (!Number.isNaN(count)) {
+                Store.saveApiCount(count);
+                UI.setApiCountText(count);
+              }
+            }
+            if (!response.ok) {
+              let errBody = null;
+              try {
+                errBody = await response.json();
+              } catch (e) {
+                errBody = null;
+              }
+              const err = new Error(
+                tinifyErrorMessage(response.status, errBody),
+              );
+              err.status = response.status;
+              err.retryable =
+                response.status === 429 || response.status >= 500;
+              err.monthlyLimit =
+                response.status === 429 &&
+                errBody &&
+                /month/i.test(errBody.message || "");
+              throw err;
+            }
+            return await response.blob();
+          } catch (err) {
+            if (err && err.name === "AbortError")
+              throw new Error("请求超时，请检查网络后重试");
+            if (
+              err.retryable &&
+              !err.monthlyLimit &&
+              attempt === 0
+            ) {
+              await sleep(CONFIG.retryDelayMs);
+              return this.requestOutput(outputUrl, body, label, id, 1);
+            }
+            if (err instanceof TypeError)
+              throw new Error("网络请求失败");
+            throw err;
+          } finally {
+            clearTimeout(timer);
+          }
+        },
+
+        // 接口 3：缩放的请求体，单独拼；未配缩放规则返回 null
+        buildResizeBody() {
+          const { settings } = Store.state;
+          if (!settings.resize || !settings.resize.method) return null;
+          const resize = { method: settings.resize.method };
+          const w = parseInt(settings.resize.width, 10);
+          const h = parseInt(settings.resize.height, 10);
+          if (Number.isInteger(w) && w > 0) resize.width = w;
+          if (Number.isInteger(h) && h > 0) resize.height = h;
+          return { resize };
+        },
+
+        // 接口 4：转换的请求体，单独拼
+        buildConvertBody() {
+          const { settings } = Store.state;
+          if (!settings.convert || settings.convert.length === 0) return null;
+          const body = {
+            convert: {
+              type:
+                settings.convert.length === 1
+                  ? settings.convert[0]
+                  : settings.convert.slice(),
+            },
+          };
+          // 转 JPEG 时透明图无背景会 400：透明区域填白底，不透明图不受影响
+          if (settings.convert.includes("image/jpeg"))
+            body.transform = { background: "white" };
+          return body;
+        },
+
+        // 接口 5：保留元数据的请求体，单独拼
+        buildPreserveBody() {
+          const { settings } = Store.state;
+          if (!settings.preserve || settings.preserve.length === 0)
+            return null;
+          return { preserve: settings.preserve.slice() };
+        },
+
+        // 接口 2：下载，GET output.url
+        download(outputUrl, id) {
+          return this.requestOutput(outputUrl, null, "正在下载...", id, 0);
+        },
+
+        // 接口 3：缩放，POST output.url {resize}
+        resizeImage(outputUrl, id) {
+          const body = this.buildResizeBody();
+          if (!body) throw new Error("未配置缩放规则");
+          return this.requestOutput(outputUrl, body, "正在缩放...", id, 0);
+        },
+
+        // 接口 4：转换，POST output.url {convert[, transform]}
+        convertImage(outputUrl, id) {
+          const body = this.buildConvertBody();
+          if (!body) throw new Error("未配置转换格式");
+          return this.requestOutput(outputUrl, body, "正在转换...", id, 0);
+        },
+
+        // 接口 5：保留元数据，POST output.url {preserve}
+        preserveImage(outputUrl, id) {
+          const body = this.buildPreserveBody();
+          if (!body) throw new Error("未配置保留元数据");
+          return this.requestOutput(outputUrl, body, "正在处理元数据...", id, 0);
+        },
+
+        // 多变换合并：output 请求是按次计费的无状态变换，分开发没有叠加效果——
+        // 实测：同一 output.url 先 POST fit 50x50 再 POST 转 webp，回来是 100px
+        // webp，缩放丢了；一次 POST 合并 resize+convert+preserve 才是 50px webp，
+        // 且官方文档明确这样只多计 1 次。所以只选一个变换时走上面对应的单独接口，
+        // 选了多个时按文档一次 POST 合并，而不是分开发导致结果丢变换。
+        buildCombinedBody() {
+          const body = {};
+          const resize = this.buildResizeBody();
+          if (resize) Object.assign(body, resize);
+          const convert = this.buildConvertBody();
+          if (convert) Object.assign(body, convert);
+          const preserve = this.buildPreserveBody();
+          if (preserve) Object.assign(body, preserve);
+          return Object.keys(body).length > 0 ? body : null;
+        },
+
+        async process(file, id) {
+          const outputUrl = await this.shrink(file, id, 0);
+          const ops = [];
+          if (this.buildResizeBody()) ops.push("resize");
+          if (this.buildConvertBody()) ops.push("convert");
+          if (this.buildPreserveBody()) ops.push("preserve");
+          let blob;
+          if (ops.length === 0) {
+            blob = await this.download(outputUrl, id);
+          } else if (ops.length === 1) {
+            if (ops[0] === "resize") blob = await this.resizeImage(outputUrl, id);
+            else if (ops[0] === "convert") blob = await this.convertImage(outputUrl, id);
+            else blob = await this.preserveImage(outputUrl, id);
+          } else {
+            blob = await this.requestOutput(
+              outputUrl,
+              this.buildCombinedBody(),
+              "云端处理中...",
+              id,
+              0,
+            );
+          }
+          let finalName = file.name;
+          if (blob.type) {
+            const newExt = EXT_BY_MIME[blob.type];
+            const dot = finalName.lastIndexOf(".");
+            const oldExt = dot >= 0 ? finalName.substring(dot) : "";
+            if (newExt && oldExt.toLowerCase() !== newExt)
+              finalName =
+                (dot >= 0 ? finalName.substring(0, dot) : finalName) + newExt;
+          }
+          return {
+            size: blob.size,
+            blobUrl: Utils.trackBlobUrl(URL.createObjectURL(blob)),
+            name: finalName,
+          };
         },
       };
 
@@ -1439,6 +1707,8 @@
           this.fillSettingsForm();
           UI.checkEmptyState();
           UI.updateActionButtons();
+          // 初次打开页面刷新一次次数（先显示缓存值，拿到新值再更新）
+          TinifyService.fetchCount();
         },
         renderBrand() {
           document.getElementById("brand-name-text").textContent = AppMeta.name;
@@ -1463,15 +1733,13 @@
           }
         },
         fillSettingsForm() {
-          document.getElementById("input-keys").value =
-            Store.state.keys.join(", ");
           const rs = Store.state.settings.resize || {};
           document.getElementById("input-resize-method").value =
             rs.method || "";
           document.getElementById("input-resize-w").value = rs.width || "";
           document.getElementById("input-resize-h").value = rs.height || "";
 
-          this.toggleResizeInputs(); // 填充完数据后自动根据选项控制禁用状态
+          this.toggleResizeInputs();
 
           const cv = Store.state.settings.convert || [];
           document
@@ -1488,7 +1756,10 @@
           document.getElementById("btn-settings").onclick = () => {
             this.fillSettingsForm();
             modalSettings.classList.add("active");
-            setTimeout(() => document.getElementById("input-keys").focus(), 50);
+            setTimeout(
+              () => document.getElementById("input-resize-method").focus(),
+              50,
+            );
           };
           document.getElementById("btn-close-settings").onclick = () =>
             modalSettings.classList.remove("active");
@@ -1498,6 +1769,14 @@
             if (e.target === modalSettings)
               modalSettings.classList.remove("active");
           });
+          // 离开较久回来时刷新一次次数（10 分钟内回来不重复请求）
+          document.addEventListener("visibilitychange", () => {
+            if (document.hidden) return;
+            const last = Store.state.apiCountAt || 0;
+            if (Date.now() - last > CONFIG.countStaleMs)
+              TinifyService.fetchCount();
+          });
+
           document.addEventListener("keydown", (e) => {
             if (e.key !== "Escape") return;
             if (modalSettings.classList.contains("active"))
@@ -1522,7 +1801,7 @@
           // 强制校验只能输入整数，并限制最大值为2560
           const enforceIntegerAndRange = (e) => {
             let val = e.target.value;
-            val = val.replace(/[^0-9]/g, ""); // 实时剔除非数字
+            val = val.replace(/[^0-9]/g, "");
             if (val !== "") {
               let num = parseInt(val, 10);
               if (num > 2560) val = "2560";
@@ -1544,25 +1823,11 @@
               btnSave.disabled = false;
             }, 400);
 
-            const rawKeys = document.getElementById("input-keys").value;
-            const keys = rawKeys
-              .split(",")
-              .map((k) => k.trim())
-              .filter(Boolean);
-
-            const keyRegex = /^[A-Za-z0-9]{32}$/;
-            for (let i = 0; i < keys.length; i++) {
-              if (!keyRegex.test(keys[i]))
-                return UI.toast(
-                  `第 ${i + 1} 个 API 密钥格式错误，应为 32 位字母数字`,
-                );
-            }
-
             const method = document.getElementById("input-resize-method").value;
             const wStr = document.getElementById("input-resize-w").value;
             const hStr = document.getElementById("input-resize-h").value;
-            const w = parseInt(wStr);
-            const h = parseInt(hStr);
+            const w = parseInt(wStr, 10);
+            const h = parseInt(hStr, 10);
 
             if (method) {
               if (method === "scale") {
@@ -1576,9 +1841,9 @@
                 if (!wStr || !hStr)
                   return UI.toast(`${method} 模式需要同时填写宽度和高度`);
               }
-              if (wStr && (isNaN(w) || w <= 0))
+              if (wStr && (!Number.isInteger(w) || w <= 0))
                 return UI.toast("宽度必须为正整数");
-              if (hStr && (isNaN(h) || h <= 0))
+              if (hStr && (!Number.isInteger(h) || h <= 0))
                 return UI.toast("高度必须为正整数");
               if (wStr && w > 2560) return UI.toast("缩放宽度不能大于 2560px");
               if (hStr && h > 2560) return UI.toast("缩放高度不能大于 2560px");
@@ -1590,11 +1855,14 @@
             const preserve = Array.from(
               document.querySelectorAll('input[name="preserveMeta"]:checked'),
             ).map((cb) => cb.value);
-            if (!keys.length) Store.saveApiCount(null);
 
             try {
-              Store.save(keys, {
-                resize: { method, width: w || "", height: h || "" },
+              Store.save({
+                resize: {
+                  method,
+                  width: Number.isInteger(w) && w > 0 ? String(w) : "",
+                  height: Number.isInteger(h) && h > 0 ? String(h) : "",
+                },
                 convert,
                 preserve,
               });
@@ -1609,18 +1877,6 @@
           const zone = document.getElementById("upload-zone");
           const fileInput = document.getElementById("file-input");
 
-          fileInput.addEventListener("click", (e) => {
-            if (!Store.state.keys.length) {
-              e.preventDefault();
-              UI.toast("请先配置 API 密钥");
-              modalSettings.classList.add("active");
-              setTimeout(
-                () => document.getElementById("input-keys").focus(),
-                50,
-              );
-            }
-          });
-
           zone.ondragover = (e) => {
             e.preventDefault();
             zone.classList.add("dragover");
@@ -1629,15 +1885,6 @@
           zone.ondrop = (e) => {
             e.preventDefault();
             zone.classList.remove("dragover");
-            if (!Store.state.keys.length) {
-              UI.toast("请先配置 API 密钥");
-              modalSettings.classList.add("active");
-              setTimeout(
-                () => document.getElementById("input-keys").focus(),
-                50,
-              );
-              return;
-            }
             this.handleFiles(e.dataTransfer.files);
           };
 
@@ -1663,6 +1910,10 @@
           document.getElementById("btn-download-all").onclick = async () => {
             const btnDownloadAll = document.getElementById("btn-download-all");
             if (btnDownloadAll.dataset.busy === "1") return;
+            if (typeof JSZip === "undefined") {
+              UI.toast("打包组件未加载，请检查网络后逐个下载");
+              return;
+            }
             const btns = document.querySelectorAll(".btn-dl");
             if (btns.length === 0) return;
             if (btns.length === 1) return btns[0].click();
@@ -1725,18 +1976,25 @@
           const incomingFiles = Array.from(files);
           const validFiles = [];
 
+          if (incomingFiles.length > CONFIG.maxBatchFiles)
+            return UI.toast(
+              `单次最多选择 ${CONFIG.maxBatchFiles} 张图片`,
+            );
+
           incomingFiles.forEach((file) => {
-            if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
+            if (!CONFIG.acceptedTypes.includes(file.type))
               UI.toast(`已跳过不支持的格式: ${file.name}`);
-            else if (file.size > 15 * 1024 * 1024)
+            else if (file.size <= 0)
+              UI.toast(`已跳过空文件: ${file.name}`);
+            else if (file.size > CONFIG.maxFileBytes)
               UI.toast(`已跳过超大文件(>15M): ${file.name}`);
             else validFiles.push(file);
           });
 
           if (validFiles.length === 0) return;
-          if (currentItemsCount + validFiles.length > 50)
+          if (currentItemsCount + validFiles.length > CONFIG.maxListFiles)
             return UI.toast(
-              `抱歉，列表最多可容纳 50 张图片，当前已选 ${currentItemsCount} 张。请先清空后再试。`,
+              `抱歉，列表最多可容纳 ${CONFIG.maxListFiles} 张图片，当前已选 ${currentItemsCount} 张。请先清空后再试。`,
             );
 
           Store.state.activeTasks += validFiles.length;
@@ -1748,7 +2006,6 @@
             return { file, id };
           });
 
-          const CONCURRENCY_LIMIT = 5;
           let currentIndex = 0;
 
           const processNext = async () => {
@@ -1767,7 +2024,7 @@
             }
           };
 
-          for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, tasks.length); i++)
+          for (let i = 0; i < Math.min(CONFIG.concurrency, tasks.length); i++)
             processNext();
         },
       };
