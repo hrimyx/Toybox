@@ -8,7 +8,7 @@
     />
     <!-- 应用元信息：名称、版本、作者只维护这一个来源，其他位置动态读取 -->
     <meta name="name" content="图片压缩" />
-    <meta name="version" content="3.2.0" />
+    <meta name="version" content="3.8.1" />
     <meta name="author" content="Hrimyx" />
     <title></title>
     <script>
@@ -746,6 +746,9 @@
         .file-stats {
           font-size: 13px;
         }
+        .file-dims {
+          display: none;
+        }
       }
     </style>
   </head>
@@ -791,7 +794,7 @@
               type="file"
               id="file-input"
               multiple
-              accept="image/jpeg, image/png, image/webp, image/avif, image/jxl"
+              accept="image/jpeg, image/png, image/webp, image/avif, image/jxl, image/heic, image/heif"
             />
             <svg
               viewBox="0 0 24 24"
@@ -804,8 +807,8 @@
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <h3>点击或拖拽图片至此（单次最多 30 张，列表最多 50 张）</h3>
-            <p>支持 JPG、PNG、WebP、AVIF、JPEG XL，单文件最大 15MB</p>
+            <h3>点击或拖拽图片至此（最多 30 张）</h3>
+            <p>支持 JPG、PNG、WebP、AVIF、JPEG XL、HEIC，单文件最大 25MB</p>
           </div>
         </div>
 
@@ -878,14 +881,14 @@
                 type="text"
                 class="form-control"
                 id="input-resize-w"
-                placeholder="宽(1-2560)"
+                placeholder="宽（px）"
                 inputmode="numeric"
               />
               <input
                 type="text"
                 class="form-control"
                 id="input-resize-h"
-                placeholder="高(1-2560)"
+                placeholder="高（px）"
                 inputmode="numeric"
               />
             </div>
@@ -893,7 +896,23 @@
           <div class="form-group">
             <label>图像转换 (Convert)</label>
             <div class="form-hint">
-              勾选目标格式，将自动返回其中体积最小的格式。不勾选则保持原图格式。转 JPEG 时透明区域将填为白色底。
+              勾选目标格式，将自动返回其中体积最小的格式。不勾选则保持原图格式。只转 JPEG 时透明区域将按下方背景色填充；多选时透明图的 JPEG 会被跳过，返回其余格式里最小的。
+            </div>
+            <div class="flex-row" style="margin-top: 12px; align-items: center">
+              <label
+                style="font-size: 13px; color: var(--text-secondary); flex-shrink: 0"
+                >JPEG 背景色</label
+              >
+              <input
+                type="text"
+                class="form-control"
+                id="input-bg-color"
+                placeholder="white / black / #000000"
+                inputmode="text"
+              />
+            </div>
+            <div class="form-hint" style="margin-top: 6px">
+              仅单选 JPEG 时生效；填 white、black 或 6 位 hex，如 #000000。
             </div>
             <div class="checkbox-group flex-row" style="flex-wrap: wrap">
               <label style="display: flex; align-items: center; gap: 6px"
@@ -912,12 +931,16 @@
                 ><input type="checkbox" name="convertType" value="image/avif" />
                 AVIF</label
               >
+              <label style="display: flex; align-items: center; gap: 6px"
+                ><input type="checkbox" name="convertType" value="image/jxl" />
+                JPEG XL</label
+              >
             </div>
           </div>
           <div class="form-group">
             <label>保存元数据 (Preserve)</label>
             <div class="form-hint">
-              勾选需保留的元数据信息（默认移除所有元数据以减小体积）。
+              勾选需保留的元数据信息（默认移除所有元数据以减小体积）。位置(GPS)仅 AVIF、JPEG XL、WebP、JPEG 有效，PNG 不保留。
             </div>
             <div class="checkbox-group flex-row" style="flex-wrap: wrap">
               <label style="display: flex; align-items: center; gap: 6px"
@@ -1007,12 +1030,20 @@
          注入 Basic 鉴权，不做任何业务合并；密钥只存在 Worker 侧）。
          流程（https://tinypng.com/developers/reference/http），每个接口单独调：
          1) shrink：POST {SHRINK_URL} 图片二进制 -> 201 JSON，output.url 为压缩结果
-            地址（8 小时有效，Worker 已把地址改写回代理域名），响应头
+            地址（8 小时有效，Worker 已把地址改写回代理域名），output.size /
+            output.type 即压缩后体积 / 格式，响应头
             Compression-Count 为代理侧账号本月已用次数；
-         2) download：GET output.url 直接下载；
+         2) download：GET output.url 直接下载——与 tinyjpg.com 逻辑一致，
+            只在用户点击下载按钮（单个下载 / 全部下载）时才发，不提前下载；
          3) resize：POST output.url JSON {resize}；
          4) convert：POST output.url JSON {convert[, transform]}；
          5) preserve：POST output.url JSON {preserve}。
+         3) / 4) / 5) 与 2) 一样只在点击下载时才发：首次下载后缓存 Blob，
+         重复点击直接用缓存，不再重复请求（resize / convert 的 POST 多计
+         1 次，重复发会重复计次；preserve 单独不计次，合并时也不另计；
+         无变换的 GET 下载不计次）。压缩完成时只展示 shrink 返回的
+         体积与压缩比：无变换时即最终结果；有变换时为压缩后、变换前的体积，
+         首次下载拿到实际 Blob 后再刷新为最终体积。
          本页不发送、不存储任何 API 密钥。
          次数：Tinify 没有单独的次数接口，唯一途径是响应头 Compression-Count。
          本页用 GET 一个不存在的 output 地址读它（返回 404 + 真实次数，不计次数，
@@ -1027,16 +1058,23 @@
         countStaleMs: 10 * 60 * 1000,
         requestTimeoutMs: 120000,
         retryDelayMs: 3000,
-        maxFileBytes: 15 * 1024 * 1024,
-        maxBatchFiles: 30,
-        maxListFiles: 50,
-        concurrency: 5,
+        // 单文件上限 25MB：用户设定，低于官方文档的 500MB 上限
+        maxFileBytes: 25 * 1024 * 1024,
+        // 列表上限 30 张：唯一的张数上限。单次选择不再另设上限——
+        // 压缩是 3 路并发的队列，多选 30 张只是排队更久，不会同时
+        // 冲垮网络或内存；内存占用由列表上限兜底，与单次选多少无关
+        maxListFiles: 30,
+        // 并发 3：官方文档称请求太快会返回 429，5 路并行在共用代理账号上
+        // 更容易触发限速；降到 3 路仍保持并行，限速风险更低
+        concurrency: 3,
         acceptedTypes: [
           "image/jpeg",
           "image/png",
           "image/webp",
           "image/avif",
           "image/jxl",
+          "image/heic",
+          "image/heif",
         ],
         monthlyLimitHint: 500,
         storageKey: "hrimyx_tinify_v3",
@@ -1048,6 +1086,20 @@
         "image/webp": ".webp",
         "image/avif": ".avif",
         "image/jxl": ".jxl",
+        // HEIC 上传后会被压成 JPEG，见官方文档；扩展名按最终格式取 .jpg
+        "image/heic": ".jpg",
+        "image/heif": ".jpg",
+      };
+      // 部分浏览器对 .heic / .jxl 等文件不返回 MIME，用扩展名兜底判断
+      const EXT_TO_MIME = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".avif": "image/avif",
+        ".jxl": "image/jxl",
+        ".heic": "image/heic",
+        ".heif": "image/heif",
       };
 
       let lastGlobalErrorAt = 0;
@@ -1073,6 +1125,8 @@
             resize: { method: "", width: "", height: "" },
             convert: [],
             preserve: [],
+            // 单选 JPEG 时透明区域的填充色：white / black / 6 位 hex
+            background: "white",
           },
           totalSavedBytes: 0,
           successCount: 0,
@@ -1110,6 +1164,7 @@
             resize: { method: "", width: "", height: "" },
             convert: [],
             preserve: [],
+            background: "white",
           };
           if (!settings || typeof settings !== "object") return base;
           if (settings.resize && typeof settings.resize === "object") {
@@ -1118,8 +1173,13 @@
             )
               ? settings.resize.method
               : "";
-            base.resize.width = settings.resize.width || "";
-            base.resize.height = settings.resize.height || "";
+            // 宽高只保留正整数，脏数据（非数字 / <=0）直接丢弃，不发给服务端
+            const w = parseInt(settings.resize.width, 10);
+            const h = parseInt(settings.resize.height, 10);
+            base.resize.width =
+              Number.isInteger(w) && w > 0 ? String(w) : "";
+            base.resize.height =
+              Number.isInteger(h) && h > 0 ? String(h) : "";
           }
           if (Array.isArray(settings.convert))
             base.convert = settings.convert.filter((t) =>
@@ -1129,6 +1189,17 @@
             base.preserve = settings.preserve.filter((t) =>
               ["copyright", "creation", "location"].includes(t),
             );
+          // 背景色只接受 white / black / 6 位 hex（官方文档：3 位 hex 不支持），
+          // 其余一律回落到 white；先统一转小写，White / #ABCDEF 也能用
+          if (typeof settings.background === "string") {
+            const bg = settings.background.trim().toLowerCase();
+            if (
+              bg === "white" ||
+              bg === "black" ||
+              /^#[0-9a-f]{6}$/.test(bg)
+            )
+              base.background = bg;
+          }
           return base;
         },
         save(settingsObj) {
@@ -1167,6 +1238,37 @@
         },
       };
 
+      // 待下载记录：压缩完成时只存 output.url + 变换请求体（处理时快照，
+      // 下载时按快照发，不受之后改配置影响），不存压缩后 Blob；首次点击
+      // 下载拿到 Blob 后才缓存到 pending.blob，供重复下载 / 全部下载复用。
+      const DownloadStore = {
+        map: new Map(),
+        set(id, pending) {
+          this.map.set(id, pending);
+        },
+        get(id) {
+          return this.map.get(id);
+        },
+        clear() {
+          this.map.clear();
+        },
+      };
+
+      // 原文件记录：压缩失败 / 下载过期后点“重新压缩”要用到原 File，
+      // 列表清空时一并清除
+      const SourceFiles = {
+        map: new Map(),
+        set(id, file) {
+          this.map.set(id, file);
+        },
+        get(id) {
+          return this.map.get(id);
+        },
+        clear() {
+          this.map.clear();
+        },
+      };
+
       const Utils = {
         _trackedBlobUrls: new Set(),
         formatBytes(bytes) {
@@ -1177,6 +1279,16 @@
         },
         id() {
           return "file_" + Math.random().toString(36).substr(2, 9);
+        },
+        // 文件类型优先用浏览器给的 MIME；为空或不识别时按扩展名兜底，
+        // 否则 .heic / .jxl 等文件在部分浏览器里会被误判为不支持
+        mimeForFile(file) {
+          if (CONFIG.acceptedTypes.includes(file.type)) return file.type;
+          const dot = file.name.lastIndexOf(".");
+          if (dot < 0) return file.type;
+          return (
+            EXT_TO_MIME[file.name.substring(dot).toLowerCase()] || file.type
+          );
         },
         // 文件名来自用户输入，拼进 HTML 前必须转义（规范 §6）
         esc(value) {
@@ -1253,7 +1365,7 @@
           this.checkEmptyState();
           const url = Utils.trackBlobUrl(URL.createObjectURL(file));
           const safeName = Utils.esc(file.name);
-          const typeLabel = (file.type.split("/")[1] || "").toUpperCase();
+          const typeLabel = (Utils.mimeForFile(file).split("/")[1] || "").toUpperCase();
           const html = `
                     <div class="file-item" id="${id}">
                         <div class="file-content">
@@ -1296,7 +1408,48 @@
             if (stats) stats.innerText = text;
           }
         },
-        renderSuccess(id, oldSize, newSize, blobUrl, name) {
+        // 压缩结果行的展示：压缩比 + 体积，有尺寸时追加“宽×高”；
+        // 尺寸包在 .file-dims 里，小屏（≤600px）隐藏，只留压缩比和体积
+        statsHtml(oldSize, newSize, width, height) {
+          const saved = oldSize - newSize;
+          const ratio = saved > 0 ? ((saved / oldSize) * 100).toFixed(1) : 0;
+          const dims =
+            width && height
+              ? ` <span class="file-dims">· ${width}×${height}</span>`
+              : "";
+          return `<span class="percent">-${ratio}%</span><br>${Utils.formatBytes(newSize)}${dims}`;
+        },
+        updateFileStats(id, oldSize, newSize, width, height) {
+          const statsEl = document.querySelector(
+            `#status-${id} .file-stats`,
+          );
+          if (!statsEl) return;
+          statsEl.innerHTML = this.statsHtml(oldSize, newSize, width, height);
+        },
+        // 首次下载拿到实际 Blob 后刷新：有变换时实际体积与压缩完成时
+        // 展示的 shrink 体积可能不同，按差值修正底部总节省，并刷新本行
+        // （体积与尺寸都按下载后的实际值）。
+        noteDownloaded(id, pending, actualSize) {
+          if (actualSize !== pending.size) {
+            Store.state.totalSavedBytes = Math.max(
+              0,
+              Store.state.totalSavedBytes + (pending.size - actualSize),
+            );
+            pending.size = actualSize;
+            UI.updateStats(
+              Store.state.successCount,
+              Store.state.totalSavedBytes,
+            );
+          }
+          this.updateFileStats(
+            id,
+            pending.originalSize,
+            pending.size,
+            pending.width,
+            pending.height,
+          );
+        },
+        renderSuccess(id, oldSize, pending) {
           this.updateProgress(id, "upload", 100, "");
           this.updateProgress(id, "compress", 100, "完成");
           const progGroup = document.getElementById(`prog-container-${id}`);
@@ -1304,8 +1457,8 @@
             progGroup.style.opacity = "0";
             setTimeout(() => progGroup.remove(), 300);
           }
+          const newSize = pending.size;
           const saved = oldSize - newSize;
-          const ratio = saved > 0 ? ((saved / oldSize) * 100).toFixed(1) : 0;
           Store.addSavedResult(saved > 0 ? saved : 0);
           const statusEl = document.getElementById(`status-${id}`);
           if (!statusEl) return;
@@ -1313,27 +1466,63 @@
             .getElementById(id)
             .querySelector(".file-name");
           if (originalNameEl) {
-            originalNameEl.innerText = name;
-            originalNameEl.title = name;
+            originalNameEl.innerText = pending.name;
+            originalNameEl.title = pending.name;
           }
-          const safeUrl = Utils.esc(blobUrl);
-          const safeName = Utils.esc(name);
           statusEl.innerHTML = `
-                    <div class="file-stats"><span class="percent">-${ratio}%</span><br>${Utils.formatBytes(newSize)}</div>
-                    <button class="btn-outline btn-icon btn-dl" data-url="${safeUrl}" data-name="${safeName}" title="下载">
+                    <div class="file-stats">${this.statsHtml(oldSize, newSize, pending.width, pending.height)}</div>
+                    <button class="btn-outline btn-icon btn-dl" data-id="${Utils.esc(id)}" title="下载">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     </button>`;
           statusEl
             .querySelector(".btn-dl")
             .addEventListener("click", function () {
-              const a = document.createElement("a");
-              a.href = this.getAttribute("data-url");
-              a.download = this.getAttribute("data-name");
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              UI.toast(`文件已开始下载: ${this.getAttribute("data-name")}`);
+              // 只在点击时才下载压缩后的图片（见 TinifyService.downloadOne）：
+              // 压缩完成时不发下载 / 变换请求，不持有压缩后 Blob。
+              TinifyService.downloadOne(id);
             });
+        },
+        // 重新压缩前把该行恢复到等待状态：状态区、进度条都复位。
+        // 成功过的行进度条已被移除，这里按需重建，否则重试时没有进度条。
+        resetForRetry(id) {
+          const statusEl = document.getElementById(`status-${id}`);
+          if (statusEl)
+            statusEl.innerHTML = `<div class="file-stats" id="stats-text-${id}">排队等待...</div>`;
+          const item = document.getElementById(id);
+          let prog = document.getElementById(`prog-container-${id}`);
+          if (!prog && item) {
+            item.insertAdjacentHTML(
+              "beforeend",
+              `<div class="progress-bar-container" id="prog-container-${id}">
+                            <div class="progress-bar-fill upload-fill" id="bar-up-${id}"></div>
+                            <div class="progress-bar-fill compress-fill" id="bar-cp-${id}"></div>
+                        </div>`,
+            );
+            prog = document.getElementById(`prog-container-${id}`);
+          }
+          if (prog) prog.style.opacity = "1";
+          const barUp = document.getElementById(`bar-up-${id}`);
+          const barCp = document.getElementById(`bar-cp-${id}`);
+          if (barUp) barUp.style.width = "0%";
+          if (barCp) {
+            barCp.style.width = "0%";
+            barCp.style.opacity = "0";
+            barCp.style.background = "";
+            barCp.classList.remove("animating");
+          }
+        },
+        // 压缩结果过期（404）：标记后下载按钮改为“重新压缩”，
+        // 再点即重新走 shrink，不用重新上传原图
+        markExpired(id, pending) {
+          pending.expired = true;
+          pending.blob = null;
+          pending.blobName = null;
+          const btn = document.querySelector(`#status-${id} .btn-dl`);
+          if (btn) {
+            btn.title = "压缩结果已过期，点击重新压缩";
+            btn.innerHTML =
+              '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
+          }
         },
         renderError(id, msg) {
           this.updateProgress(id, "compress", 100, "失败");
@@ -1344,11 +1533,18 @@
             bar.classList.remove("animating");
             bar.style.background = "var(--danger)";
           }
-          const stats = document.getElementById(`stats-text-${id}`);
-          if (stats) {
-            stats.innerText = msg;
-            stats.style.color = "var(--danger)";
-          }
+          const statusEl = document.getElementById(`status-${id}`);
+          if (!statusEl) return;
+          statusEl.innerHTML = `
+                    <div class="file-stats" style="color:var(--danger)">${Utils.esc(msg)}</div>
+                    <button class="btn-outline btn-icon btn-retry" data-id="${Utils.esc(id)}" title="重新压缩">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    </button>`;
+          statusEl
+            .querySelector(".btn-retry")
+            .addEventListener("click", function () {
+              AppController.retryFile(id);
+            });
         },
         updateStats(count, bytes) {
           document.getElementById("ui-total-count").innerText = count;
@@ -1407,8 +1603,21 @@
       function tinifyErrorMessage(status, body) {
         const serverMsg =
           body && typeof body.message === "string" ? body.message : "";
-        if (status === 400)
-          return "请求无效：图片无法识别或参数有误";
+        if (status === 400) {
+          // 400 背后是几种不同的问题：图片无法识别、参数无效、透明图
+          // 转 JPEG 没给背景色等；且可能来自压缩（多半是文件问题），也
+          // 可能来自下载时的变换 POST（多半是参数问题）。把服务端原消息
+          // 拼在后面才能分清，否则重试也只会用相同参数再失败一次。
+          // 原消息过长时截断到 120 字，避免错误行撑爆布局；无原消息时
+          // 保持原来的固定文案
+          const detail =
+            serverMsg.length > 120
+              ? serverMsg.slice(0, 120) + "…"
+              : serverMsg;
+          return detail
+            ? `请求无效：图片无法识别或参数有误（${detail}）`
+            : "请求无效：图片无法识别或参数有误";
+        }
         if (status === 401) return "代理鉴权失败，请稍后重试";
         if (status === 404) return "压缩结果已过期，请重新上传";
         if (status === 415) return "不支持的图片格式";
@@ -1457,15 +1666,26 @@
                 body = null;
               }
               if (xhr.status === 201 && body && body.output && body.output.url) {
-                resolve(body.output.url);
+                // 只返回压缩结果信息，不下载图片本体：体积 / 格式 / 尺寸直接取
+                // output.size / output.type / output.width / output.height，
+                // 用于展示压缩比与尺寸；下载留到点击时。
+                resolve({
+                  url: body.output.url,
+                  size: body.output.size,
+                  type: body.output.type,
+                  width: body.output.width,
+                  height: body.output.height,
+                });
                 return;
               }
               const err = new Error(
                 tinifyErrorMessage(xhr.status, body),
               );
               err.status = xhr.status;
-              err.retryable =
-                xhr.status === 429 || xhr.status >= 500;
+              // 只对 429 限速自动重试：官方文档称 429 没有 Retry-After，
+              // 靠自己加延迟；5xx 文档建议几分钟后重试，不自动重试，
+              // 失败后由用户点“重新压缩”手动重试
+              err.retryable = xhr.status === 429;
               err.monthlyLimit =
                 xhr.status === 429 &&
                 body &&
@@ -1475,7 +1695,7 @@
             xhr.onerror = () => reject(new Error("网络请求失败"));
             xhr.send(file);
           }).catch(async (err) => {
-            // 429 限速 / 5xx 临时故障：官方文档称可重试，只重试一次
+            // 429 限速（非月额度用完）：只重试一次，隔 3 秒
             if (err.retryable && !err.monthlyLimit && attempt === 0) {
               await sleep(CONFIG.retryDelayMs);
               return this.shrink(file, id, 1);
@@ -1487,7 +1707,9 @@
         // 刷新本月已用次数：Tinify 没有单独的次数接口，唯一途径是响应头
         // Compression-Count。这里 GET 一个不存在的 output 地址：返回 404 是预期的，
         // 响应头里带的就是代理侧账号本月真实已用次数，且不计次数（下载不计次，
-        // 404 更不计次）。失败时静默保留缓存值，不弹提示、不影响页面。
+        // 404 更不计次）。这是未文档化的取巧做法，依赖代理在 404 上也透传
+        // 该响应头，一旦哪边改了就读不到，失败时静默保留缓存值，不弹提示、
+        // 不影响页面；所以调用方只在缓存过期时才探测，不每次打开都发。
         async fetchCount() {
           const controller = new AbortController();
           const timer = setTimeout(
@@ -1551,15 +1773,30 @@
                 tinifyErrorMessage(response.status, errBody),
               );
               err.status = response.status;
-              err.retryable =
-                response.status === 429 || response.status >= 500;
+              // 与 shrink 一致：只对 429 限速自动重试，5xx 不自动重试，
+              // 失败后由用户点“重新压缩”手动重试
+              err.retryable = response.status === 429;
               err.monthlyLimit =
                 response.status === 429 &&
                 errBody &&
                 /month/i.test(errBody.message || "");
               throw err;
             }
-            return await response.blob();
+            // 下载 / 变换响应头带最终尺寸（Image-Width / Image-Height），
+            // 与 Blob 一起返回，供下载后刷新展示（缩放后尺寸以此为准）
+            const width = parseInt(
+              response.headers.get("image-width") || "",
+              10,
+            );
+            const height = parseInt(
+              response.headers.get("image-height") || "",
+              10,
+            );
+            return {
+              blob: await response.blob(),
+              width: Number.isInteger(width) && width > 0 ? width : null,
+              height: Number.isInteger(height) && height > 0 ? height : null,
+            };
           } catch (err) {
             if (err && err.name === "AbortError")
               throw new Error("请求超时，请检查网络后重试");
@@ -1603,98 +1840,217 @@
                   : settings.convert.slice(),
             },
           };
-          // 转 JPEG 时透明图无背景会 400：透明区域填白底，不透明图不受影响
-          if (settings.convert.includes("image/jpeg"))
-            body.transform = { background: "white" };
+          // 转 JPEG 时透明图无背景会 400：只在单选 JPEG 时按配置的背景色填底。
+          // 多选时不需要填底——官方文档：多选时透明图的 JPEG 会被跳过，
+          // 返回其余格式里最小的；此时填底反而可能把 WebP / AVIF / PNG
+          // 候选的透明背景也填白，丢透明。不透明图填底不受影响。
+          if (
+            settings.convert.length === 1 &&
+            settings.convert[0] === "image/jpeg"
+          )
+            body.transform = {
+              background: settings.background || "white",
+            };
           return body;
         },
 
-        // 接口 5：保留元数据的请求体，单独拼
-        buildPreserveBody() {
+        // 接口 5：保留元数据的请求体，单独拼；finalType 为最终格式，
+        // 未知时传 null。官方文档：位置(GPS)只能保留在 AVIF、JPEG XL、
+        // WebP、JPEG 里，不能保留在 PNG 里，最终是 PNG 时去掉 location，
+        // 否则用户以为保留了 GPS，实际服务端不会加。
+        buildPreserveBody(finalType) {
           const { settings } = Store.state;
           if (!settings.preserve || settings.preserve.length === 0)
             return null;
-          return { preserve: settings.preserve.slice() };
+          let items = settings.preserve.slice();
+          if (finalType === "image/png")
+            items = items.filter((t) => t !== "location");
+          if (items.length === 0) return null;
+          return { preserve: items };
         },
 
-        // 接口 2：下载，GET output.url
+        // 接口 2：下载，GET output.url（只在点击下载时调用）
         download(outputUrl, id) {
           return this.requestOutput(outputUrl, null, "正在下载...", id, 0);
         },
 
-        // 接口 3：缩放，POST output.url {resize}
-        resizeImage(outputUrl, id) {
-          const body = this.buildResizeBody();
-          if (!body) throw new Error("未配置缩放规则");
-          return this.requestOutput(outputUrl, body, "正在缩放...", id, 0);
-        },
-
-        // 接口 4：转换，POST output.url {convert[, transform]}
-        convertImage(outputUrl, id) {
-          const body = this.buildConvertBody();
-          if (!body) throw new Error("未配置转换格式");
-          return this.requestOutput(outputUrl, body, "正在转换...", id, 0);
-        },
-
-        // 接口 5：保留元数据，POST output.url {preserve}
-        preserveImage(outputUrl, id) {
-          const body = this.buildPreserveBody();
-          if (!body) throw new Error("未配置保留元数据");
-          return this.requestOutput(outputUrl, body, "正在处理元数据...", id, 0);
-        },
-
         // 多变换合并：output 请求是按次计费的无状态变换，分开发没有叠加效果——
         // 实测：同一 output.url 先 POST fit 50x50 再 POST 转 webp，回来是 100px
-        // webp，缩放丢了；一次 POST 合并 resize+convert+preserve 才是 50px webp，
-        // 且官方文档明确这样只多计 1 次。所以只选一个变换时走上面对应的单独接口，
-        // 选了多个时按文档一次 POST 合并，而不是分开发导致结果丢变换。
-        buildCombinedBody() {
+        // webp，缩放丢了；一次 POST 合并 resize+convert+preserve 才是 50px webp。
+        // 官方文档：resize / convert / store 合并一次请求也只多计 1 次，
+        // preserve 单独不计次；所以含 resize / convert 的合并 POST 只多计
+        // 1 次，纯 preserve 的 POST 不计次。无论选一个还是多个变换，都用一次
+        // POST 合并发出，而不是分开发导致结果丢变换。
+        buildCombinedBody(finalType) {
           const body = {};
           const resize = this.buildResizeBody();
           if (resize) Object.assign(body, resize);
           const convert = this.buildConvertBody();
           if (convert) Object.assign(body, convert);
-          const preserve = this.buildPreserveBody();
+          const preserve = this.buildPreserveBody(finalType);
           if (preserve) Object.assign(body, preserve);
           return Object.keys(body).length > 0 ? body : null;
         },
 
+        // 按 Blob / 目标格式的 MIME 换文件扩展名（转换后格式变了才换）。
+        renameForType(name, mimeType) {
+          const newExt = EXT_BY_MIME[mimeType];
+          if (!newExt) return name;
+          const dot = name.lastIndexOf(".");
+          const oldExt = dot >= 0 ? name.substring(dot) : "";
+          if (oldExt.toLowerCase() === newExt) return name;
+          return (dot >= 0 ? name.substring(0, dot) : name) + newExt;
+        },
+
+        // 压缩阶段：只做 shrink，不下载、不变换。返回待下载记录：
+        // output.url + 处理时快照的变换请求体 + shrink 返回的体积 / 预估文件名。
+        // 无变换时 size 即最终体积；有变换时 size 是变换前体积，仅作展示，
+        // 首次下载后由 fetchCompressed 按实际 Blob 刷新。
         async process(file, id) {
-          const outputUrl = await this.shrink(file, id, 0);
-          const ops = [];
-          if (this.buildResizeBody()) ops.push("resize");
-          if (this.buildConvertBody()) ops.push("convert");
-          if (this.buildPreserveBody()) ops.push("preserve");
-          let blob;
-          if (ops.length === 0) {
-            blob = await this.download(outputUrl, id);
-          } else if (ops.length === 1) {
-            if (ops[0] === "resize") blob = await this.resizeImage(outputUrl, id);
-            else if (ops[0] === "convert") blob = await this.convertImage(outputUrl, id);
-            else blob = await this.preserveImage(outputUrl, id);
-          } else {
-            blob = await this.requestOutput(
-              outputUrl,
-              this.buildCombinedBody(),
-              "云端处理中...",
-              id,
-              0,
-            );
+          const output = await this.shrink(file, id, 0);
+          const size =
+            Number.isInteger(output.size) && output.size > 0
+              ? output.size
+              : file.size;
+          let finalType = output.type || file.type;
+          // 只选一种转换格式时目标格式是确定的，文件名可直接换扩展名；
+          // 选多种时服务端返回其中体积最小的格式，下载前不知道是哪种，
+          // 先保留原扩展名，首次下载时按实际 Blob 类型修正。
+          // preserve 的 location 过滤按最终格式来：单选 / 不转换时最终格式
+          // 已知，多选时最终格式未知，传 null 不过滤，由服务端决定。
+          let preserveType = finalType;
+          if (
+            Store.state.settings.convert &&
+            Store.state.settings.convert.length === 1
+          ) {
+            finalType = Store.state.settings.convert[0];
+            preserveType = finalType;
+          } else if (
+            Store.state.settings.convert &&
+            Store.state.settings.convert.length > 1
+          ) {
+            preserveType = null;
           }
-          let finalName = file.name;
-          if (blob.type) {
-            const newExt = EXT_BY_MIME[blob.type];
-            const dot = finalName.lastIndexOf(".");
-            const oldExt = dot >= 0 ? finalName.substring(dot) : "";
-            if (newExt && oldExt.toLowerCase() !== newExt)
-              finalName =
-                (dot >= 0 ? finalName.substring(0, dot) : finalName) + newExt;
-          }
+          const transformBody = this.buildCombinedBody(preserveType);
           return {
-            size: blob.size,
-            blobUrl: Utils.trackBlobUrl(URL.createObjectURL(blob)),
-            name: finalName,
+            outputUrl: output.url,
+            transformBody,
+            size,
+            type: finalType,
+            width:
+              Number.isInteger(output.width) && output.width > 0
+                ? output.width
+                : null,
+            height:
+              Number.isInteger(output.height) && output.height > 0
+                ? output.height
+                : null,
+            name: this.renameForType(file.name, finalType),
+            originalSize: file.size,
+            blob: null,
+            blobName: null,
+            promise: null,
           };
+        },
+
+        // 点击下载时才真正取压缩后的图片：无变换 GET output.url，有变换
+        // 一次 POST 合并请求体（与压缩阶段快照一致）。
+        // 在途保护：单个下载与全部下载可能同时取同一张图，共用同一个
+        // 在途请求，避免变换 POST 发两次、多计一次。请求结束后清除
+        // 在途记录，失败后可重新取。
+        async fetchCompressed(pending, id) {
+          if (pending.blob) return { blob: pending.blob, name: pending.blobName };
+          if (pending.promise) return pending.promise;
+          const task = (async () => {
+            const statsEl = document.querySelector(
+              `#status-${id} .file-stats`,
+            );
+            if (statsEl) statsEl.innerText = "正在下载...";
+            let result;
+            try {
+              result = pending.transformBody
+                ? await this.requestOutput(
+                    pending.outputUrl,
+                    pending.transformBody,
+                    "正在下载...",
+                    id,
+                    0,
+                  )
+                : await this.download(pending.outputUrl, id);
+            } catch (e) {
+              // 下载失败时恢复展示体积，按钮保持可用可重试（不清除待下载记录）；
+              // 过期则标记，按钮改为“重新压缩”
+              if (e.status === 404) UI.markExpired(id, pending);
+              UI.noteDownloaded(id, pending, pending.size);
+              throw e;
+            }
+            const blob = result.blob;
+            // 变换后尺寸以响应头为准（缩放后尺寸可能小于目标尺寸，
+            // 服务端不放大），刷新展示
+            if (result.width) pending.width = result.width;
+            if (result.height) pending.height = result.height;
+            const name = this.renameForType(pending.name, blob.type);
+            // 只缓存带变换的 Blob：变换 POST 按次计费，重复下载复用缓存
+            // 才能避免重复计次；无变换是免费 GET，不缓存，重复下载重新取，
+            // 避免 30 张图全下过后一直占内存
+            if (pending.transformBody) {
+              pending.blob = blob;
+              pending.blobName = name;
+            }
+            pending.name = name;
+            const nameEl = document
+              .getElementById(id)
+              ?.querySelector(".file-name");
+            if (nameEl) {
+              nameEl.innerText = name;
+              nameEl.title = name;
+            }
+            UI.noteDownloaded(id, pending, blob.size);
+            return { blob, name };
+          })();
+          pending.promise = task;
+          try {
+            return await task;
+          } finally {
+            pending.promise = null;
+          }
+        },
+
+        // 单个下载按钮：点击才下载；下载中防重复点击；失败时恢复展示
+        // 体积，按钮保持可用可重试。
+        // 压缩结果 8 小时有效，过期（404）后该按钮改为“重新压缩”，
+        // 再点一次即重新走 shrink，不用重新上传原图。
+        async downloadOne(id) {
+          const pending = DownloadStore.get(id);
+          if (!pending) return;
+          // 已过期：下载无意义，直接走重新压缩
+          if (pending.expired) {
+            AppController.retryFile(id);
+            return;
+          }
+          const btn = document.querySelector(`#status-${id} .btn-dl`);
+          if (!btn || btn.dataset.busy === "1") return;
+          btn.dataset.busy = "1";
+          btn.disabled = true;
+          try {
+            const { blob, name } = await this.fetchCompressed(pending, id);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            UI.toast(`文件已开始下载: ${name}`);
+          } catch (e) {
+            UI.noteDownloaded(id, pending, pending.size);
+            if (e.status === 404) UI.markExpired(id, pending);
+            UI.toast(e.message || "下载失败，请重试");
+          } finally {
+            btn.dataset.busy = "";
+            btn.disabled = false;
+          }
         },
       };
 
@@ -1707,8 +2063,14 @@
           this.fillSettingsForm();
           UI.checkEmptyState();
           UI.updateActionButtons();
-          // 初次打开页面刷新一次次数（先显示缓存值，拿到新值再更新）
-          TinifyService.fetchCount();
+          // 初次打开页面刷新一次次数（先显示缓存值，拿到新值再更新）；
+          // 缓存未过期时不探测，减少对未文档化探测接口的依赖
+          if (
+            Store.state.apiCount === null ||
+            Store.state.apiCount === undefined ||
+            Date.now() - (Store.state.apiCountAt || 0) > CONFIG.countStaleMs
+          )
+            TinifyService.fetchCount();
         },
         renderBrand() {
           document.getElementById("brand-name-text").textContent = AppMeta.name;
@@ -1730,6 +2092,14 @@
           } else {
             inputW.disabled = false;
             inputH.disabled = false;
+            // scale 模式只能填宽或高其中一项：切到 scale 时两格都有值，
+            // 留宽清高；填其中一格时由输入监听清另一格
+            if (
+              methodSelect.value === "scale" &&
+              inputW.value !== "" &&
+              inputH.value !== ""
+            )
+              inputH.value = "";
           }
         },
         fillSettingsForm() {
@@ -1745,6 +2115,8 @@
           document
             .querySelectorAll('input[name="convertType"]')
             .forEach((cb) => (cb.checked = cv.includes(cb.value)));
+          document.getElementById("input-bg-color").value =
+            Store.state.settings.background || "white";
           const pr = Store.state.settings.preserve || [];
           document
             .querySelectorAll('input[name="preserveMeta"]')
@@ -1798,15 +2170,10 @@
             .getElementById("input-resize-method")
             .addEventListener("change", () => this.toggleResizeInputs());
 
-          // 强制校验只能输入整数，并限制最大值为2560
+          // 强制校验只能输入整数；官方文档对缩放目标尺寸没有上限，
+          // 目标比原图大时服务端不放大，只返回原尺寸，故这里不设上限。
           const enforceIntegerAndRange = (e) => {
-            let val = e.target.value;
-            val = val.replace(/[^0-9]/g, "");
-            if (val !== "") {
-              let num = parseInt(val, 10);
-              if (num > 2560) val = "2560";
-            }
-            e.target.value = val;
+            e.target.value = e.target.value.replace(/[^0-9]/g, "");
           };
           document
             .getElementById("input-resize-w")
@@ -1814,6 +2181,29 @@
           document
             .getElementById("input-resize-h")
             .addEventListener("input", enforceIntegerAndRange);
+
+          // scale 模式只能填宽或高其中一项：填其中一格就自动清另一格，
+          // 不用手动删了再保存
+          const clearOtherOnScale = (otherId) => (e) => {
+            if (
+              document.getElementById("input-resize-method").value ===
+                "scale" &&
+              e.target.value !== ""
+            )
+              document.getElementById(otherId).value = "";
+          };
+          document
+            .getElementById("input-resize-w")
+            .addEventListener(
+              "input",
+              clearOtherOnScale("input-resize-h"),
+            );
+          document
+            .getElementById("input-resize-h")
+            .addEventListener(
+              "input",
+              clearOtherOnScale("input-resize-w"),
+            );
 
           document.getElementById("btn-save-settings").onclick = () => {
             const btnSave = document.getElementById("btn-save-settings");
@@ -1845,8 +2235,6 @@
                 return UI.toast("宽度必须为正整数");
               if (hStr && (!Number.isInteger(h) || h <= 0))
                 return UI.toast("高度必须为正整数");
-              if (wStr && w > 2560) return UI.toast("缩放宽度不能大于 2560px");
-              if (hStr && h > 2560) return UI.toast("缩放高度不能大于 2560px");
             }
 
             const convert = Array.from(
@@ -1855,6 +2243,21 @@
             const preserve = Array.from(
               document.querySelectorAll('input[name="preserveMeta"]:checked'),
             ).map((cb) => cb.value);
+
+            // 背景色：空按 white 计；先转小写，White / #ABCDEF 也能用
+            const bgRaw = document
+              .getElementById("input-bg-color")
+              .value.trim();
+            const background =
+              bgRaw === "" ? "white" : bgRaw.toLowerCase();
+            if (
+              background !== "white" &&
+              background !== "black" &&
+              !/^#[0-9a-fA-F]{6}$/.test(background)
+            )
+              return UI.toast(
+                "背景色须为 white、black 或 6 位 hex，如 #000000",
+              );
 
             try {
               Store.save({
@@ -1865,6 +2268,7 @@
                 },
                 convert,
                 preserve,
+                background,
               });
               modalSettings.classList.remove("active");
               UI.toast("配置已成功保存");
@@ -1900,6 +2304,8 @@
             if (ok) {
               document.getElementById("file-list").innerHTML = "";
               Utils.revokeAllBlobUrls();
+              DownloadStore.clear();
+              SourceFiles.clear();
               Store.clearStats();
               UI.checkEmptyState();
               UI.updateActionButtons();
@@ -1924,10 +2330,33 @@
               const folderName = `${AppMeta.name}合集_${new Date().getTime()}`;
               const imgFolder = zip.folder(folderName);
               const nameCounter = {};
+              // 单图失败不整包失败：跳过该图继续打包，最后汇总失败名单；
+              // 过期图在 fetchCompressed 里已标记为过期，可点它重新压缩
+              const failed = [];
+              let packedCount = 0;
 
               for (let i = 0; i < btns.length; i++) {
-                const url = btns[i].getAttribute("data-url");
-                let originalName = btns[i].getAttribute("data-name");
+                const id = btns[i].getAttribute("data-id");
+                const pending = DownloadStore.get(id);
+                if (!pending) {
+                  failed.push(`第 ${i + 1} 张`);
+                  continue;
+                }
+                // 点击全部下载时才逐个取压缩后的图片（已下载过的复用缓存）；
+                // 未点击前不取，单个下载同理。
+                let blob;
+                let name;
+                try {
+                  ({ blob, name } = await TinifyService.fetchCompressed(
+                    pending,
+                    id,
+                  ));
+                } catch (e) {
+                  console.error(`打包失败 [${pending.name}]:`, e);
+                  failed.push(pending.name);
+                  continue;
+                }
+                let originalName = name;
                 let baseName = originalName.includes(".")
                   ? originalName.substring(0, originalName.lastIndexOf("."))
                   : originalName;
@@ -1944,11 +2373,13 @@
                   nameCounter[lowerOriginal] = 0;
                 }
 
-                const response = await fetch(url);
-                if (!response.ok)
-                  throw new Error(`文件获取失败: ${originalName}`);
-                const blob = await response.blob();
                 imgFolder.file(finalName, blob);
+                packedCount++;
+              }
+
+              if (packedCount === 0) {
+                UI.toast("打包失败，请尝试逐个点击下载");
+                return;
               }
 
               UI.toast("正在生成 ZIP 压缩包...");
@@ -1960,7 +2391,16 @@
               a.click();
               document.body.removeChild(a);
               setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-              UI.toast("打包下载成功！");
+              if (failed.length === 0) {
+                UI.toast("打包下载成功！");
+              } else {
+                const shown = failed.slice(0, 3).join("、");
+                const more =
+                  failed.length > 3 ? `等 ${failed.length} 张` : "";
+                UI.toast(
+                  `打包完成 ${packedCount} 张，${failed.length} 张失败：${shown}${more}，可逐个点击重新压缩后重试`,
+                );
+              }
             } catch (e) {
               console.error(e);
               UI.toast("打包失败，请尝试逐个点击下载");
@@ -1970,32 +2410,93 @@
           };
         },
 
+        // 手动重新压缩：压缩失败点重试按钮、下载过期点下载按钮都会走到这里。
+        // 用 SourceFiles 里的原 File 重新走 process，成功后恢复为下载按钮，
+        // 失败则再次显示重试按钮。5xx 等临时故障按官方文档应隔几分钟再试，
+        // 所以不自动重试，由用户决定何时点。
+        async retryFile(id) {
+          const file = SourceFiles.get(id);
+          if (!file) {
+            UI.toast("原文件已不在列表中，请重新上传");
+            return;
+          }
+          const statusEl = document.getElementById(`status-${id}`);
+          const btn = statusEl
+            ? statusEl.querySelector(".btn-retry, .btn-dl")
+            : null;
+          if (btn && btn.dataset.busy === "1") return;
+          if (btn) {
+            btn.dataset.busy = "1";
+            btn.disabled = true;
+          }
+          UI.resetForRetry(id);
+          // 过期重试会重新走 renderSuccess、重新计分：先把旧记录已计的
+          // 节省和张数扣掉，否则同一张图被算两次。压缩失败重试时旧记录
+          // 不存在（失败时不计分），不扣。
+          const oldPending = DownloadStore.get(id);
+          if (oldPending) {
+            const oldSaved = Math.max(
+              0,
+              oldPending.originalSize - oldPending.size,
+            );
+            if (oldSaved > 0)
+              Store.state.totalSavedBytes = Math.max(
+                0,
+                Store.state.totalSavedBytes - oldSaved,
+              );
+            Store.state.successCount = Math.max(
+              0,
+              Store.state.successCount - 1,
+            );
+            UI.updateStats(
+              Store.state.successCount,
+              Store.state.totalSavedBytes,
+            );
+          }
+          Store.state.activeTasks++;
+          UI.updateActionButtons();
+          try {
+            const pending = await TinifyService.process(file, id);
+            DownloadStore.set(id, pending);
+            UI.renderSuccess(id, file.size, pending);
+          } catch (e) {
+            UI.renderError(id, e.message);
+            console.error(`重新压缩失败 [${file.name}]:`, e);
+          } finally {
+            Store.state.activeTasks--;
+            UI.updateActionButtons();
+          }
+        },
+
         handleFiles(files) {
           const currentItemsCount =
             document.querySelectorAll(".file-item").length;
           const incomingFiles = Array.from(files);
           const validFiles = [];
 
-          if (incomingFiles.length > CONFIG.maxBatchFiles)
-            return UI.toast(
-              `单次最多选择 ${CONFIG.maxBatchFiles} 张图片`,
-            );
-
           incomingFiles.forEach((file) => {
-            if (!CONFIG.acceptedTypes.includes(file.type))
+            if (!CONFIG.acceptedTypes.includes(Utils.mimeForFile(file)))
               UI.toast(`已跳过不支持的格式: ${file.name}`);
             else if (file.size <= 0)
               UI.toast(`已跳过空文件: ${file.name}`);
             else if (file.size > CONFIG.maxFileBytes)
-              UI.toast(`已跳过超大文件(>15M): ${file.name}`);
+              UI.toast(`已跳过超大文件(>25MB): ${file.name}`);
             else validFiles.push(file);
           });
 
           if (validFiles.length === 0) return;
-          if (currentItemsCount + validFiles.length > CONFIG.maxListFiles)
+          // 列表超 30 张不再整批拒绝，取能放下的前 N 张继续处理
+          const slotsLeft = CONFIG.maxListFiles - currentItemsCount;
+          if (slotsLeft <= 0)
             return UI.toast(
-              `抱歉，列表最多可容纳 ${CONFIG.maxListFiles} 张图片，当前已选 ${currentItemsCount} 张。请先清空后再试。`,
+              `列表已满（最多 ${CONFIG.maxListFiles} 张），请先清空后再试`,
             );
+          if (validFiles.length > slotsLeft) {
+            UI.toast(
+              `列表最多可容纳 ${CONFIG.maxListFiles} 张图片，已取前 ${slotsLeft} 张`,
+            );
+            validFiles.length = slotsLeft;
+          }
 
           Store.state.activeTasks += validFiles.length;
           UI.updateActionButtons();
@@ -2003,6 +2504,7 @@
           const tasks = validFiles.map((file) => {
             const id = Utils.id();
             UI.createFileItem(file, id);
+            SourceFiles.set(id, file);
             return { file, id };
           });
 
@@ -2012,8 +2514,9 @@
             if (currentIndex >= tasks.length) return;
             const { file, id } = tasks[currentIndex++];
             try {
-              const res = await TinifyService.process(file, id);
-              UI.renderSuccess(id, file.size, res.size, res.blobUrl, res.name);
+              const pending = await TinifyService.process(file, id);
+              DownloadStore.set(id, pending);
+              UI.renderSuccess(id, file.size, pending);
             } catch (e) {
               UI.renderError(id, e.message);
               console.error(`处理失败 [${file.name}]:`, e);
